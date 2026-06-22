@@ -1,6 +1,6 @@
 # 🃏 K5M Shareholder Poker
 
-> Shareholders who play poker. Second Tuesday of every month, 8pm Pacific.
+> Shareholders who play poker. Second Tuesday of every month, 7pm Pacific.
 
 A monthly no-limit Texas Hold'em tournament for KmikeyM shareholders and friends — running 5+ years. Founded & hosted by Beau Gunderson.
 
@@ -19,7 +19,7 @@ A monthly no-limit Texas Hold'em tournament for KmikeyM shareholders and friends
 
 ## How It Works
 
-- **When:** 2nd Tuesday monthly, 8pm Pacific
+- **When:** 2nd Tuesday monthly, 7pm Pacific
 - **Game:** No-limit Texas Hold'em
 - **Buy-in:** $50, up to 2 rebuys in the first hour (cutoff 8:05pm PT)
 - **Payouts:** pool > $500 → 50 / 30 / 20 (three spots); otherwise 70 / 30 (two spots)
@@ -39,13 +39,13 @@ A monthly no-limit Texas Hold'em tournament for KmikeyM shareholders and friends
 
 ## 2026 Season
 
-### 🗓️ April 14, 2026 — 9 entrants · $600 pool
+### 🗓️ April 14, 2026 — 9 entrants
 
 | Place | Player | Notes |
 |---|---|---|
-| 🥇 1st | Beau (`bg`) | $300 |
-| 🥈 2nd | Drew (`MoHDI_Drew`) | $180 |
-| 🥉 3rd | Mike (`kmikeym`) | $120 — playing from Kosovo, 5am |
+| 🥇 1st | Beau (`bg`) | |
+| 🥈 2nd | Drew (`MoHDI_Drew`) | |
+| 🥉 3rd | Mike (`kmikeym`) | playing from Kosovo, 5am |
 | 🫧 4th | Michael (`pokermichi` 🇦🇷) | bubble |
 | 5th | **Nick (`nickmershon`)** | 💀 Hope Slayer → 🪙 **new Hope Coin holder** |
 | 6th–9th | Spladow · `jfe` · Amy (`amaxwell`) · Matt (`MawTTM`) | Matt's bust-out triggered the Coin handoff |
