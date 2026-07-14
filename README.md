@@ -33,7 +33,10 @@ A monthly no-limit Texas Hold'em tournament for KmikeyM shareholders and friends
 | 🃏 | **2-7 Showdown** — reach showdown with 7-2 (5+ at table) | 1 share / 5 if you win |
 | 🎬 | **The Final Countdown** — 7-2 is the final hand | 2 shares / 7 if you win the tourney with it |
 | ⚔️ | **Cain + Abel** — knock out Gene (`webvee`) | 1 share |
+| 🛡️ | **Abel Stands** — Gene wins the tourney having never been knocked out (no rebuys) | 5 shares to Gene |
 | 🎟️ | **Kevin Deuce** — first unsuited K-2 showdown win (announced) | 1 share |
+
+> **⚔️🛡️ Cain + Abel cuts both ways (new 2026-07-14).** Every player at the table has a standing 1-share reason to come after Gene. Gene now has five reasons to survive all of them. Note the rebuy interaction: a bounty collected on Gene during the rebuy window doesn't end his tournament, but it *does* end **Abel Stands** — one knockout, even one he buys back from, and the 5 shares are gone. The first hour is the whole fight.
 
 ---
 
