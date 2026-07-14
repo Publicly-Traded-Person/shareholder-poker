@@ -22,9 +22,18 @@ A monthly no-limit Texas Hold'em tournament for KmikeyM shareholders and friends
 ## How It Works
 
 - **When:** 2nd Tuesday monthly, 7pm Pacific
-- **Game:** No-limit Texas Hold'em
+- **Game:** No-limit Texas Hold'em, tournament format. Everyone starts with the same chips, blinds increase over time.
+- **Where:** cards on **Poker Now**, faces on the **official Zoom call**. Both, not either. See the Mean Girls rule.
 - **Buy-in:** $50, up to 2 rebuys in the first hour (cutoff 8:05pm PT)
 - **Payouts:** pool > $500 → 50 / 30 / 20 (three spots); otherwise 70 / 30 (two spots)
+
+### 💅 The Mean Girls Rule
+
+> **Players on the official Zoom call during the game may collude against players who are not on the official Zoom call during the game, provided that the absence is not a temporary one due to technical issues.**
+
+The Zoom is not optional colour. Being off the call is a **competitive penalty**: the table is permitted to gang up on you, by the rules, in the open. Drop off for a minute because your wifi died and you're fine. Play the whole night as a disembodied avatar and you have volunteered to be everyone's target.
+
+You cannot sit with us.
 
 ### 🏅 Bonus Achievements (share bounties)
 
