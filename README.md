@@ -11,9 +11,11 @@ A monthly no-limit Texas Hold'em tournament for KmikeyM shareholders and friends
 
 ## 🪙 Current Hope Coin Holder
 
-**Nick (`nickmershon`)** — earned **2026-04-14**, the first handoff of the 2025/2026 era.
+**Nick (`nickmershon`)** — earned **2026-04-14**, the first handoff of the 2025/2026 era. **Still holding.**
 
 > The Hope Coin is the tournament's traveling trophy. The first player to land **3 kills on the current holder** takes the Coin — and keeps it until they're defeated 3 times. Nick claimed it by eliminating Matt for his 3rd cumulative Hope Slayer... then busted out in 5th, out of the money. Took the glory, not the cash.
+
+> **👑 The double crown.** Nick then **won outright in June**. So one man currently holds the traveling trophy *and* the most recent win, and nobody has laid a glove on him. Three kills and the Coin is yours.
 
 ---
 
@@ -41,6 +43,16 @@ A monthly no-limit Texas Hold'em tournament for KmikeyM shareholders and friends
 ---
 
 ## 2026 Season
+
+### 🗓️ June 9, 2026
+
+| Place | Player | Notes |
+|---|---|---|
+| 🥇 1st | **Nick (`nickmershon`)** | 👑 wins while holding the 🪙 Hope Coin |
+| 🥈 2nd | Chris (`ccml415`) | |
+| 🥉 3rd | Beau (`bg`) | |
+
+*Core group only, no new faces. Entrant count unrecorded. Nick took the Coin in April and the trophy in June, and nobody has taken either back.*
 
 ### 🗓️ April 14, 2026 — 9 entrants
 
