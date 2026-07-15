@@ -15,7 +15,7 @@ A monthly no-limit Texas Hold'em tournament for KmikeyM shareholders and friends
 
 > The Hope Coin is the tournament's traveling trophy. The first player to land **3 kills on the current holder** takes the Coin — and keeps it until they're defeated 3 times. Nick claimed it by eliminating Matt for his 3rd cumulative Hope Slayer... then busted out in 5th, out of the money. Took the glory, not the cash.
 
-> **👑 The double crown.** Nick then **won outright in June**. So one man currently holds the traveling trophy *and* the most recent win, and nobody has laid a glove on him. Three kills and the Coin is yours.
+> **👑 The double crown, cracked.** Nick held both the Coin and the most recent win after June. In **July, Chris (`ccml415`) won outright** and landed his **first skull** on Nick (Hope Slayer). The Coin stays put — a Slayer needs 3 kills — but the glove has finally been laid: **Chris is 1 of 3.** Two more and it travels.
 
 ---
 
@@ -53,6 +53,19 @@ You cannot sit with us.
 
 ## 2026 Season
 
+### 🗓️ July 14, 2026 — 6 entrants
+
+| Place | Player | Notes |
+|---|---|---|
+| 🥇 1st | **Chris (`ccml415`)** | 💀 Hope Slayer — eliminated Nick (1st skull, 1 of 3 for the Coin) |
+| 🥈 2nd | Nick (`nickmershon`) | 🪙 Coin holder; 2 rebuys |
+| 🫧 3rd | Beau (`bg`) | bubble — led with a stack bigger than the other two combined, busted one short of the money |
+| 4th | Mike (`kmikeym`) | ⚔️ Cain + Abel — knocked out brother Gene |
+| 5th | Amy (`amaxwell`) | 1 rebuy |
+| 6th | Gene (`webvee`) | |
+
+*Core group only, no new faces. 9 buy-ins (3 rebuys: Nick 2, Amy 1). Pot $450, paid 70 / 30 ($315 / $135). Share bounties: Chris 💀 +1, Mike ⚔️ +1.*
+
 ### 🗓️ June 9, 2026
 
 | Place | Player | Notes |
@@ -84,7 +97,7 @@ You cannot sit with us.
 
 The inaugural run: a weekly pandemic-era home game on PokerStars. 🥇/🥈/🥉 mark the in-the-money finishers (top 3, or top 2 for smaller pots). Buy-ins and winnings are not shown.
 
-**Regulars:** Drew (Anderson) · Beau (Gunderson, host) · Mike (Merrill) · Gene (Merrill) · Josh (Berezin) · Joshua (Jabbour) · Chris (Ganz) · Jordan (Dykstra) · Lenny (Chen) · Nick (Mershon) · Kevin L. (Lincoln) · Kevin F. (Ferguson) · Alex B. (Bodensieck) · Alex P. (Pasco) · Marcus (Estes) · Kyle (Kiang)
+**Regulars:** Drew A. · Beau G. (host) · Mike M. · Gene M. · Josh B. · Joshua J. · Chris G. · Jordan D. · Lenny C. · Nick M. · Kevin L. · Kevin F. · Alex B. · Alex P. · Marcus E. · Kyle K.
 
 | Date | Entrants | 🥇 1st | 🥈 2nd | 🥉 3rd | Field |
 |------|:--------:|--------|--------|--------|-------|
