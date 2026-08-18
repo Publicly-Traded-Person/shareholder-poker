@@ -1200,7 +1200,7 @@ git commit -m "feat(site): July + August 2026 game pages with chip races"
 - Source assets (already-shipped, public-cleared renders) live OUTSIDE this repo:
   - `/Users/kmikeym/Agenting/The Investor Relations/munger/ccg/launch-aug-2026/cards-grid-clean.png` and `pack-rip.gif`
   - Per-card PNGs: `/Users/kmikeym/Desktop/Poker Pack 1/Assets/card-{1-lewd,2-nickmershon,3-bg,4-kmikeym,5-amaxwell,6-webvee}.png`
-- Do NOT copy `set-page-preview-INTERNAL.png` (internal draft) and do NOT reproduce the "show up and get minted" earn-mechanic line anywhere: that copy is held back pending Mike's reveal decision. The set page describes the cards that exist; it does not announce the mechanic.
+- Do NOT copy `set-page-preview-INTERNAL.png` (internal draft) and do NOT reproduce the held-back CTA line anywhere (Mike knows which line; it is held back pending his reveal decision). The set page describes the cards that exist; it does not announce the mechanic.
 - Card copy on the set page is limited to name, handle, rarity tier, and finish. The full card art already carries the stat boxes.
 - No em dashes.
 
@@ -1304,7 +1304,7 @@ Run:
 grep -ri "minted\|get minted" site/cards/ && echo "HELD-BACK-LEAK" || echo "COPY-OK"
 grep -rL "—" site/cards/*.html site/cards/2026-07/*.html
 ```
-Expected: `COPY-OK` (the word "minted"/"mints" is allowed only in the sense already public; if grep matches the CTA sentence "show up and get minted", remove it) — final state: no earn-mechanic CTA, no em dashes. Note: `site/cards/index.html` uses "mints a set" describing the routine, which is acceptable; the forbidden string is the CTA "show up and get minted".
+Expected: `COPY-OK` ("minted"/"mints" is allowed only in the sense already public; if grep matches the held-back CTA sentence, remove it) — final state: no earn-mechanic CTA, no em dashes. Note: `site/cards/index.html` uses "mints a set" describing the routine, which is acceptable; the forbidden string is the held-back CTA.
 
 - [ ] **Step 5: Commit**
 

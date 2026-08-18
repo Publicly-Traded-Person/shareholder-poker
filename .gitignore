@@ -8,3 +8,6 @@ node_modules/
 .wrangler/
 # Nova session-local scratch (see CLAUDE.md).
 .nova/
+
+# Ultrapowers/Claude engine files — never committed (operations#302).
+.claude/
