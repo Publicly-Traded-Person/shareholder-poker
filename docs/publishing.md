@@ -12,8 +12,7 @@ removes a named manual step; see the plan and spec section 6.
      never the check.
 4. Write the narrative page `site/games/<date>/index.html` (copy an existing
    game page shell). Dignity rule; no em dashes; no collections/owed content.
-5. Update `nextGame` in `site/data/games.json`; update the RSVP `GAME` constant
-   in `site/rsvp.js`.
+5. Update `nextGame` in `site/data/games.json`.
 6. Review the full diff. Get Mike's explicit go. Push. Cloudflare deploys.
 7. Board: comment results on the month's game issue, close it, open next
    month's issue, add to project #1.
