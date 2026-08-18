@@ -6,3 +6,5 @@ node_modules/
 # Synthetic fixtures (invented players only) are committed; real logs are not.
 !tools/fixtures/*.csv
 .wrangler/
+# Nova session-local scratch (see CLAUDE.md).
+.nova/
