@@ -1,0 +1,7 @@
+#:schema node_modules/wrangler/config-schema.json
+# Cloudflare Pages config for poker.kmikeym.com.
+# The site is static committed HTML served from site/ with NO build step;
+# generation happens locally via tools/ (see docs/publishing.md).
+name = "shareholder-poker"
+compatibility_date = "2026-08-17"
+pages_build_output_dir = "site"

@@ -1,0 +1,108 @@
+/* poker.kmikeym.com theme.
+   Palette = the card rarity ladder (locked 2026-07-15):
+   foil gold / sapphire / copper / pewter. Lime is reserved for the ONE
+   primary CTA per page and never sits adjacent to a rarity metal. */
+:root {
+  --foil: #c9a227;
+  --sapphire: #2b5d9e;
+  --copper: #b06c3f;
+  --pewter: #8a8d91;
+  --lime: #c6f43a;
+  --ink: #16181c;
+  --paper: #f7f4ec;
+  --band-dark: #1c1f26;
+  --band-dark-ink: #eceae2;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+  line-height: 1.55;
+}
+img { max-width: 100%; height: auto; }
+a { color: var(--sapphire); }
+
+/* Alternating section bands. Author pages so no two same-tone bands touch. */
+.band-light { background: var(--paper); color: var(--ink); padding: 3rem 1.25rem; }
+.band-dark  { background: var(--band-dark); color: var(--band-dark-ink); padding: 3rem 1.25rem; }
+.band-dark a { color: #9dc3f0; }
+.band-cta   { background: #101216; color: var(--band-dark-ink); padding: 3rem 1.25rem; text-align: center; }
+.band-inner { max-width: 720px; margin: 0 auto; }
+
+/* Type */
+.display {
+  font-family: "Arial Narrow", "Helvetica Neue Condensed", "Roboto Condensed", sans-serif;
+  font-weight: 800;
+  letter-spacing: .01em;
+  text-transform: uppercase;
+}
+h1.display { font-size: clamp(1.9rem, 6vw, 3.2rem); margin: 0 0 .4em; }
+h2.display { font-size: clamp(1.3rem, 4vw, 1.9rem); margin: 0 0 .6em; }
+.stat, .ledger td.num {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: .92em;
+}
+
+/* The one primary CTA. Lime, and only ever this. */
+.btn-primary {
+  display: inline-block;
+  background: var(--lime);
+  color: #101216;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: .9em 2.2em;
+  border-radius: 6px;
+  border: none;
+  text-decoration: none;
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+.btn-secondary {
+  display: inline-block;
+  background: transparent;
+  color: inherit;
+  border: 2px solid currentColor;
+  padding: .7em 1.6em;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+/* Rarity accents */
+.rarity-foil     { border-color: var(--foil);     color: var(--foil); }
+.rarity-sapphire { border-color: var(--sapphire); color: var(--sapphire); }
+.rarity-copper   { border-color: var(--copper);   color: var(--copper); }
+.rarity-pewter   { border-color: var(--pewter);   color: var(--pewter); }
+.rule-foil { border: 0; border-top: 3px solid var(--foil); margin: 0; }
+
+/* Ledger tables */
+.ledger { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: .95em; }
+.ledger th, .ledger td { padding: .5em .6em; text-align: left; border-bottom: 1px solid rgba(138,141,145,.4); }
+.ledger th { text-transform: uppercase; font-size: .78em; letter-spacing: .06em; color: var(--pewter); }
+.ledger tr.finish-1 td:first-child { color: var(--foil); font-weight: 800; }
+.ledger tr.finish-2 td:first-child,
+.ledger tr.finish-3 td:first-child { color: var(--sapphire); font-weight: 700; }
+.table-scroll { overflow-x: auto; }
+
+/* Card frames (gallery) */
+.card-frame { border-radius: 10px; overflow: hidden; box-shadow: 0 4px 18px rgba(0,0,0,.25); }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
+
+/* Foil shimmer, guarded for reduced motion */
+@media (prefers-reduced-motion: no-preference) {
+  .shimmer { position: relative; }
+  .shimmer::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(115deg, transparent 30%, rgba(255,240,180,.35) 48%, transparent 62%);
+    background-size: 260% 100%;
+    animation: shimmer 3.2s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes shimmer { 0% { background-position: 120% 0; } 100% { background-position: -60% 0; } }
+}
