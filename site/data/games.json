@@ -1,42 +1,201 @@
 {
-  "nextGame": { "date": "2026-09-08", "time": "7:00pm PT" },
-  "hopeCoin": { "holder": "nick-mershon", "since": "2026-04-14" },
+  "nextGame": {
+    "date": "2026-09-08",
+    "time": "7:00pm PT"
+  },
+  "hopeCoin": {
+    "holder": "nick-mershon",
+    "since": "2026-04-14"
+  },
   "players": [
-    { "slug": "kmikeym",       "name": "Mike Merrill",   "aka": ["kmikeym"] },
-    { "slug": "chris-ganz",    "name": "Chris Ganz",     "aka": ["LEWD", "ccml415"] },
-    { "slug": "nick-mershon",  "name": "Nick Mershon",   "aka": ["nickmershon"] },
-    { "slug": "beau-gunderson","name": "Beau Gunderson", "aka": ["bg"] },
-    { "slug": "amy-maxwell",   "name": "Amy Maxwell",    "aka": ["amaxwell"] },
-    { "slug": "webvee",        "name": "Gene",           "aka": ["webvee", "Webvee"] },
-    { "slug": "thomas-dunlap", "name": "Thomas Dunlap",  "aka": ["spladow"] },
-    { "slug": "drew-anderson", "name": "Drew Anderson",  "aka": ["MoHDI_Drew"] }
+    {
+      "slug": "kmikeym",
+      "name": "Mike Merrill",
+      "aka": [
+        "kmikeym"
+      ]
+    },
+    {
+      "slug": "chris-ganz",
+      "name": "Chris Ganz",
+      "aka": [
+        "LEWD",
+        "ccml415"
+      ]
+    },
+    {
+      "slug": "nick-mershon",
+      "name": "Nick Mershon",
+      "aka": [
+        "nickmershon"
+      ]
+    },
+    {
+      "slug": "beau-gunderson",
+      "name": "Beau Gunderson",
+      "aka": [
+        "bg"
+      ]
+    },
+    {
+      "slug": "amy-maxwell",
+      "name": "Amy Maxwell",
+      "aka": [
+        "amaxwell"
+      ]
+    },
+    {
+      "slug": "webvee",
+      "name": "Gene",
+      "aka": [
+        "webvee",
+        "Webvee"
+      ]
+    },
+    {
+      "slug": "thomas-dunlap",
+      "name": "Thomas Dunlap",
+      "aka": [
+        "spladow"
+      ]
+    },
+    {
+      "slug": "drew-anderson",
+      "name": "Drew Anderson",
+      "aka": [
+        "MoHDI_Drew"
+      ]
+    }
   ],
   "games": [
     {
       "date": "2026-07-14",
-      "hands": 201, "startingStack": 5000, "buyIn": 50,
-      "entries": 9, "pot": 450,
+      "hands": 201,
+      "startingStack": 5000,
+      "buyIn": 50,
+      "entries": 9,
+      "pot": 450,
       "results": [
-        { "slug": "chris-ganz",     "handle": "LEWD",        "finish": 1, "payout": 315, "rebuys": 0, "trophies": ["hope-slayer"] },
-        { "slug": "nick-mershon",   "handle": "nickmershon", "finish": 2, "payout": 135, "rebuys": 2, "trophies": [] },
-        { "slug": "beau-gunderson", "handle": "bg",          "finish": 3, "payout": 0,   "rebuys": 0, "trophies": [] },
-        { "slug": "kmikeym",        "handle": "kmikeym",     "finish": 4, "payout": 0,   "rebuys": 0, "trophies": ["cain-and-abel"] },
-        { "slug": "amy-maxwell",    "handle": "amaxwell",    "finish": 5, "payout": 0,   "rebuys": 1, "trophies": [] },
-        { "slug": "webvee",         "handle": "Webvee",      "finish": 6, "payout": 0,   "rebuys": 0, "trophies": [] }
+        {
+          "slug": "chris-ganz",
+          "handle": "LEWD",
+          "finish": 1,
+          "payout": 315,
+          "rebuys": 0,
+          "trophies": [
+            "hope-slayer"
+          ]
+        },
+        {
+          "slug": "nick-mershon",
+          "handle": "nickmershon",
+          "finish": 2,
+          "payout": 135,
+          "rebuys": 2,
+          "trophies": []
+        },
+        {
+          "slug": "beau-gunderson",
+          "handle": "bg",
+          "finish": 3,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": []
+        },
+        {
+          "slug": "kmikeym",
+          "handle": "kmikeym",
+          "finish": 4,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [
+            "cain-and-abel"
+          ]
+        },
+        {
+          "slug": "amy-maxwell",
+          "handle": "amaxwell",
+          "finish": 5,
+          "payout": 0,
+          "rebuys": 1,
+          "trophies": []
+        },
+        {
+          "slug": "webvee",
+          "handle": "Webvee",
+          "finish": 6,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": []
+        }
       ]
     },
     {
       "date": "2026-08-11",
-      "hands": 211, "startingStack": 5000, "buyIn": 50,
-      "entries": 8, "pot": 400,
+      "hands": 211,
+      "startingStack": 5000,
+      "buyIn": 50,
+      "entries": 8,
+      "pot": 400,
       "results": [
-        { "slug": "thomas-dunlap",  "handle": "spladow",     "finish": 1, "payout": 280, "rebuys": 0, "trophies": ["hope-slayer"] },
-        { "slug": "beau-gunderson", "handle": "bg",          "finish": 2, "payout": 120, "rebuys": 0, "trophies": [] },
-        { "slug": "amy-maxwell",    "handle": "amaxwell",    "finish": 3, "payout": 0,   "rebuys": 0, "trophies": [] },
-        { "slug": "chris-ganz",     "handle": "LEWD",        "finish": 4, "payout": 0,   "rebuys": 0, "trophies": [] },
-        { "slug": "drew-anderson",  "handle": "MoHDI_Drew",  "finish": 5, "payout": 0,   "rebuys": 0, "trophies": [] },
-        { "slug": "nick-mershon",   "handle": "nickmershon", "finish": 6, "payout": 0,   "rebuys": 1, "trophies": [] },
-        { "slug": "kmikeym",        "handle": "kmikeym",     "finish": 7, "payout": 0,   "rebuys": 0, "trophies": [] }
+        {
+          "slug": "thomas-dunlap",
+          "handle": "spladow",
+          "finish": 1,
+          "payout": 280,
+          "rebuys": 0,
+          "trophies": [
+            "hope-slayer"
+          ]
+        },
+        {
+          "slug": "beau-gunderson",
+          "handle": "bg",
+          "finish": 2,
+          "payout": 120,
+          "rebuys": 0,
+          "trophies": []
+        },
+        {
+          "slug": "amy-maxwell",
+          "handle": "amaxwell",
+          "finish": 3,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": []
+        },
+        {
+          "slug": "chris-ganz",
+          "handle": "LEWD",
+          "finish": 4,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": []
+        },
+        {
+          "slug": "drew-anderson",
+          "handle": "MoHDI_Drew",
+          "finish": 5,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": []
+        },
+        {
+          "slug": "nick-mershon",
+          "handle": "nickmershon",
+          "finish": 6,
+          "payout": 0,
+          "rebuys": 1,
+          "trophies": []
+        },
+        {
+          "slug": "kmikeym",
+          "handle": "kmikeym",
+          "finish": 7,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": []
+        }
       ]
     }
   ]
