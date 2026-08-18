@@ -30,6 +30,11 @@ describe("renderStandings", () => {
     expect(html).toContain("Hope Coin");
     expect(html).toContain("1 of 3");
   });
+  test("states the record starts with July 2026 and earlier seasons are being backfilled", () => {
+    expect(html).toContain("This record starts with July 2026");
+    expect(html).toContain("2020, and April and June 2026");
+    expect(html).toContain("backfilled");
+  });
   test("contains no em dash", () => {
     expect(html).not.toContain("—");
   });
@@ -42,6 +47,11 @@ describe("renderGamesIndex", () => {
   });
   test("names the winner", () => {
     expect(html).toContain("Chris Ganz");
+  });
+  test("states the record starts with July 2026 and earlier seasons are being backfilled", () => {
+    expect(html).toContain("This record starts with July 2026");
+    expect(html).toContain("2020, and April and June 2026");
+    expect(html).toContain("backfilled");
   });
   test("contains no em dash", () => {
     expect(html).not.toContain("—");

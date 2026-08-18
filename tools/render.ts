@@ -4,6 +4,13 @@ import { deriveStandings, type GamesData } from "./lib/standings";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+// The generated record starts with July 2026, the first game on the games.json
+// data spine. Earlier seasons (2020, and April and June 2026) are real games,
+// documented in README.md, that predate the spine and are being backfilled.
+// Standings and the games index must say so, not read as an all-time claim.
+const RECORD_QUALIFIER =
+  "This record starts with July 2026. Earlier seasons (2020, and April and June 2026) predate the data spine and are being backfilled.";
+
 // footerTone is the background class for the closing footer band. Bands must
 // alternate light/dark with no two of the same tone touching (brand rule), so
 // the caller passes whichever tone opposes its own last section.
@@ -49,6 +56,7 @@ export function renderStandings(data: GamesData): string {
 <section class="band-light">
   <div class="band-inner">
     <h1 class="display">Standings</h1>
+    <p class="stat">${RECORD_QUALIFIER}</p>
     <div class="table-scroll"><table class="ledger">
       <thead><tr><th>Player</th><th>Games</th><th>Wins</th><th>Cashes</th><th>Best</th><th>Won</th><th>Rebuys</th></tr></thead>
       <tbody>
@@ -84,6 +92,7 @@ export function renderGamesIndex(data: GamesData): string {
   <div class="band-inner">
     <h1 class="display">Games</h1>
     <p>Second Tuesday of every month, 7pm PT. Next: <strong>${data.nextGame.date}</strong>.</p>
+    <p class="stat">${RECORD_QUALIFIER}</p>
     <ul>
 ${items}
     </ul>
