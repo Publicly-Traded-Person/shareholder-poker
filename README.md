@@ -15,7 +15,7 @@ A monthly no-limit Texas Hold'em tournament for KmikeyM shareholders and friends
 
 > The Hope Coin is the tournament's traveling trophy. The first player to land **3 kills on the current holder** takes the Coin — and keeps it until they're defeated 3 times. Nick claimed it by eliminating Matt for his 3rd cumulative Hope Slayer... then busted out in 5th, out of the money. Took the glory, not the cash.
 
-> **👑 The double crown, cracked.** Nick held both the Coin and the most recent win after June. In **July, Chris (`ccml415`) won outright** and landed his **first skull** on Nick (Hope Slayer). The Coin stays put — a Slayer needs 3 kills — but the glove has finally been laid: **Chris is 1 of 3.** Two more and it travels. Thomas (`spladow`) took a skull on his August debut; two challengers now hold one skull each.
+> **👑 The double crown, cracked.** Nick held both the Coin and the most recent win after June. In **July, Chris (`ccml415`) won outright** and landed his **first skull** on Nick (Hope Slayer). The Coin stays put — a Slayer needs 3 kills — but the glove has finally been laid: **Chris is 1 of 3.** Two more and it travels. Thomas (`spladow`) took a skull with his August win; two challengers now hold one skull each.
 
 ---
 
