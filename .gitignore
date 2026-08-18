@@ -3,4 +3,6 @@ node_modules/
 # They are Tier-2 data (spec section 3) and never enter this repo.
 *seed*.sql
 *.csv
+# Synthetic fixtures (invented players only) are committed; real logs are not.
+!tools/fixtures/*.csv
 .wrangler/
