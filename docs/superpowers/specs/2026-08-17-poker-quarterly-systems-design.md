@@ -1,4 +1,4 @@
-# poker.quarterly.systems — Design Spec
+# poker.kmikeym.com — Design Spec
 
 **Date:** 2026-08-17
 **Owner:** Charlie (drafts, builds, publishes on Mike's go) · **Approver:** Mike
@@ -9,7 +9,7 @@
 
 ## 1. What this is
 
-The public home for K5M Shareholder Poker at `poker.quarterly.systems`: game ledgers, chip-race graphs, the CCG player cards, standings and trophies, and the RSVP front door for the next game.
+The public home for K5M Shareholder Poker at `poker.kmikeym.com`: game ledgers, chip-race graphs, the CCG player cards, standings and trophies, and the RSVP front door for the next game.
 
 **Audience and posture (Mike's framing):** the primary visitor is the community of existing players. The site sells the sizzle: how fun this is, who the characters are, what happened last time. The clear CTA on top of that is RSVP for the next game. Retention audience, acquisition CTA.
 
@@ -19,7 +19,8 @@ The public home for K5M Shareholder Poker at `poker.quarterly.systems`: game led
 
 - **Repo:** `Publicly-Traded-Person/shareholder-poker` (already public, already holds game issues and the scoreboard README). Site under `site/`.
 - **Hosting:** Cloudflare Pages, `pages_build_output_dir = "site"`, **no build step** — the Summit-site pattern (`shareholder-summit-2026`). Cloudflare serves committed files; all generation happens at publish time on Charlie's machine.
-- **DNS:** `poker.quarterly.systems` CNAME to the Pages project.
+- **DNS:** `poker.kmikeym.com` CNAME to the Pages project. The `kmikeym.com` zone lives in Linode DNS (not Cloudflare), so this is one record in the Linode DNS manager after the domain is added to the Pages project.
+- **Domain history:** originally spec'd as `poker.quarterly.systems`; that hostname was already live with Agentic Poker (the bots-only arena, flagged by Nova 2026-08-17). Resolved to `poker.kmikeym.com` (Mike's call, same day): shareholder community content belongs on the KmikeyM brand domain; quarterly.systems keeps the product.
 - **README:** shrinks to what-this-is + rules + a link to the site. The season scoreboard section is retired (see §6).
 
 ## 3. Privacy boundary (three tiers)

@@ -1,8 +1,8 @@
-# poker.quarterly.systems Implementation Plan
+# poker.kmikeym.com Implementation Plan
 
 > **For agentic workers:** Parallel execution: use `ultrapowers:ultrapowers` (this plan carries ultraplan markers). Sequential fallback: superpowers:subagent-driven-development or superpowers:executing-plans. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship the public Shareholder Poker site (ledgers, chip races, cards, standings, RSVP) at poker.quarterly.systems, with a one-command publish pipeline for future games.
+**Goal:** Ship the public Shareholder Poker site (ledgers, chip races, cards, standings, RSVP) at poker.kmikeym.com, with a one-command publish pipeline for future games.
 
 **Architecture:** Static site under `site/` served by Cloudflare Pages with no build step; all derived pages (standings, games index) are committed HTML regenerated locally from `site/data/games.json` by tools under `tools/`. One Pages Function (`functions/api/rsvp.js`) + one D1 database is the only stateful corner. Private data (emails, raw logs, opponent reads) never enters the repo.
 
@@ -48,7 +48,7 @@
 
 ```toml
 #:schema node_modules/wrangler/config-schema.json
-# Cloudflare Pages config for poker.quarterly.systems.
+# Cloudflare Pages config for poker.kmikeym.com.
 # The site is static committed HTML served from site/ with NO build step;
 # generation happens locally via tools/ (see docs/publishing.md).
 name = "shareholder-poker"
@@ -91,7 +91,7 @@ pages_build_output_dir = "site"
 The full theme. Rarity metals as the accent system, light/dark band alternation, lime quarantined to `band-cta`, condensed display type for names, mono for stats:
 
 ```css
-/* poker.quarterly.systems theme.
+/* poker.kmikeym.com theme.
    Palette = the card rarity ladder (locked 2026-07-15):
    foil gold / sapphire / copper / pewter. Lime is reserved for the ONE
    primary CTA per page and never sits adjacent to a rarity metal. */
@@ -419,7 +419,7 @@ Expected: FAIL (module `./pokernow` not found)
 - [ ] **Step 5: Implement `tools/lib/pokernow.ts`**
 
 ```ts
-// Public-safe PokerNow log reader for the poker.quarterly.systems generators.
+// Public-safe PokerNow log reader for the poker.kmikeym.com generators.
 // Raw logs are private runtime inputs; only synthetic fixtures live in-repo.
 
 export class ChipConservationError extends Error {}
@@ -807,7 +807,7 @@ function page(title: string, body: string): string {
 </nav>
 ${body}
 <footer class="band-dark" style="padding:1.5rem 1.25rem; text-align:center;">
-  <div class="band-inner"><p class="stat">Generated from the game record. <a href="/">poker.quarterly.systems</a></p></div>
+  <div class="band-inner"><p class="stat">Generated from the game record. <a href="/">poker.kmikeym.com</a></p></div>
 </footer>
 </body>
 </html>
@@ -1875,10 +1875,10 @@ Replace the "## 2026 Season" section (from that heading to the end of its tables
 ```markdown
 ## 📊 Standings, games, and cards
 
-The season record lives at **[poker.quarterly.systems](https://poker.quarterly.systems)**:
-[standings](https://poker.quarterly.systems/standings/) ·
-[every game](https://poker.quarterly.systems/games/) ·
-[the card sets](https://poker.quarterly.systems/cards/).
+The season record lives at **[poker.kmikeym.com](https://poker.kmikeym.com)**:
+[standings](https://poker.kmikeym.com/standings/) ·
+[every game](https://poker.kmikeym.com/games/) ·
+[the card sets](https://poker.kmikeym.com/cards/).
 
 This README no longer carries a results table. One scoreboard, one home; the
 site's standings page is generated from the game record, so it cannot silently
@@ -1923,7 +1923,7 @@ prints to stdout. Never redirect into a file inside this repo.
 
 - [ ] **Step 3: Verify links and commit**
 
-Run: `grep -c "poker.quarterly.systems" README.md`
+Run: `grep -c "poker.kmikeym.com" README.md`
 Expected: ≥ 3
 
 ```bash
@@ -1957,9 +1957,9 @@ Owner: Mike + Charlie together (Cloudflare account access required).
 2. `bunx wrangler d1 execute poker-rsvp-db --remote --file site/schema.sql`
 3. Create the Pages project from the GitHub repo (production branch `main`, build output `site`, no build command). Confirm the D1 binding `POKER_RSVP_DB` is attached in the Pages project settings.
 4. Seed the roster from a LOCAL gitignored file (emails from Mike's records): `bunx wrangler d1 execute poker-rsvp-db --remote --file roster-seed.sql` then delete the local file.
-5. DNS: add `poker` CNAME on `quarterly.systems` to the Pages project (Cloudflare dashboard, proxied).
+5. DNS: `kmikeym.com` is NOT in Cloudflare; its zone is on Linode nameservers (Mike has the login). First add the custom domain `poker.kmikeym.com` in the Pages project (Custom domains tab; note the verification target it shows). Then in the Linode DNS manager add a CNAME: name `poker`, target the Pages default hostname (`<project>.pages.dev`). Wait for Pages to show the domain active; certificates are automatic.
 6. Smoke test on the live URL: POST an RSVP with a test email, confirm the GET shows the display name and NOT the email, then delete the test row: `bunx wrangler d1 execute poker-rsvp-db --remote --command "DELETE FROM rsvps WHERE email='<test-email>'"`.
-7. Fix the repo description: `gh repo edit Publicly-Traded-Person/shareholder-poker --description "K5M Shareholder Poker — monthly tournament. Games, standings, cards, and the 🪙 Hope Coin at poker.quarterly.systems. 2nd Tuesday, 7pm Pacific."` (also corrects the 8pm error).
+7. Fix the repo description: `gh repo edit Publicly-Traded-Person/shareholder-poker --description "K5M Shareholder Poker — monthly tournament. Games, standings, cards, and the 🪙 Hope Coin at poker.kmikeym.com. 2nd Tuesday, 7pm Pacific."` (also corrects the 8pm error).
 
 ---
 
@@ -1974,7 +1974,7 @@ All outward publishing on Mike's explicit go.
 2. Close `shareholder-poker#5` with a results comment (link `/games/2026-08-11/`); per its perpetuation note: create the September 8 game issue, copy the note forward, `gh project item-add 1 --owner Publicly-Traded-Person --url <new-issue-url>`, set its Agent field to Charlie. Close `shareholder-poker#6` (moot).
 3. Comment on `operations#25`: beat 5 is now "site publish for game N is live at /games/<date>/" (absence still detectable); README scoreboard retired.
 4. File the site itself as a board issue (`agent:charlie`, `endeavor:KmikeyM`) marked shipped, so the work is discoverable; add to project #1.
-5. Wiki pointer: add a short Shareholder Poker page to `kmikeym/quarterlykb` (branch `v4` = live): what it is, 2nd Tuesday 7pm PT cadence, link to poker.quarterly.systems. No standings copies. Claim the page on BBS per wiki protocol.
+5. Wiki pointer: add a short Shareholder Poker page to `kmikeym/quarterlykb` (branch `v4` = live): what it is, 2nd Tuesday 7pm PT cadence, link to poker.kmikeym.com. No standings copies. Claim the page on BBS per wiki protocol.
 6. Announce in `#poker` (draft by Charlie, posted by Mike or via an available conduit on his go).
 
 ---
