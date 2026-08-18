@@ -10,4 +10,4 @@ pages_build_output_dir = "site"
 [[d1_databases]]
 binding = "POKER_RSVP_DB"
 database_name = "poker-rsvp-db"
-database_id = "PLACEHOLDER-SET-AT-DEPLOY"
+database_id = "34534627-37ad-4c09-a240-19d26afc9dad"
