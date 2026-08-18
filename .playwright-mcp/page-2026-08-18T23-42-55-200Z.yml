@@ -1,0 +1,43 @@
+- generic [active] [ref=f5e1]:
+  - navigation [ref=f5e2]:
+    - generic [ref=f5e3]:
+      - link "Home" [ref=f5e4] [cursor=pointer]:
+        - /url: /
+      - text: ·
+      - link "Games" [ref=f5e5] [cursor=pointer]:
+        - /url: /games/
+      - text: ·
+      - link "Cards" [ref=f5e6] [cursor=pointer]:
+        - /url: /cards/
+      - text: ·
+      - link "Standings" [ref=f5e7] [cursor=pointer]:
+        - /url: /standings/
+  - generic [ref=f5e9]:
+    - 'heading "Set 1: The Founder''s Table" [level=1] [ref=f5e10]'
+    - paragraph [ref=f5e11]: "Six cards, minted from the July 14 game. Real players, real stats: the numbers on every card come from the 201-hand tournament record. Rarity is earned, not assigned. Winning the night takes the foil."
+    - paragraph [ref=f5e12]: "Note on handles: the champion has appeared as both LEWD and ccml415. Same player, one card."
+  - generic [ref=f5e14]:
+    - heading "The set" [level=2] [ref=f5e15]
+    - generic [ref=f5e16]:
+      - figure "✨ FOIL · Chris G. (LEWD) · Champion" [ref=f5e17]:
+        - 'img "Foil champion card: Chris G., LEWD, 1st place" [ref=f5e18]'
+      - figure "⭐ RARE · Nick M. (nickmershon) · 2nd, holds the 🪙" [ref=f5e20]:
+        - 'img "Rare card: Nick M., 2nd place, Hope Coin holder" [ref=f5e21]'
+      - figure "⭐ RARE · Beau G. (bg) · 3rd" [ref=f5e23]:
+        - 'img "Rare card: Beau G., 3rd place" [ref=f5e24]'
+      - figure "◆ UNCOMMON · Mike M. (kmikeym) · The Founder" [ref=f5e26]:
+        - 'img "Uncommon card: Mike M., The Founder, 4th place" [ref=f5e27]'
+      - figure "● COMMON · Amy M. (amaxwell) · The Patient Rock" [ref=f5e29]:
+        - 'img "Common card: Amy M., 5th place" [ref=f5e30]'
+      - figure "● COMMON · Gene (webvee) · Mysterious Wildcard" [ref=f5e32]:
+        - 'img "Common card: Gene, 6th place" [ref=f5e33]'
+  - generic [ref=f5e36]:
+    - heading "The pack rip" [level=2] [ref=f5e37]
+    - img "Animated booster pack ripping open to reveal the six cards" [ref=f5e38]
+    - paragraph [ref=f5e39]:
+      - link "The game these cards came from" [ref=f5e40] [cursor=pointer]:
+        - /url: /games/2026-07-14/
+  - contentinfo [ref=f5e41]:
+    - paragraph [ref=f5e43]:
+      - link "All sets" [ref=f5e44] [cursor=pointer]:
+        - /url: /cards/

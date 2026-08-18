@@ -38,13 +38,24 @@ rather than absorbing the collision. Charlie owns this page's content.
 
 ## Layout
 
-- **Sections alternate light and dark bands.** Never stack two of the same
-  tone. Classes: `band-light` / `band-dark` / `band-cta`.
+- **Light room, dark objects (theme v2, Mike 2026-08-18).** The page is
+  light: `band-light` (paper) alternates with `band-dark` (parchment tint;
+  the class name predates the lightening and stays for the generators'
+  sake). Never stack two of the same tone. True near-black is reserved for
+  the felt CTA bands (`band-cta`) and the card art itself: dark elements
+  embedded in a light page, never a dark theme.
+- **The masthead rule is the signature.** Every page's nav is a white header
+  capped by the 4-segment rarity-ladder rule (foil, sapphire, copper,
+  pewter). It is the one place the whole ladder appears as chrome; don't
+  reuse the gradient decoratively elsewhere.
 - **Mobile first.** The entry path is a Discord link on a phone. Wide content
   (tables, charts) scrolls inside its own container (`table-scroll`); the page
   body never scrolls horizontally.
-- **Type:** condensed heavy display face for names and finishes (`display`),
-  monospace for every stat (`stat`) so the fixed stat schema aligns as a set.
+- **Type:** system sans everywhere (Mike's settled preference; decorative
+  faces were tried and rejected). The display voice (`display`) is weight
+  800 with tight tracking in sentence case; uppercase is reserved for
+  eyebrows and table headers. Monospace for every stat (`stat`) so the
+  fixed stat schema aligns as a set.
 - **Motion is guarded.** Shimmer and pack-rip effects run only under
   `prefers-reduced-motion: no-preference`.
 

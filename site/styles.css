@@ -1,100 +1,170 @@
-/* poker.kmikeym.com theme.
+/* poker.kmikeym.com theme, v2: "card shop in daylight".
+   A light, airy room where the dark things are the OBJECTS: the card art,
+   and the two felt-table RSVP bands. Redesigned 2026-08-18 (Mike: light and
+   readable beats dark and moody; system sans over decorative faces).
+
    Palette = the card rarity ladder (locked 2026-07-15):
-   foil gold / sapphire / copper / pewter. Lime is reserved for the ONE
-   primary CTA per page and never sits adjacent to a rarity metal. */
+   foil gold / sapphire / copper / pewter. Each metal has a -deep variant,
+   dark enough to stay legible as text on the light bands (the original
+   metals only passed contrast on dark backgrounds).
+
+   Lime is reserved for the ONE primary CTA per page and appears only on
+   the near-black "felt" bands, never adjacent to a rarity metal. */
 :root {
-  --foil: #c9a227;
+  --foil: #c9a227;      --foil-deep: #8a6d15;
   --sapphire: #2b5d9e;
-  --copper: #b06c3f;
-  --pewter: #8a8d91;
+  --copper: #b06c3f;    --copper-deep: #8f5227;
+  --pewter: #8a8d91;    --pewter-deep: #5e6269;
   --lime: #c6f43a;
-  --ink: #16181c;
-  --paper: #f7f4ec;
-  --band-dark: #1c1f26;
-  --band-dark-ink: #eceae2;
+  --ink: #1a1c20;
+  --muted-ink: #5f646c;   /* secondary text on light bands */
+  --paper: #fdfcf9;       /* primary light band: warm near-white */
+  --parchment: #f4f1e8;   /* secondary light band: warm tint */
+  --felt: #101216;        /* the table felt: CTA bands only */
+  --felt-ink: #eceae2;
+  --line: rgba(26, 28, 32, .12);  /* hairline borders */
+  --radius: 10px;
+  /* The rarity ladder as a single rule: the site's signature. Used on the
+     masthead border and section rules; never as text. */
+  --rarity-rule: linear-gradient(90deg,
+      var(--foil) 0 25%, var(--sapphire) 25% 50%,
+      var(--copper) 50% 75%, var(--pewter) 75% 100%);
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
-  font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   color: var(--ink);
   background: var(--paper);
-  line-height: 1.55;
+  line-height: 1.6;
 }
 img { max-width: 100%; height: auto; }
 a { color: var(--sapphire); }
+:focus-visible { outline: 2px solid var(--sapphire); outline-offset: 2px; }
 
-/* Alternating section bands. Author pages so no two same-tone bands touch. */
-.band-light { background: var(--paper); color: var(--ink); padding: 3rem 1.25rem; }
-.band-dark  { background: var(--band-dark); color: var(--band-dark-ink); padding: 3rem 1.25rem; }
-.band-dark a { color: #9dc3f0; }
-.band-cta   { background: #101216; color: var(--band-dark-ink); padding: 3rem 1.25rem; text-align: center; }
-/* Nav links inside a dark CTA band need the same light-blue treatment as
-   band-dark links; the default sapphire is unreadable on near-black. */
-.band-cta nav a { color: #9dc3f0; }
+/* Masthead. Every page's nav is a light header capped by the rarity-ladder
+   rule; the markup still says class="band-dark" so the generators and the
+   committed pages did not have to change when the theme lightened. */
+nav.band-dark {
+  /* The rarity rule is painted as a bottom background strip; border-image
+     slices a gradient across all four edges and renders broken segments
+     when only one border has width. */
+  background:
+    var(--rarity-rule) left bottom / 100% 3px no-repeat,
+    #fff;
+  color: var(--ink);
+}
+nav.band-dark a { color: var(--ink); text-decoration: none; font-weight: 600; font-size: .95rem; }
+nav.band-dark a:hover { color: var(--sapphire); text-decoration: underline; }
+
+/* Section bands. Light pages alternate paper and parchment; the felt is
+   reserved for the CTA bands (band-cta) so lime keeps its quarantine. */
+.band-light { background: var(--paper); color: var(--ink); padding: 4rem 1.25rem; }
+.band-dark  { background: var(--parchment); color: var(--ink); padding: 4rem 1.25rem; }
+.band-dark a { color: var(--sapphire); }
+.band-cta   { background: var(--felt); color: var(--felt-ink); padding: 3rem 1.25rem; text-align: center; }
+/* Scoped so it never outranks .btn-primary/.btn-secondary color on the
+   felt band (a bare `.band-cta a` beats `.btn-primary` on specificity). */
+.band-cta a:not(.btn-primary):not(.btn-secondary) { color: #9dc3f0; }
 .band-inner { max-width: 720px; margin: 0 auto; }
 
-/* Type */
+/* Type. System stack everywhere; the display voice is weight and tracking,
+   not uppercase (headers read, they don't shout). */
 .display {
-  font-family: "Arial Narrow", "Helvetica Neue Condensed", "Roboto Condensed", sans-serif;
   font-weight: 800;
-  letter-spacing: .01em;
-  text-transform: uppercase;
+  letter-spacing: -.02em;
+  line-height: 1.15;
 }
-h1.display { font-size: clamp(1.9rem, 6vw, 3.2rem); margin: 0 0 .4em; }
-h2.display { font-size: clamp(1.3rem, 4vw, 1.9rem); margin: 0 0 .6em; }
+h1.display { font-size: clamp(2rem, 6vw, 3.4rem); margin: 0 0 .4em; }
+h2.display { font-size: clamp(1.4rem, 4vw, 2rem); margin: 0 0 .6em; }
 .stat, .ledger td.num {
-  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
   font-variant-numeric: tabular-nums;
   font-size: .92em;
 }
+.band-light p, .band-dark p { color: var(--ink); }
+.band-light .stat, .band-dark .stat { color: var(--muted-ink); }
 
-/* The one primary CTA. Lime, and only ever this. */
+/* The one primary CTA. Lime, on felt, and only ever this. */
 .btn-primary {
   display: inline-block;
   background: var(--lime);
   color: #101216;
   font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: .04em;
+  letter-spacing: .01em;
   padding: .9em 2.2em;
-  border-radius: 6px;
+  border-radius: 8px;
   border: none;
   text-decoration: none;
   font-size: 1.05rem;
   cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .3);
 }
+.btn-primary:hover { filter: brightness(1.06); }
 .btn-secondary {
   display: inline-block;
   background: transparent;
   color: inherit;
-  border: 2px solid currentColor;
+  border: 1px solid currentColor;
   padding: .7em 1.6em;
-  border-radius: 6px;
+  border-radius: 8px;
   text-decoration: none;
   font-weight: 600;
 }
+.btn-secondary:hover { border-color: var(--sapphire); color: var(--sapphire); }
 
-/* Rarity accents */
-.rarity-foil     { border-color: var(--foil);     color: var(--foil); }
+/* Rarity accents. The -deep variants exist because the raw metals fail
+   contrast as small text on light backgrounds. */
+.rarity-foil     { border-color: var(--foil);     color: var(--foil-deep); }
 .rarity-sapphire { border-color: var(--sapphire); color: var(--sapphire); }
-.rarity-copper   { border-color: var(--copper);   color: var(--copper); }
-.rarity-pewter   { border-color: var(--pewter);   color: var(--pewter); }
-.rule-foil { border: 0; border-top: 3px solid var(--foil); margin: 0; }
+.rarity-copper   { border-color: var(--copper);   color: var(--copper-deep); }
+.rarity-pewter   { border-color: var(--pewter);   color: var(--pewter-deep); }
+.rule-foil { border: 0; height: 3px; background: var(--rarity-rule); margin: 0; }
 
-/* Ledger tables */
-.ledger { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: .95em; }
-.ledger th, .ledger td { padding: .5em .6em; text-align: left; border-bottom: 1px solid rgba(138,141,145,.4); }
-.ledger th { text-transform: uppercase; font-size: .78em; letter-spacing: .06em; color: var(--pewter); }
-.ledger tr.finish-1 td:first-child { color: var(--foil); font-weight: 800; }
+/* Ledger tables: bordered card containers with a quiet header row.
+   .table-scroll is the container every committed table already has, so the
+   card treatment needed no markup changes. */
+.table-scroll {
+  overflow-x: auto;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(26, 28, 32, .06);
+  margin: 1.25em 0;
+}
+.ledger { width: 100%; border-collapse: collapse; font-size: .95em; }
+.ledger th, .ledger td { padding: .65em .9em; text-align: left; border-bottom: 1px solid var(--line); }
+.ledger tbody tr:last-child td { border-bottom: none; }
+.ledger th {
+  background: var(--parchment);
+  text-transform: uppercase;
+  font-size: .72em;
+  letter-spacing: .07em;
+  color: var(--pewter-deep);
+  font-weight: 700;
+}
+.ledger tr.finish-1 td:first-child { color: var(--foil-deep); font-weight: 800; }
 .ledger tr.finish-2 td:first-child,
 .ledger tr.finish-3 td:first-child { color: var(--sapphire); font-weight: 700; }
-.table-scroll { overflow-x: auto; }
 
-/* Card frames (gallery) */
-.card-frame { border-radius: 10px; overflow: hidden; box-shadow: 0 4px 18px rgba(0,0,0,.25); }
-.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
+/* Card frames (gallery). Dark objects in a light room get real presentation:
+   border, lift, and a hover raise. */
+.card-frame {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  box-shadow: 0 6px 24px rgba(26, 28, 32, .16);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.card-frame:hover { transform: translateY(-3px); box-shadow: 0 10px 32px rgba(26, 28, 32, .22); }
+.card-frame img { display: block; }
+.card-frame figcaption { padding: .6em .8em; font-size: .85em; color: var(--muted-ink); background: #fff; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1.25rem; }
+/* Browser default figure margins (1em 40px) squeeze the card image inside
+   its frame and push captions past the edge. */
+.card-grid figure { margin: 0; }
+.card-grid img { width: 100%; }
 
 /* Foil shimmer, guarded for reduced motion */
 @media (prefers-reduced-motion: no-preference) {
@@ -102,10 +172,14 @@ h2.display { font-size: clamp(1.3rem, 4vw, 1.9rem); margin: 0 0 .6em; }
   .shimmer::after {
     content: "";
     position: absolute; inset: 0;
-    background: linear-gradient(115deg, transparent 30%, rgba(255,240,180,.35) 48%, transparent 62%);
+    background: linear-gradient(115deg, transparent 30%, rgba(255, 240, 180, .35) 48%, transparent 62%);
     background-size: 260% 100%;
     animation: shimmer 3.2s ease-in-out infinite;
     pointer-events: none;
   }
   @keyframes shimmer { 0% { background-position: 120% 0; } 100% { background-position: -60% 0; } }
+  .card-frame:hover { transform: translateY(-3px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-frame, .card-frame:hover { transition: none; transform: none; }
 }

@@ -70,7 +70,12 @@ python3 -m http.server -d site   # local preview
   form** so a published game appends as a small diff Charlie can actually read.
 - **Copy rules:** no em dashes in `site/` copy, the word "experiment" never
   appears, dignity rule on every player mention, exactly one lime CTA per page
-  (RSVP) on a dark band. Names appear alongside handles.
+  (RSVP) on a felt band. Names are First + last initial only (privacy rule,
+  test-enforced) and appear alongside handles.
+- **Visual system (v2):** light page, dark objects. `band-light` (paper)
+  alternates with `band-dark` (parchment tint; class name kept for the
+  generators); near-black felt is only the CTA bands and the card art. Full
+  rules in `docs/brand.md`.
 - The RSVP form's game date comes from `games.json` (`nextGame`) at runtime;
   there is no date constant to update in `site/rsvp.js`.
 
