@@ -51,6 +51,10 @@ You cannot sit with us.
 
 ---
 
+## 🎨 Working on the site?
+
+Brand + design rules live in [`docs/brand.md`](docs/brand.md): copy rules, the rarity palette, the lime-CTA rule, band alternation, and the pre-merge checklist. `main` deploys to poker.kmikeym.com automatically, so read it before merging.
+
 ## 📊 Standings, games, and cards
 
 The season record lives at **[poker.kmikeym.com](https://poker.kmikeym.com)**:
