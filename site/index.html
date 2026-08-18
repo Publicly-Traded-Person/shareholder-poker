@@ -12,15 +12,16 @@
   <div class="band-inner">
     <h1 class="display">Shareholder Poker</h1>
     <p>No-limit Hold'em, second Tuesday of every month, 7pm PT. $50 buy-in. Cards on Poker Now, faces on Zoom.</p>
-    <p class="stat" id="next-game-line">Next game: September 8, 2026 · 7:00pm PT</p>
+    <p class="stat" id="next-game-line">Next game: second Tuesday of the month, 7:00pm PT</p>
     <form id="rsvp-form">
       <input type="email" id="rsvp-email" required placeholder="you@example.com"
              style="padding:.8em 1em; border-radius:6px; border:none; width:min(260px, 100%); margin-right:.5em; margin-bottom:.5em;">
       <input type="text" id="rsvp-name" placeholder="display name (shown publicly)"
              style="padding:.8em 1em; border-radius:6px; border:none; width:min(260px, 100%); margin-right:.5em; margin-bottom:.5em;">
-      <button class="btn-primary" type="submit">I'm in for Sept 8</button>
+      <button class="btn-primary" type="submit" id="rsvp-submit">I'm in</button>
     </form>
     <p id="rsvp-list" class="stat" aria-live="polite"></p>
+    <p id="rsvp-status" class="stat" aria-live="polite"></p>
   </div>
 </section>
 
@@ -64,11 +65,24 @@
   </div>
 </section>
 
+<section class="band-light">
+  <div class="band-inner">
+    <h2 class="display">How the night runs</h2>
+    <ul>
+      <li><strong>When.</strong> Second Tuesday of the month, 7:00pm PT. Most nights run about three hours.</li>
+      <li><strong>Where.</strong> Cards on Poker Now, faces on the official Zoom. Both, not either.</li>
+      <li><strong>Stakes.</strong> $50 buy-in, up to two rebuys before the 8:05pm cutoff. Tournament format, everyone starts on the same stack.</li>
+      <li><strong>Payouts.</strong> A pool over $500 pays three places, otherwise it pays two.</li>
+      <li><strong>The Zoom rule.</strong> Players on the call may openly collude against players who are not. A dropped connection is forgiven. Sitting out the video all night is a choice, and the table is allowed to notice.</li>
+    </ul>
+  </div>
+</section>
+
 <section class="band-cta">
   <div class="band-inner">
     <h2 class="display">The table is set</h2>
-    <p>September 8, 7pm PT. New players welcome: two people played their first game in August and one of them won it.</p>
-    <a class="btn-primary" href="#rsvp-form" onclick="document.getElementById('rsvp-email').focus()">RSVP for Sept 8</a>
+    <p><span id="next-game-short">Second Tuesday of the month, 7:00pm PT</span>. New players welcome: two people played their first game in August and one of them won it.</p>
+    <a class="btn-primary" id="rsvp-jump" href="#rsvp-form" onclick="document.getElementById('rsvp-email').focus()">RSVP for the next game</a>
   </div>
 </section>
 
