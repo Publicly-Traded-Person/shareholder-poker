@@ -1,0 +1,10 @@
+{
+  "name": "shareholder-poker-site",
+  "private": true,
+  "scripts": {
+    "test": "bun test tools",
+    "render": "bun tools/render.ts",
+    "publish-game": "bun tools/publish-game.ts"
+  },
+  "devDependencies": { "@types/bun": "latest" }
+}
