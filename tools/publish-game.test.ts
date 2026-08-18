@@ -42,4 +42,28 @@ describe("prepareGame", () => {
     const withGame = { ...data, games: [prepareGame(csv, results, data, { date: "2026-01-01", buyIn: 50 })] };
     expect(() => prepareGame(csv, results, withGame, { date: "2026-01-01", buyIn: 50 })).toThrow(/already/);
   });
+  test("halts on a gapped finish order (1, 2, 4 instead of 1, 2, 3)", () => {
+    const gapped = [
+      { handle: "alice", finish: 1, payout: 105, rebuys: 0, trophies: [] },
+      { handle: "bob", finish: 2, payout: 45, rebuys: 0, trophies: [] },
+      { handle: "carol", finish: 4, payout: 0, rebuys: 0, trophies: [] },
+    ];
+    expect(() => prepareGame(csv, gapped, data, { date: "2026-01-01", buyIn: 50 })).toThrow(/finish/i);
+  });
+  test("halts on a duplicated finish", () => {
+    const duped = [
+      { handle: "alice", finish: 1, payout: 105, rebuys: 0, trophies: [] },
+      { handle: "bob", finish: 1, payout: 45, rebuys: 0, trophies: [] },
+      { handle: "carol", finish: 3, payout: 0, rebuys: 0, trophies: [] },
+    ];
+    expect(() => prepareGame(csv, duped, data, { date: "2026-01-01", buyIn: 50 })).toThrow(/finish/i);
+  });
+  test("halts when payouts do not sum to the pot", () => {
+    const wrongPayout = [
+      { handle: "alice", finish: 1, payout: 100, rebuys: 0, trophies: [] },
+      { handle: "bob", finish: 2, payout: 45, rebuys: 0, trophies: [] },
+      { handle: "carol", finish: 3, payout: 0, rebuys: 0, trophies: [] },
+    ];
+    expect(() => prepareGame(csv, wrongPayout, data, { date: "2026-01-01", buyIn: 50 })).toThrow(/payout/i);
+  });
 });

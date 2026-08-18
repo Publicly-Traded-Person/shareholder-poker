@@ -29,13 +29,45 @@ export function prepareGame(
       `(players ${results.length} + rebuys ${declared - results.length}). Fix results.json; do not publish.`
     );
   }
+
+  // Finishes must be dense 1..N with no gaps or duplicates, or render.ts's
+  // g.results.find(r => r.finish === 1)! throws an opaque TypeError (a gap)
+  // or silently picks the wrong player (a duplicate).
+  const finishes = results.map(r => r.finish).slice().sort((a, b) => a - b);
+  const seen = new Set<number>();
+  for (const f of finishes) {
+    if (seen.has(f)) {
+      throw new Error(`duplicate finish ${f} in results.json. Finishes must be 1..${results.length} with no repeats.`);
+    }
+    seen.add(f);
+  }
+  finishes.forEach((f, i) => {
+    if (f !== i + 1) {
+      throw new Error(
+        `finish gap at position ${i + 1}: expected ${i + 1}, results.json has ${f}. ` +
+        `Finishes must be dense 1..${results.length} with no gaps.`
+      );
+    }
+  });
+
+  // Payouts are exact splits of the pot (e.g. 315+135=450); a typo here
+  // silently shorts or overpays a player, so refuse rather than publish it.
+  const pot = entries * opts.buyIn;
+  const totalPayout = results.reduce((n, r) => n + r.payout, 0);
+  if (totalPayout !== pot) {
+    throw new Error(
+      `payout mismatch: results.json payouts sum to ${totalPayout} but the pot is ${pot} ` +
+      `(${entries} entries x $${opts.buyIn}). Fix results.json; do not publish.`
+    );
+  }
+
   return {
     date: opts.date,
     hands: handCount(rows),
     startingStack,
     buyIn: opts.buyIn,
     entries,
-    pot: entries * opts.buyIn,
+    pot,
     results: results
       .map(r => ({ ...r, slug: resolveSlug(r.handle, data.players) }))  // throws UnknownHandleError
       .sort((a, b) => a.finish - b.finish),
