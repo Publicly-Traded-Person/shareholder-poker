@@ -4,42 +4,42 @@
     "time": "7:00pm PT"
   },
   "hopeCoin": {
-    "holder": "nick-mershon",
+    "holder": "nick-m",
     "since": "2026-04-14"
   },
   "players": [
     {
       "slug": "kmikeym",
-      "name": "Mike Merrill",
+      "name": "Mike M.",
       "aka": [
         "kmikeym"
       ]
     },
     {
-      "slug": "chris-ganz",
-      "name": "Chris Ganz",
+      "slug": "chris-g",
+      "name": "Chris G.",
       "aka": [
         "LEWD",
         "ccml415"
       ]
     },
     {
-      "slug": "nick-mershon",
-      "name": "Nick Mershon",
+      "slug": "nick-m",
+      "name": "Nick M.",
       "aka": [
         "nickmershon"
       ]
     },
     {
-      "slug": "beau-gunderson",
-      "name": "Beau Gunderson",
+      "slug": "beau-g",
+      "name": "Beau G.",
       "aka": [
         "bg"
       ]
     },
     {
-      "slug": "amy-maxwell",
-      "name": "Amy Maxwell",
+      "slug": "amy-m",
+      "name": "Amy M.",
       "aka": [
         "amaxwell"
       ]
@@ -53,15 +53,15 @@
       ]
     },
     {
-      "slug": "thomas-dunlap",
-      "name": "Thomas Dunlap",
+      "slug": "thomas-d",
+      "name": "Thomas D.",
       "aka": [
         "spladow"
       ]
     },
     {
-      "slug": "drew-anderson",
-      "name": "Drew Anderson",
+      "slug": "drew-a",
+      "name": "Drew A.",
       "aka": [
         "MoHDI_Drew"
       ]
@@ -77,7 +77,7 @@
       "pot": 450,
       "results": [
         {
-          "slug": "chris-ganz",
+          "slug": "chris-g",
           "handle": "LEWD",
           "finish": 1,
           "payout": 315,
@@ -87,7 +87,7 @@
           ]
         },
         {
-          "slug": "nick-mershon",
+          "slug": "nick-m",
           "handle": "nickmershon",
           "finish": 2,
           "payout": 135,
@@ -95,7 +95,7 @@
           "trophies": []
         },
         {
-          "slug": "beau-gunderson",
+          "slug": "beau-g",
           "handle": "bg",
           "finish": 3,
           "payout": 0,
@@ -113,7 +113,7 @@
           ]
         },
         {
-          "slug": "amy-maxwell",
+          "slug": "amy-m",
           "handle": "amaxwell",
           "finish": 5,
           "payout": 0,
@@ -139,7 +139,7 @@
       "pot": 400,
       "results": [
         {
-          "slug": "thomas-dunlap",
+          "slug": "thomas-d",
           "handle": "spladow",
           "finish": 1,
           "payout": 280,
@@ -149,7 +149,7 @@
           ]
         },
         {
-          "slug": "beau-gunderson",
+          "slug": "beau-g",
           "handle": "bg",
           "finish": 2,
           "payout": 120,
@@ -157,7 +157,7 @@
           "trophies": []
         },
         {
-          "slug": "amy-maxwell",
+          "slug": "amy-m",
           "handle": "amaxwell",
           "finish": 3,
           "payout": 0,
@@ -165,7 +165,7 @@
           "trophies": []
         },
         {
-          "slug": "chris-ganz",
+          "slug": "chris-g",
           "handle": "LEWD",
           "finish": 4,
           "payout": 0,
@@ -173,7 +173,7 @@
           "trophies": []
         },
         {
-          "slug": "drew-anderson",
+          "slug": "drew-a",
           "handle": "MoHDI_Drew",
           "finish": 5,
           "payout": 0,
@@ -181,7 +181,7 @@
           "trophies": []
         },
         {
-          "slug": "nick-mershon",
+          "slug": "nick-m",
           "handle": "nickmershon",
           "finish": 6,
           "payout": 0,

@@ -2,7 +2,7 @@
 
 > Shareholders who play poker. Second Tuesday of every month, 7pm Pacific.
 
-A monthly no-limit Texas Hold'em tournament for KmikeyM shareholders and friends — running 5+ years. Founded & hosted by Beau Gunderson.
+A monthly no-limit Texas Hold'em tournament for KmikeyM shareholders and friends — running 5+ years. Founded & hosted by Beau G..
 
 - 📖 **Rules:** https://pokergame.substack.com/p/the-rules
 - 📰 **Newsletter:** https://pokergame.substack.com

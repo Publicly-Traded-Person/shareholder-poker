@@ -15,9 +15,13 @@ rather than absorbing the collision. Charlie owns this page's content.
 - **Held-back copy.** One card-economy CTA line is deliberately unpublished,
   pending Mike's reveal decision. It is not written down in this repo on
   purpose. Before adding any card-related call to action, ask Mike or Charlie.
-- **Names.** Player real names + handles are cleared for poker surfaces
-  (Mike, 2026-07-15). If any individual player objects, drop to handle-only
-  for that person.
+- **Names.** Player display names are **first name + last initial** ("Chris
+  G."), never a full surname — anywhere in this public repo, including slugs,
+  test fixtures, and docs — so nobody can google a player and find their poker
+  record (Mike, 2026-08-18; supersedes the 2026-07-15 full-name clearance).
+  Handles are the players' own public gamer tags and stay as-is.
+  `tools/data.test.ts` enforces the format on `games.json`; if any individual
+  player objects even to this, drop to handle-only for that person.
 - **Numbers.** Anything derived from a game comes from `site/data/games.json`,
   never typed by hand. Hand-typed stats are how scoreboards rot.
 

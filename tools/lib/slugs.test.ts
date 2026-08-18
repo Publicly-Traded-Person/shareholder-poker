@@ -2,17 +2,17 @@ import { describe, expect, test } from "bun:test";
 import { resolveSlug, UnknownHandleError, type Player } from "./slugs";
 
 const players: Player[] = [
-  { slug: "chris-ganz", name: "Chris Ganz", aka: ["LEWD", "ccml415"] },
+  { slug: "chris-g", name: "Chris G.", aka: ["LEWD", "ccml415"] },
   { slug: "webvee", name: "Gene", aka: ["webvee", "Webvee"] },
 ];
 
 describe("resolveSlug", () => {
   test("resolves any aka to the slug", () => {
-    expect(resolveSlug("LEWD", players)).toBe("chris-ganz");
-    expect(resolveSlug("ccml415", players)).toBe("chris-ganz");
+    expect(resolveSlug("LEWD", players)).toBe("chris-g");
+    expect(resolveSlug("ccml415", players)).toBe("chris-g");
   });
   test("is case-insensitive", () => {
-    expect(resolveSlug("lewd", players)).toBe("chris-ganz");
+    expect(resolveSlug("lewd", players)).toBe("chris-g");
     expect(resolveSlug("WEBVEE", players)).toBe("webvee");
   });
   test("throws UnknownHandleError naming the handle, never invents a player", () => {
