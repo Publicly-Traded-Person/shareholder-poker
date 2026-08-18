@@ -5,3 +5,9 @@
 name = "shareholder-poker"
 compatibility_date = "2026-08-17"
 pages_build_output_dir = "site"
+
+# RSVP + roster rows (emails). Rows never enter git; see site/schema.sql.
+[[d1_databases]]
+binding = "POKER_RSVP_DB"
+database_name = "poker-rsvp-db"
+database_id = "PLACEHOLDER-SET-AT-DEPLOY"

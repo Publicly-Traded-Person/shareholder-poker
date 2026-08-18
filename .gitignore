@@ -1,0 +1,6 @@
+node_modules/
+# Roster seeds and any RSVP export contain email addresses.
+# They are Tier-2 data (spec section 3) and never enter this repo.
+*seed*.sql
+*.csv
+.wrangler/
