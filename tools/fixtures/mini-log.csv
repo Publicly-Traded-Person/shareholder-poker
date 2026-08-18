@@ -1,0 +1,9 @@
+entry,at,order
+"-- ending hand #3 --",2026-01-01T00:09:00.000Z,900
+"Player stacks: #1 ""alice @ aaa111"" (9000) | #2 ""bob @ bbb222"" (4000) | #3 ""carol @ ccc333"" (2000)",2026-01-01T00:08:00.000Z,800
+"-- starting hand #3 (id: h3) (No Limit Texas Hold'em) (dealer: ""alice @ aaa111"") --",2026-01-01T00:07:00.000Z,700
+"Player stacks: #1 ""alice @ aaa111"" (8000) | #2 ""bob @ bbb222"" (4500) | #3 ""carol @ ccc333"" (2500)",2026-01-01T00:06:00.000Z,600
+"-- starting hand #2 (id: h2) (No Limit Texas Hold'em) (dealer: ""carol @ ccc333"") --",2026-01-01T00:05:00.000Z,500
+"Player stacks: #1 ""alice @ aaa111"" (5000) | #2 ""bob @ bbb222"" (5000) | #3 ""carol @ ccc333"" (5000)",2026-01-01T00:03:00.000Z,300
+"-- starting hand #1 (id: h1) (No Limit Texas Hold'em) (dealer: ""bob @ bbb222"") --",2026-01-01T00:02:00.000Z,200
+"The admin approved the player ""alice @ aaa111"" participation with a stack of 5000.",2026-01-01T00:01:00.000Z,100

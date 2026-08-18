@@ -1,0 +1,7 @@
+{
+  "compilerOptions": {
+    "target": "esnext", "module": "esnext", "moduleResolution": "bundler",
+    "strict": true, "types": ["bun-types"], "noEmit": true
+  },
+  "include": ["tools"]
+}

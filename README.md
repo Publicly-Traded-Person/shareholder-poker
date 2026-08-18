@@ -15,7 +15,7 @@ A monthly no-limit Texas Hold'em tournament for KmikeyM shareholders and friends
 
 > The Hope Coin is the tournament's traveling trophy. The first player to land **3 kills on the current holder** takes the Coin — and keeps it until they're defeated 3 times. Nick claimed it by eliminating Matt for his 3rd cumulative Hope Slayer... then busted out in 5th, out of the money. Took the glory, not the cash.
 
-> **👑 The double crown, cracked.** Nick held both the Coin and the most recent win after June. In **July, Chris (`ccml415`) won outright** and landed his **first skull** on Nick (Hope Slayer). The Coin stays put — a Slayer needs 3 kills — but the glove has finally been laid: **Chris is 1 of 3.** Two more and it travels.
+> **👑 The double crown, cracked.** Nick held both the Coin and the most recent win after June. In **July, Chris (`ccml415`) won outright** and landed his **first skull** on Nick (Hope Slayer). The Coin stays put — a Slayer needs 3 kills — but the glove has finally been laid: **Chris is 1 of 3.** Two more and it travels. Thomas (`spladow`) took a skull with his August win; two challengers now hold one skull each.
 
 ---
 
@@ -51,43 +51,16 @@ You cannot sit with us.
 
 ---
 
-## 2026 Season
+## 📊 Standings, games, and cards
 
-### 🗓️ July 14, 2026 — 6 entrants
+The season record lives at **[poker.kmikeym.com](https://poker.kmikeym.com)**:
+[standings](https://poker.kmikeym.com/standings/) ·
+[every game](https://poker.kmikeym.com/games/) ·
+[the card sets](https://poker.kmikeym.com/cards/).
 
-| Place | Player | Notes |
-|---|---|---|
-| 🥇 1st | **Chris (`ccml415`)** | 💀 Hope Slayer — eliminated Nick (1st skull, 1 of 3 for the Coin) |
-| 🥈 2nd | Nick (`nickmershon`) | 🪙 Coin holder; 2 rebuys |
-| 🫧 3rd | Beau (`bg`) | bubble — led with a stack bigger than the other two combined, busted one short of the money |
-| 4th | Mike (`kmikeym`) | ⚔️ Cain + Abel — knocked out brother Gene |
-| 5th | Amy (`amaxwell`) | 1 rebuy |
-| 6th | Gene (`webvee`) | |
-
-*Core group only, no new faces. 9 buy-ins (3 rebuys: Nick 2, Amy 1). Pot $450, paid 70 / 30 ($315 / $135). Share bounties: Chris 💀 +1, Mike ⚔️ +1.*
-
-### 🗓️ June 9, 2026
-
-| Place | Player | Notes |
-|---|---|---|
-| 🥇 1st | **Nick (`nickmershon`)** | 👑 wins while holding the 🪙 Hope Coin |
-| 🥈 2nd | Chris (`ccml415`) | |
-| 🥉 3rd | Beau (`bg`) | |
-
-*Core group only, no new faces. Entrant count unrecorded. Nick took the Coin in April and the trophy in June, and nobody has taken either back.*
-
-### 🗓️ April 14, 2026 — 9 entrants
-
-| Place | Player | Notes |
-|---|---|---|
-| 🥇 1st | Beau (`bg`) | |
-| 🥈 2nd | Drew (`MoHDI_Drew`) | |
-| 🥉 3rd | Mike (`kmikeym`) | playing from Kosovo, 5am |
-| 🫧 4th | Michael (`pokermichi` 🇦🇷) | bubble |
-| 5th | **Nick (`nickmershon`)** | 💀 Hope Slayer → 🪙 **new Hope Coin holder** |
-| 6th–9th | Spladow · `jfe` · Amy (`amaxwell`) · Matt (`MawTTM`) | Matt's bust-out triggered the Coin handoff |
-
-*Each game night is tracked as an [issue](../../issues) — comment to RSVP, heckle, or claim a bounty.*
+This README no longer carries a results table. One scoreboard, one home; the
+site's standings page is generated from the game record, so it cannot silently
+go stale the way this section used to.
 
 ---
 

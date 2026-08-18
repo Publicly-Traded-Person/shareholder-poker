@@ -1,0 +1,13 @@
+node_modules/
+# Roster seeds and any RSVP export contain email addresses.
+# They are Tier-2 data (spec section 3) and never enter this repo.
+*seed*.sql
+*.csv
+# Synthetic fixtures (invented players only) are committed; real logs are not.
+!tools/fixtures/*.csv
+.wrangler/
+# Nova session-local scratch (see CLAUDE.md).
+.nova/
+
+# Ultrapowers/Claude engine files — never committed (operations#302).
+.claude/
