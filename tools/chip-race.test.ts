@@ -18,4 +18,10 @@ describe("buildChipRace", () => {
   test("contains no em dash", () => {
     expect(html).not.toContain("—");
   });
+  test("carries the site nav so a chart page is never a dead end", () => {
+    expect(html).toContain("<nav");
+    for (const href of ['href="/"', 'href="/games/"', 'href="/cards/"', 'href="/standings/"']) {
+      expect(html).toContain(href);
+    }
+  });
 });

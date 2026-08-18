@@ -30,6 +30,9 @@ a { color: var(--sapphire); }
 .band-dark  { background: var(--band-dark); color: var(--band-dark-ink); padding: 3rem 1.25rem; }
 .band-dark a { color: #9dc3f0; }
 .band-cta   { background: #101216; color: var(--band-dark-ink); padding: 3rem 1.25rem; text-align: center; }
+/* Nav links inside a dark CTA band need the same light-blue treatment as
+   band-dark links; the default sapphire is unreadable on near-black. */
+.band-cta nav a { color: #9dc3f0; }
 .band-inner { max-width: 720px; margin: 0 auto; }
 
 /* Type */
