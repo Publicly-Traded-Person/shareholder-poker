@@ -62,7 +62,7 @@ One public-safe file. Standings, the games index, and card stat boxes derive fro
 {
   "nextGame": { "date": "2026-09-08", "time": "19:00 PT" },
   "players": [
-    { "slug": "chris-ganz",  "name": "Chris Ganz",  "aka": ["LEWD", "ccml415"] },
+    { "slug": "chris-g",  "name": "Chris G.",  "aka": ["LEWD", "ccml415"] },
     { "slug": "webvee",      "name": "Gene",         "aka": ["webvee"] },
     { "slug": "kmikeym",     "name": "Mike",         "aka": ["kmikeym"] }
   ],
@@ -72,7 +72,7 @@ One public-safe file. Standings, the games index, and card stat boxes derive fro
       "hands": 211, "startingStack": 5000, "buyIn": 50,
       "entries": 8, "pot": 400,
       "results": [
-        { "slug": "thomas-dunlap", "handle": "spladow", "finish": 1,
+        { "slug": "thomas-d", "handle": "spladow", "finish": 1,
           "payout": 280, "rebuys": 0, "trophies": ["hope-slayer"] }
       ]
     }

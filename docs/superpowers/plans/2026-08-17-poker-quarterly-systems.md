@@ -234,16 +234,16 @@ Data below is transcribed from the two canonical ledgers (`briefs/poker-2026-07-
 ```json
 {
   "nextGame": { "date": "2026-09-08", "time": "7:00pm PT" },
-  "hopeCoin": { "holder": "nick-mershon", "since": "2026-04-14" },
+  "hopeCoin": { "holder": "nick-m", "since": "2026-04-14" },
   "players": [
-    { "slug": "kmikeym",       "name": "Mike Merrill",   "aka": ["kmikeym"] },
-    { "slug": "chris-ganz",    "name": "Chris Ganz",     "aka": ["LEWD", "ccml415"] },
-    { "slug": "nick-mershon",  "name": "Nick Mershon",   "aka": ["nickmershon"] },
-    { "slug": "beau-gunderson","name": "Beau Gunderson", "aka": ["bg"] },
-    { "slug": "amy-maxwell",   "name": "Amy Maxwell",    "aka": ["amaxwell"] },
+    { "slug": "kmikeym",       "name": "Mike M.",   "aka": ["kmikeym"] },
+    { "slug": "chris-g",    "name": "Chris G.",     "aka": ["LEWD", "ccml415"] },
+    { "slug": "nick-m",  "name": "Nick M.",   "aka": ["nickmershon"] },
+    { "slug": "beau-g","name": "Beau G.", "aka": ["bg"] },
+    { "slug": "amy-m",   "name": "Amy M.",    "aka": ["amaxwell"] },
     { "slug": "webvee",        "name": "Gene",           "aka": ["webvee", "Webvee"] },
-    { "slug": "thomas-dunlap", "name": "Thomas Dunlap",  "aka": ["spladow"] },
-    { "slug": "drew-anderson", "name": "Drew Anderson",  "aka": ["MoHDI_Drew"] }
+    { "slug": "thomas-d", "name": "Thomas D.",  "aka": ["spladow"] },
+    { "slug": "drew-a", "name": "Drew A.",  "aka": ["MoHDI_Drew"] }
   ],
   "games": [
     {
@@ -251,11 +251,11 @@ Data below is transcribed from the two canonical ledgers (`briefs/poker-2026-07-
       "hands": 201, "startingStack": 5000, "buyIn": 50,
       "entries": 9, "pot": 450,
       "results": [
-        { "slug": "chris-ganz",     "handle": "LEWD",        "finish": 1, "payout": 315, "rebuys": 0, "trophies": ["hope-slayer"] },
-        { "slug": "nick-mershon",   "handle": "nickmershon", "finish": 2, "payout": 135, "rebuys": 2, "trophies": [] },
-        { "slug": "beau-gunderson", "handle": "bg",          "finish": 3, "payout": 0,   "rebuys": 0, "trophies": [] },
+        { "slug": "chris-g",     "handle": "LEWD",        "finish": 1, "payout": 315, "rebuys": 0, "trophies": ["hope-slayer"] },
+        { "slug": "nick-m",   "handle": "nickmershon", "finish": 2, "payout": 135, "rebuys": 2, "trophies": [] },
+        { "slug": "beau-g", "handle": "bg",          "finish": 3, "payout": 0,   "rebuys": 0, "trophies": [] },
         { "slug": "kmikeym",        "handle": "kmikeym",     "finish": 4, "payout": 0,   "rebuys": 0, "trophies": ["cain-and-abel"] },
-        { "slug": "amy-maxwell",    "handle": "amaxwell",    "finish": 5, "payout": 0,   "rebuys": 1, "trophies": [] },
+        { "slug": "amy-m",    "handle": "amaxwell",    "finish": 5, "payout": 0,   "rebuys": 1, "trophies": [] },
         { "slug": "webvee",         "handle": "Webvee",      "finish": 6, "payout": 0,   "rebuys": 0, "trophies": [] }
       ]
     },
@@ -264,12 +264,12 @@ Data below is transcribed from the two canonical ledgers (`briefs/poker-2026-07-
       "hands": 211, "startingStack": 5000, "buyIn": 50,
       "entries": 8, "pot": 400,
       "results": [
-        { "slug": "thomas-dunlap",  "handle": "spladow",     "finish": 1, "payout": 280, "rebuys": 0, "trophies": ["hope-slayer"] },
-        { "slug": "beau-gunderson", "handle": "bg",          "finish": 2, "payout": 120, "rebuys": 0, "trophies": [] },
-        { "slug": "amy-maxwell",    "handle": "amaxwell",    "finish": 3, "payout": 0,   "rebuys": 0, "trophies": [] },
-        { "slug": "chris-ganz",     "handle": "LEWD",        "finish": 4, "payout": 0,   "rebuys": 0, "trophies": [] },
-        { "slug": "drew-anderson",  "handle": "MoHDI_Drew",  "finish": 5, "payout": 0,   "rebuys": 0, "trophies": [] },
-        { "slug": "nick-mershon",   "handle": "nickmershon", "finish": 6, "payout": 0,   "rebuys": 1, "trophies": [] },
+        { "slug": "thomas-d",  "handle": "spladow",     "finish": 1, "payout": 280, "rebuys": 0, "trophies": ["hope-slayer"] },
+        { "slug": "beau-g", "handle": "bg",          "finish": 2, "payout": 120, "rebuys": 0, "trophies": [] },
+        { "slug": "amy-m",    "handle": "amaxwell",    "finish": 3, "payout": 0,   "rebuys": 0, "trophies": [] },
+        { "slug": "chris-g",     "handle": "LEWD",        "finish": 4, "payout": 0,   "rebuys": 0, "trophies": [] },
+        { "slug": "drew-a",  "handle": "MoHDI_Drew",  "finish": 5, "payout": 0,   "rebuys": 0, "trophies": [] },
+        { "slug": "nick-m",   "handle": "nickmershon", "finish": 6, "payout": 0,   "rebuys": 1, "trophies": [] },
         { "slug": "kmikeym",        "handle": "kmikeym",     "finish": 7, "payout": 0,   "rebuys": 0, "trophies": [] }
       ]
     }
@@ -512,17 +512,17 @@ import { describe, expect, test } from "bun:test";
 import { resolveSlug, UnknownHandleError, type Player } from "./slugs";
 
 const players: Player[] = [
-  { slug: "chris-ganz", name: "Chris Ganz", aka: ["LEWD", "ccml415"] },
+  { slug: "chris-g", name: "Chris G.", aka: ["LEWD", "ccml415"] },
   { slug: "webvee", name: "Gene", aka: ["webvee", "Webvee"] },
 ];
 
 describe("resolveSlug", () => {
   test("resolves any aka to the slug", () => {
-    expect(resolveSlug("LEWD", players)).toBe("chris-ganz");
-    expect(resolveSlug("ccml415", players)).toBe("chris-ganz");
+    expect(resolveSlug("LEWD", players)).toBe("chris-g");
+    expect(resolveSlug("ccml415", players)).toBe("chris-g");
   });
   test("is case-insensitive", () => {
-    expect(resolveSlug("lewd", players)).toBe("chris-ganz");
+    expect(resolveSlug("lewd", players)).toBe("chris-g");
     expect(resolveSlug("WEBVEE", players)).toBe("webvee");
   });
   test("throws UnknownHandleError naming the handle, never invents a player", () => {
@@ -595,7 +595,7 @@ import { deriveStandings, type GamesData } from "./standings";
 
 const data: GamesData = {
   nextGame: { date: "2026-09-08", time: "7:00pm PT" },
-  hopeCoin: { holder: "nick-mershon", since: "2026-04-14" },
+  hopeCoin: { holder: "nick-m", since: "2026-04-14" },
   players: [
     { slug: "a", name: "Anne", aka: ["a"] },
     { slug: "b", name: "Bert", aka: ["b"] },
@@ -632,7 +632,7 @@ describe("deriveStandings", () => {
   });
   test("carries the seeded coin holder and counts skulls from trophies", () => {
     const s = deriveStandings(data);
-    expect(s.hopeCoin.holder).toBe("nick-mershon");
+    expect(s.hopeCoin.holder).toBe("nick-m");
     expect(s.hopeCoin.skulls).toEqual({ a: 1, c: 1 });
   });
 });
@@ -733,16 +733,16 @@ import type { GamesData } from "./lib/standings";
 
 const data: GamesData = {
   nextGame: { date: "2026-09-08", time: "7:00pm PT" },
-  hopeCoin: { holder: "nick-mershon", since: "2026-04-14" },
+  hopeCoin: { holder: "nick-m", since: "2026-04-14" },
   players: [
-    { slug: "nick-mershon", name: "Nick Mershon", aka: ["nickmershon"] },
-    { slug: "chris-ganz", name: "Chris Ganz", aka: ["LEWD"] },
+    { slug: "nick-m", name: "Nick M.", aka: ["nickmershon"] },
+    { slug: "chris-g", name: "Chris G.", aka: ["LEWD"] },
   ],
   games: [
     { date: "2026-07-14", hands: 201, startingStack: 5000, buyIn: 50, entries: 3, pot: 150,
       results: [
-        { slug: "chris-ganz", handle: "LEWD", finish: 1, payout: 105, rebuys: 0, trophies: ["hope-slayer"] },
-        { slug: "nick-mershon", handle: "nickmershon", finish: 2, payout: 45, rebuys: 2, trophies: [] },
+        { slug: "chris-g", handle: "LEWD", finish: 1, payout: 105, rebuys: 0, trophies: ["hope-slayer"] },
+        { slug: "nick-m", handle: "nickmershon", finish: 2, payout: 45, rebuys: 2, trophies: [] },
       ] },
   ],
 };
@@ -755,7 +755,7 @@ describe("renderStandings", () => {
     expect(html).toContain("ledger");
   });
   test("shows the coin holder with skull progress", () => {
-    expect(html).toContain("Nick Mershon");
+    expect(html).toContain("Nick M.");
     expect(html).toContain("Hope Coin");
     expect(html).toContain("1 of 3");
   });
@@ -770,7 +770,7 @@ describe("renderGamesIndex", () => {
     expect(html).toContain('href="/games/2026-07-14/"');
   });
   test("names the winner", () => {
-    expect(html).toContain("Chris Ganz");
+    expect(html).toContain("Chris G.");
   });
   test("contains no em dash", () => {
     expect(html).not.toContain("—");
@@ -892,7 +892,7 @@ Expected: PASS (6 tests)
 
 - [ ] **Step 5: Generate the pages from the real seed and inspect**
 
-Run: `bun tools/render.ts && grep -c "Thomas Dunlap" site/standings/index.html`
+Run: `bun tools/render.ts && grep -c "Thomas D." site/standings/index.html`
 Expected: the render message, then a count ≥ 1 (Thomas leads standings after his August win)
 
 - [ ] **Step 6: Commit**
@@ -1052,8 +1052,8 @@ git commit -m "feat(tools): chip-race chart generator (self-contained SVG HTML)"
 **Coordination notes (self-contained):**
 - Raw PokerNow logs are PRIVATE runtime inputs. They live outside this repo at `/Users/kmikeym/Agenting/The Investor Relations/munger/data/` (filenames match `pokernow*log*.csv`; run `ls` there and pick by date). Read them to GENERATE the chip-race pages; never copy a log into this repo, never commit one.
 - The public ledger pages carry: players (name + handle), finishes, payouts, rebuys, trophies, pot math, and story beats already recorded in the public README or dignity-rule-compatible. They NEVER carry the collections/owed tables from the private briefs (who owes whom money is not public content).
-- Ledger narrative facts to use, July (from the canonical brief): Chris Ganz (LEWD) won $315 and landed the first skull on Nick; Nick took 2nd ($135) on 2 rebuys, losing the crown; Beau led big and bubbled 3rd; Mike knocked out his brother Gene for Cain and Abel; 9 buy-ins, $450 pot, 201 hands.
-- August: Thomas Dunlap (spladow) won $280 as a first-timer AND took a skull (Hope Slayer) on debut; Beau 2nd $120; Amy bubbled 3rd after a late entry at hand 23; Chris did not defend (4th); Drew Anderson (107 shares) debuted 5th; Nick 6th with 1 rebuy, still holding the Hope Coin; Mike out first at hand 38; 8 entries by chip conservation, $400 pot, 211 hands.
+- Ledger narrative facts to use, July (from the canonical brief): Chris G. (LEWD) won $315 and landed the first skull on Nick; Nick took 2nd ($135) on 2 rebuys, losing the crown; Beau led big and bubbled 3rd; Mike knocked out his brother Gene for Cain and Abel; 9 buy-ins, $450 pot, 201 hands.
+- August: Thomas D. (spladow) won $280 as a first-timer AND took a skull (Hope Slayer) on debut; Beau 2nd $120; Amy bubbled 3rd after a late entry at hand 23; Chris did not defend (4th); Drew A. (107 shares) debuted 5th; Nick 6th with 1 rebuy, still holding the Hope Coin; Mike out first at hand 38; 8 entries by chip conservation, $400 pot, 211 hands.
 - No em dashes anywhere in these pages.
 
 - [ ] **Step 1: Generate both chip-race pages from the real logs**
@@ -1086,17 +1086,17 @@ Expected: two `wrote ...` lines. If the July log's chip totals do not divide by 
   <div class="band-inner">
     <h1 class="display">August 11, 2026</h1>
     <p class="stat">211 hands · 8 entries · $400 pot · 2h 25m</p>
-    <p><strong>A first-timer took the whole thing.</strong> Thomas Dunlap (spladow) sat down at this table for the first time, won the tournament for $280, and picked up a Hope Slayer skull on the way. Two debuts in one night: Drew Anderson (MoHDI_Drew) also played his first game and finished 5th.</p>
+    <p><strong>A first-timer took the whole thing.</strong> Thomas D. (spladow) sat down at this table for the first time, won the tournament for $280, and picked up a Hope Slayer skull on the way. Two debuts in one night: Drew A. (MoHDI_Drew) also played his first game and finished 5th.</p>
     <div class="table-scroll"><table class="ledger">
       <thead><tr><th>Finish</th><th>Player</th><th>Handle</th><th>Payout</th><th>Rebuys</th><th>Notes</th></tr></thead>
       <tbody>
-        <tr class="finish-1"><td class="num">1</td><td>Thomas Dunlap</td><td class="stat">spladow</td><td class="num">$280</td><td class="num">0</td><td>🏆 debut win · 💀 Hope Slayer</td></tr>
-        <tr class="finish-2"><td class="num">2</td><td>Beau Gunderson</td><td class="stat">bg</td><td class="num">$120</td><td class="num">0</td><td>from bubble boy in July to the cash</td></tr>
-        <tr class="finish-3"><td class="num">3</td><td>Amy Maxwell</td><td class="stat">amaxwell</td><td class="num">$0</td><td class="num">0</td><td>bubble, after a late entry at hand 23</td></tr>
-        <tr><td class="num">4</td><td>Chris Ganz</td><td class="stat">LEWD</td><td class="num">$0</td><td class="num">0</td><td>the July champion, title not defended</td></tr>
-        <tr><td class="num">5</td><td>Drew Anderson</td><td class="stat">MoHDI_Drew</td><td class="num">$0</td><td class="num">0</td><td>debut game</td></tr>
-        <tr><td class="num">6</td><td>Nick Mershon</td><td class="stat">nickmershon</td><td class="num">$0</td><td class="num">1</td><td>🪙 still holds the Hope Coin</td></tr>
-        <tr><td class="num">7</td><td>Mike Merrill</td><td class="stat">kmikeym</td><td class="num">$0</td><td class="num">0</td><td>first out, hand 38</td></tr>
+        <tr class="finish-1"><td class="num">1</td><td>Thomas D.</td><td class="stat">spladow</td><td class="num">$280</td><td class="num">0</td><td>🏆 debut win · 💀 Hope Slayer</td></tr>
+        <tr class="finish-2"><td class="num">2</td><td>Beau G.</td><td class="stat">bg</td><td class="num">$120</td><td class="num">0</td><td>from bubble boy in July to the cash</td></tr>
+        <tr class="finish-3"><td class="num">3</td><td>Amy M.</td><td class="stat">amaxwell</td><td class="num">$0</td><td class="num">0</td><td>bubble, after a late entry at hand 23</td></tr>
+        <tr><td class="num">4</td><td>Chris G.</td><td class="stat">LEWD</td><td class="num">$0</td><td class="num">0</td><td>the July champion, title not defended</td></tr>
+        <tr><td class="num">5</td><td>Drew A.</td><td class="stat">MoHDI_Drew</td><td class="num">$0</td><td class="num">0</td><td>debut game</td></tr>
+        <tr><td class="num">6</td><td>Nick M.</td><td class="stat">nickmershon</td><td class="num">$0</td><td class="num">1</td><td>🪙 still holds the Hope Coin</td></tr>
+        <tr><td class="num">7</td><td>Mike M.</td><td class="stat">kmikeym</td><td class="num">$0</td><td class="num">0</td><td>first out, hand 38</td></tr>
       </tbody>
     </table></div>
     <p class="stat">Pot verified by chip conservation: final stacks totalled 40,000 at a 5,000 starting stack, so 8 entries, $400.</p>
@@ -1137,15 +1137,15 @@ Same page shell (nav, alternating bands, footer) with the July content:
   <div class="band-inner">
     <h1 class="display">July 14, 2026</h1>
     <p class="stat">201 hands · 9 buy-ins · $450 pot</p>
-    <p><strong>The crown changed hands.</strong> Chris Ganz (LEWD) beat reigning champion Nick Mershon heads-up for $315, and landed the first skull on the Hope Coin holder while he was at it. This is the game that minted the first card set, The Founder's Table.</p>
+    <p><strong>The crown changed hands.</strong> Chris G. (LEWD) beat reigning champion Nick M. heads-up for $315, and landed the first skull on the Hope Coin holder while he was at it. This is the game that minted the first card set, The Founder's Table.</p>
     <div class="table-scroll"><table class="ledger">
       <thead><tr><th>Finish</th><th>Player</th><th>Handle</th><th>Payout</th><th>Rebuys</th><th>Notes</th></tr></thead>
       <tbody>
-        <tr class="finish-1"><td class="num">1</td><td>Chris Ganz</td><td class="stat">LEWD</td><td class="num">$315</td><td class="num">0</td><td>🏆 champion · 💀 Hope Slayer, skull 1 of 3</td></tr>
-        <tr class="finish-2"><td class="num">2</td><td>Nick Mershon</td><td class="stat">nickmershon</td><td class="num">$135</td><td class="num">2</td><td>lost the crown, kept the 🪙 Coin</td></tr>
-        <tr class="finish-3"><td class="num">3</td><td>Beau Gunderson</td><td class="stat">bg</td><td class="num">$0</td><td class="num">0</td><td>led with 28,168 chips, then the bubble</td></tr>
-        <tr><td class="num">4</td><td>Mike Merrill</td><td class="stat">kmikeym</td><td class="num">$0</td><td class="num">0</td><td>⚔️ Cain and Abel: knocked out his brother</td></tr>
-        <tr><td class="num">5</td><td>Amy Maxwell</td><td class="stat">amaxwell</td><td class="num">$0</td><td class="num">1</td><td></td></tr>
+        <tr class="finish-1"><td class="num">1</td><td>Chris G.</td><td class="stat">LEWD</td><td class="num">$315</td><td class="num">0</td><td>🏆 champion · 💀 Hope Slayer, skull 1 of 3</td></tr>
+        <tr class="finish-2"><td class="num">2</td><td>Nick M.</td><td class="stat">nickmershon</td><td class="num">$135</td><td class="num">2</td><td>lost the crown, kept the 🪙 Coin</td></tr>
+        <tr class="finish-3"><td class="num">3</td><td>Beau G.</td><td class="stat">bg</td><td class="num">$0</td><td class="num">0</td><td>led with 28,168 chips, then the bubble</td></tr>
+        <tr><td class="num">4</td><td>Mike M.</td><td class="stat">kmikeym</td><td class="num">$0</td><td class="num">0</td><td>⚔️ Cain and Abel: knocked out his brother</td></tr>
+        <tr><td class="num">5</td><td>Amy M.</td><td class="stat">amaxwell</td><td class="num">$0</td><td class="num">1</td><td></td></tr>
         <tr><td class="num">6</td><td>Gene</td><td class="stat">webvee</td><td class="num">$0</td><td class="num">0</td><td>eliminated by his own brother</td></tr>
       </tbody>
     </table></div>
@@ -1242,11 +1242,11 @@ Expected: 8 files (6 card PNGs, the grid, the gif). If the Desktop folder is gon
   <div class="band-inner">
     <h2 class="display">The set</h2>
     <div class="card-grid">
-      <figure class="card-frame shimmer"><img src="assets/card-1-lewd.png" alt="Foil champion card: Chris Ganz, LEWD, 1st place"><figcaption>✨ FOIL · Chris Ganz (LEWD) · Champion</figcaption></figure>
-      <figure class="card-frame"><img src="assets/card-2-nickmershon.png" alt="Rare card: Nick Mershon, 2nd place, Hope Coin holder"><figcaption>⭐ RARE · Nick Mershon (nickmershon) · 2nd, holds the 🪙</figcaption></figure>
-      <figure class="card-frame"><img src="assets/card-3-bg.png" alt="Rare card: Beau Gunderson, 3rd place"><figcaption>⭐ RARE · Beau Gunderson (bg) · 3rd</figcaption></figure>
-      <figure class="card-frame"><img src="assets/card-4-kmikeym.png" alt="Uncommon card: Mike Merrill, The Founder, 4th place"><figcaption>◆ UNCOMMON · Mike Merrill (kmikeym) · The Founder</figcaption></figure>
-      <figure class="card-frame"><img src="assets/card-5-amaxwell.png" alt="Common card: Amy Maxwell, 5th place"><figcaption>● COMMON · Amy Maxwell (amaxwell) · The Patient Rock</figcaption></figure>
+      <figure class="card-frame shimmer"><img src="assets/card-1-lewd.png" alt="Foil champion card: Chris G., LEWD, 1st place"><figcaption>✨ FOIL · Chris G. (LEWD) · Champion</figcaption></figure>
+      <figure class="card-frame"><img src="assets/card-2-nickmershon.png" alt="Rare card: Nick M., 2nd place, Hope Coin holder"><figcaption>⭐ RARE · Nick M. (nickmershon) · 2nd, holds the 🪙</figcaption></figure>
+      <figure class="card-frame"><img src="assets/card-3-bg.png" alt="Rare card: Beau G., 3rd place"><figcaption>⭐ RARE · Beau G. (bg) · 3rd</figcaption></figure>
+      <figure class="card-frame"><img src="assets/card-4-kmikeym.png" alt="Uncommon card: Mike M., The Founder, 4th place"><figcaption>◆ UNCOMMON · Mike M. (kmikeym) · The Founder</figcaption></figure>
+      <figure class="card-frame"><img src="assets/card-5-amaxwell.png" alt="Common card: Amy M., 5th place"><figcaption>● COMMON · Amy M. (amaxwell) · The Patient Rock</figcaption></figure>
       <figure class="card-frame"><img src="assets/card-6-webvee.png" alt="Common card: Gene, 6th place"><figcaption>● COMMON · Gene (webvee) · Mysterious Wildcard</figcaption></figure>
     </div>
   </div>
@@ -1330,7 +1330,7 @@ git commit -m "feat(site): card set gallery, Set 1 The Founder's Table"
 
 **Coordination notes (self-contained):**
 - Section order (spec §7): next game + RSVP → champion's foil → last game's chip race → Legends stories → Hope Coin → RSVP again. Bands alternate; both RSVP bands use `band-cta` (dark neutral), which keeps lime off the rarity metals.
-- The reigning champion is Thomas Dunlap (won Aug 11) but his card is not yet minted; the foil shown is Chris Ganz's July foil with copy noting the title changed hands. That tension is the sizzle, use it.
+- The reigning champion is Thomas D. (won Aug 11) but his card is not yet minted; the foil shown is Chris G.'s July foil with copy noting the title changed hands. That tension is the sizzle, use it.
 - All home copy is a DRAFT until Mike's publish go (the release task gates deploy).
 - No em dashes, no "experiment", dignity rule throughout.
 
@@ -1368,11 +1368,11 @@ git commit -m "feat(site): card set gallery, Set 1 The Founder's Table"
     <h2 class="display">The foil is in play</h2>
     <div style="display:flex; gap:1.5rem; flex-wrap:wrap; align-items:center;">
       <figure class="card-frame shimmer" style="max-width:220px;">
-        <img src="/cards/2026-07/assets/card-1-lewd.png" alt="Foil champion card: Chris Ganz">
+        <img src="/cards/2026-07/assets/card-1-lewd.png" alt="Foil champion card: Chris G.">
       </figure>
       <div style="flex:1; min-width:240px;">
-        <p>This is a real card. Chris Ganz earned the foil by winning July's game outright, heads-up against the reigning champion.</p>
-        <p><strong>Then August happened.</strong> A first-timer named Thomas Dunlap sat down, won the whole tournament, and took a bounty on the way. The next foil has his name on it.</p>
+        <p>This is a real card. Chris G. earned the foil by winning July's game outright, heads-up against the reigning champion.</p>
+        <p><strong>Then August happened.</strong> A first-timer named Thomas D. sat down, won the whole tournament, and took a bounty on the way. The next foil has his name on it.</p>
         <p><a class="btn-secondary" href="/cards/2026-07/">See the full set</a></p>
       </div>
     </div>

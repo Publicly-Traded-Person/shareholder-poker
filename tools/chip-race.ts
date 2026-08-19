@@ -40,9 +40,11 @@ export function buildChipRace(csv: string, opts: { date: string; startingStack: 
   .wrap { overflow-x: auto; }
   svg { display: block; min-width: 560px; width: 100%; height: auto; }
   .meta { font-family: Menlo, monospace; font-size: .85em; color: #8a8d91; }
+  nav a { color: #9dc3f0; }
 </style>
 </head>
 <body>
+<nav style="margin-bottom:1rem;"><a href="/">Home</a> · <a href="/games/">Games</a> · <a href="/cards/">Cards</a> · <a href="/standings/">Standings</a></nav>
 <p class="meta">Chip race: ${opts.date}. ${entries} entries, ${hands} hands.</p>
 <div class="wrap">
 <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Chip counts per player over ${hands} hands">

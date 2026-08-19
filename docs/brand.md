@@ -15,9 +15,13 @@ rather than absorbing the collision. Charlie owns this page's content.
 - **Held-back copy.** One card-economy CTA line is deliberately unpublished,
   pending Mike's reveal decision. It is not written down in this repo on
   purpose. Before adding any card-related call to action, ask Mike or Charlie.
-- **Names.** Player real names + handles are cleared for poker surfaces
-  (Mike, 2026-07-15). If any individual player objects, drop to handle-only
-  for that person.
+- **Names.** Player display names are **first name + last initial** ("Chris
+  G."), never a full surname — anywhere in this public repo, including slugs,
+  test fixtures, and docs — so nobody can google a player and find their poker
+  record (Mike, 2026-08-18; supersedes the 2026-07-15 full-name clearance).
+  Handles are the players' own public gamer tags and stay as-is.
+  `tools/data.test.ts` enforces the format on `games.json`; if any individual
+  player objects even to this, drop to handle-only for that person.
 - **Numbers.** Anything derived from a game comes from `site/data/games.json`,
   never typed by hand. Hand-typed stats are how scoreboards rot.
 
@@ -34,13 +38,24 @@ rather than absorbing the collision. Charlie owns this page's content.
 
 ## Layout
 
-- **Sections alternate light and dark bands.** Never stack two of the same
-  tone. Classes: `band-light` / `band-dark` / `band-cta`.
+- **Light room, dark objects (theme v2, Mike 2026-08-18).** The page is
+  light: `band-light` (paper) alternates with `band-dark` (parchment tint;
+  the class name predates the lightening and stays for the generators'
+  sake). Never stack two of the same tone. True near-black is reserved for
+  the felt CTA bands (`band-cta`) and the card art itself: dark elements
+  embedded in a light page, never a dark theme.
+- **The masthead rule is the signature.** Every page's nav is a white header
+  capped by the 4-segment rarity-ladder rule (foil, sapphire, copper,
+  pewter). It is the one place the whole ladder appears as chrome; don't
+  reuse the gradient decoratively elsewhere.
 - **Mobile first.** The entry path is a Discord link on a phone. Wide content
   (tables, charts) scrolls inside its own container (`table-scroll`); the page
   body never scrolls horizontally.
-- **Type:** condensed heavy display face for names and finishes (`display`),
-  monospace for every stat (`stat`) so the fixed stat schema aligns as a set.
+- **Type:** system sans everywhere (Mike's settled preference; decorative
+  faces were tried and rejected). The display voice (`display`) is weight
+  800 with tight tracking in sentence case; uppercase is reserved for
+  eyebrows and table headers. Monospace for every stat (`stat`) so the
+  fixed stat schema aligns as a set.
 - **Motion is guarded.** Shimmer and pack-rip effects run only under
   `prefers-reduced-motion: no-preference`.
 

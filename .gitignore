@@ -11,3 +11,8 @@ node_modules/
 
 # Ultrapowers/Claude engine files — never committed (operations#302).
 .claude/
+
+# Local browser-test artifacts (screenshots, playwright logs) never ship.
+.playwright-mcp/
+*.png
+!site/**/*.png
