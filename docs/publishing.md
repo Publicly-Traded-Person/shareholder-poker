@@ -20,6 +20,11 @@ removes a named manual step; see the plan and spec section 6.
    `stat stat-strip` fact line, `id="story"`/`id="results"` anchors, and
    `ledger ledger--notes` on the results table. Copy the newest game page
    to get all of it.
+
+   Home page: refresh the two news one-liners ("Last game", "The coin"),
+   and the bounty notices if a bounty was settled or the Coin moved. The
+   numbers under them fill themselves from games.json at runtime
+   (site/home-facts.js); never type numbers into the home page.
 5. Update `nextGame` in `site/data/games.json`.
 6. Review the full diff. Get Mike's explicit go. Push. Cloudflare deploys.
 7. Board: comment results on the month's game issue, close it, open next

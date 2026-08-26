@@ -135,6 +135,17 @@ describe("home page invariants", () => {
     expect(html).toContain('property="og:image"'));
   test("loads the holo script", () =>
     expect(html).toContain('src="/holo.js"'));
+  // Task 2 additions (2026-08-26 bounty/news/fan pass): the restructured
+  // home page loads the runtime fact-filler, carries exactly two bounty
+  // notices, runs its news tiles three-up, and opens with the card fan.
+  test("loads the home facts script", () =>
+    expect(html).toContain('src="/home-facts.js"'));
+  test("posts exactly two bounty notices", () =>
+    expect(html.split('class="notice ').length - 1).toBe(2));
+  test("news band is the three-up tile band", () =>
+    expect(html).toContain('tiles tiles--3'));
+  test("hero carries the card fan", () =>
+    expect(html).toContain('class="card-fan"'));
 });
 
 // Task 5: the set page (site/cards/2026-07/index.html) drops emoji chrome,
