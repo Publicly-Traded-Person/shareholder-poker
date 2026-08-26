@@ -48,12 +48,31 @@ export function commentInteriors(xml: string): string[] {
 
 describe("site-wide copy rules (the pre-merge greps, now permanent)", () => {
   const pages = siteHtmlFiles();
+  // Accumulate-and-assert instead of a for-loop `expect` per page: a for-loop
+  // assertion stops at the first failure and reports only true/false, not
+  // which file broke. Filtering to the offending paths first means a failure
+  // names the page, so Charlie does not have to bisect the site by hand.
   test("no em dash in any committed page", () => {
-    for (const p of pages) expect(readPage(p)).not.toContain("\u2014");
+    expect(pages.filter((p) => readPage(p).includes("\u2014"))).toEqual([]);
   });
   test("the banned word never appears", () => {
-    for (const p of pages)
-      expect(readPage(p).toLowerCase()).not.toContain("experiment");
+    expect(
+      pages.filter((p) => readPage(p).toLowerCase().includes("experiment"))
+    ).toEqual([]);
+  });
+  // Every committed page must link the favicon with this exact tag. By the
+  // time this task's REDIRECT lands, every page task (2, 4, 5, 6, 8) has
+  // already merged its own favicon tag, so this is green on arrival; it is
+  // here to catch the next new page that forgets it.
+  test("every page carries the favicon tag", () => {
+    expect(
+      pages.filter(
+        (p) =>
+          !readPage(p).includes(
+            '<link rel="icon" type="image/svg+xml" href="/favicon.svg">'
+          )
+      )
+    ).toEqual([]);
   });
 });
 
