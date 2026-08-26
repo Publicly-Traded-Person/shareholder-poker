@@ -33,3 +33,19 @@ describe("site-wide copy rules (the pre-merge greps, now permanent)", () => {
       expect(readPage(p).toLowerCase()).not.toContain("experiment");
   });
 });
+
+// Task 6: /cards/ becomes a set gallery (six Set 1 thumbnails + a drawn
+// "in production" card back for Set 2) instead of a plain bullet list.
+describe("cards index gallery", () => {
+  const html = readPage(
+    new URL("../site/cards/index.html", import.meta.url).pathname
+  );
+  test("shows all six Set 1 thumbnails", () =>
+    expect(html.split("/cards/2026-07/assets/").length - 1).toBe(6));
+  test("teases Set 2 with a drawn card back", () =>
+    expect(html).toContain('class="card-back"'));
+  test("links the favicon", () =>
+    expect(html).toContain('href="/favicon.svg"'));
+  test("marks Cards current in the nav", () =>
+    expect(html).toContain('<a href="/cards/" aria-current="page">'));
+});
