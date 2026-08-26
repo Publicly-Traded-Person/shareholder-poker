@@ -24,4 +24,12 @@ describe("buildChipRace", () => {
       expect(html).toContain(href);
     }
   });
+  test("links the favicon and carries a meta description", () => {
+    expect(html).toContain(
+      '<link rel="icon" type="image/svg+xml" href="/favicon.svg">'
+    );
+    expect(html).toContain(
+      '<meta name="description" content="Chip race: 2026-01-01. 3 entries, '
+    );
+  });
 });

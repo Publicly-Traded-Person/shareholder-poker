@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Favicon for poker.kmikeym.com: gold spade on table felt. Served at
+       /favicon.svg; every page links it. Palette: felt #101216, foil #c9a227
+       (the CSS custom properties of those names, in styles.css).
+       Never write two hyphens in a row anywhere in this comment. XML forbids
+       that sequence inside a comment, and a standalone .svg is served as
+       image/svg+xml and parsed by the browser's strict XML parser, so one
+       occurrence is fatal: the icon silently never paints. That is why the
+       palette variables are named here in words rather than written with
+       their leading hyphens. tools/site.test.ts guards this. -->
+  <rect width="32" height="32" rx="6" fill="#101216"/>
+  <path d="M16 5c3.5 5 9 7.5 9 12.5a5 5 0 0 1-8 4c.3 2.5 1.2 4 2.5 5h-7c1.3-1 2.2-2.5 2.5-5a5 5 0 0 1-8-4C7 12.5 12.5 10 16 5Z" fill="#c9a227"/>
+</svg>

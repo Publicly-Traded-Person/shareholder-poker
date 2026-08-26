@@ -159,8 +159,10 @@ h2.display { font-size: clamp(1.4rem, 4vw, 2rem); margin: 0 0 .6em; }
 }
 .card-frame:hover { transform: translateY(-3px); box-shadow: 0 10px 32px rgba(26, 28, 32, .22); }
 .card-frame img { display: block; }
-.card-frame figcaption { padding: .6em .8em; font-size: .85em; color: var(--muted-ink); background: #fff; }
-.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1.25rem; }
+/* 240px keeps desktop cards readable; the 40vw floor keeps mobile at 2-up.
+   Captions now live outside the frame as .card-caption (see below), so
+   there is no .card-frame figcaption rule here any more. */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 40vw), 1fr)); gap: 1.25rem; }
 /* Browser default figure margins (1em 40px) squeeze the card image inside
    its frame and push captions past the edge. */
 .card-grid figure { margin: 0; }
@@ -182,4 +184,149 @@ h2.display { font-size: clamp(1.4rem, 4vw, 2rem); margin: 0 0 .6em; }
 }
 @media (prefers-reduced-motion: reduce) {
   .card-frame, .card-frame:hover { transition: none; transform: none; }
+}
+
+/* Wide container + column split (design pass 2026-08-26). band-inner stays
+   720px for prose; galleries and tables opt into the wide variant. .cols is
+   the site's one desktop layout split; 900px is the only breakpoint. */
+.band-inner--wide { max-width: 1080px; margin: 0 auto; }
+.cols { display: grid; grid-template-columns: 1fr; gap: 2rem; align-items: center; }
+@media (min-width: 900px) { .cols { grid-template-columns: 1fr 1fr; } }
+
+/* Section header as a labeled hairline (Scryfall pattern). Plain --line
+   hairlines on purpose: the rarity gradient is masthead-only (brand rule). */
+.rule-label {
+  display: flex; align-items: center; gap: 1rem; margin: 0 0 1.5rem;
+  text-transform: uppercase; font-size: .78rem; letter-spacing: .09em;
+  color: var(--pewter-deep); font-weight: 700;
+}
+.rule-label::before, .rule-label::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+/* Stat strip: the game/set fact line as a quiet bordered chip. */
+.stat-strip { display: inline-block; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: .5em 1em; }
+
+/* Lens pills: the related-views row on game pages (Limitless tab pattern). */
+.pills { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; padding: 0; list-style: none; }
+.pills a {
+  display: inline-block; background: #fff; border: 1px solid var(--line);
+  border-radius: 999px; padding: .35em 1em; font-size: .88rem; font-weight: 600;
+  text-decoration: none; color: var(--ink);
+}
+.pills a:hover { border-color: var(--sapphire); color: var(--sapphire); }
+/* Scoped the same way as the .band-cta a rule above: a bare .pills a
+   (specificity 0,1,1) loses to the pre-existing .band-dark a rule (0,2,1)
+   when a pill sits in a parchment band, so pills silently rendered
+   sapphire there instead of ink. Repeat the color pair per band tone. */
+.band-light .pills a, .band-dark .pills a { color: var(--ink); }
+.band-light .pills a:hover, .band-dark .pills a:hover { border-color: var(--sapphire); color: var(--sapphire); }
+
+/* Unboxed card caption: one muted line under a card, outside the frame.
+   Replaces the white figcaption boxes that fought the dark card art. */
+.card-caption { margin: .5em 0 0; text-align: center; font-size: .82em; color: var(--muted-ink); }
+
+/* Trophy tiles on /standings/ (spec 2026-08-17 §4, closed by this pass). */
+.tiles { display: grid; grid-template-columns: 1fr; gap: 1.25rem; margin: 1.25em 0; }
+@media (min-width: 900px) { .tiles { grid-template-columns: 1fr 1fr; } }
+.tile {
+  background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--pewter);
+  border-radius: var(--radius); padding: 1rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(26, 28, 32, .06);
+}
+.tile--foil { border-left-color: var(--foil); }
+.tile h3 { margin: 0 0 .3em; text-transform: uppercase; font-size: .72em; letter-spacing: .07em; color: var(--pewter-deep); }
+
+/* Game rows on /games/: one bordered card per game instead of a bullet. */
+.game-rows { list-style: none; margin: 1.25em 0; padding: 0; display: grid; gap: 1rem; }
+.game-row {
+  background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(26, 28, 32, .06); padding: 1rem 1.25rem;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem 1.5rem;
+}
+.game-row .date { font-weight: 800; letter-spacing: -.02em; font-size: 1.15rem; }
+.game-row .winner { color: var(--foil-deep); font-weight: 700; }
+.game-row .links { margin-left: auto; display: flex; gap: 1rem; }
+@media (max-width: 899px) { .game-row .links { margin-left: 0; width: 100%; } }
+
+/* Set rows on /cards/: name left, six thumbnails right. */
+.set-rows { list-style: none; margin: 1.25em 0; padding: 0; display: grid; gap: 1.5rem; }
+.set-row {
+  background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(26, 28, 32, .06); padding: 1.25rem; display: grid; gap: 1rem;
+}
+@media (min-width: 900px) { .set-row { grid-template-columns: 1fr auto; align-items: center; } }
+.thumb-strip { display: flex; flex-wrap: wrap; gap: .5rem; }
+.thumb-strip img { width: 72px; border-radius: 4px; border: 1px solid var(--line); }
+/* Card back for an unshipped set: felt with a single gold top strip (a
+   background strip, not border-image, which breaks on one edge; and not the
+   full rarity gradient, which is masthead-only). */
+.card-back {
+  display: grid; place-items: center; width: 72px; aspect-ratio: 5 / 7;
+  border-radius: 4px; padding: .25rem; text-align: center;
+  background: linear-gradient(var(--foil), var(--foil)) left top / 100% 3px no-repeat, var(--felt);
+  color: var(--felt-ink); font-size: .6rem; text-transform: uppercase; letter-spacing: .05em;
+}
+
+/* Game-page results tables: the Notes column wraps, everything else stays
+   on one line. Without this the off-screen Notes cell inflates every row's
+   height on mobile. Opt-in variant; the standings table has no prose column. */
+.ledger--notes td:not(:last-child) { white-space: nowrap; }
+.ledger--notes td:last-child { min-width: 18em; }
+
+/* Drawn marks: rarity gems, the Hope Coin. Chrome is drawn, never emoji.
+   Use the -deep metal variants (foil/copper/pewter), not the plain ones:
+   these marks sit on the light bands (paper/parchment) and the plain foil
+   fill measures 2.14:1 there, well under WCAG 1.4.11's 3:1 floor for
+   graphical objects. The :root comment already says the -deep variants
+   exist for this; this is that promise kept. Sapphire alone stays plain
+   (5.88:1 on parchment, passes on its own). */
+.mark { display: inline-block; vertical-align: -1px; }
+.mark--foil { fill: var(--foil-deep); }
+.mark--sapphire { fill: var(--sapphire); }
+.mark--copper { fill: var(--copper-deep); }
+.mark--pewter { fill: var(--pewter-deep); }
+.mark--empty { fill: none; stroke: var(--pewter); stroke-width: 1.2; }
+.coin-ring { fill: none; stroke: var(--foil-deep); stroke-width: 1.5; }
+.coin-core { fill: var(--foil-deep); }
+
+/* Current page in the masthead. Pages set aria-current="page" on their own
+   nav link (generators emit it; committed pages carry it by hand). */
+nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2px solid var(--sapphire); }
+
+/* Holo effect (driven by /holo.js writing --hx/--hy). Foil card only:
+   scarcity of the effect is what makes the foil mean something. Guarded for
+   reduced motion the same way the shimmer above is, but independent of it:
+   nothing in this block needs .shimmer on the element. Without JS or with
+   reduced motion nothing here fires. */
+@media (prefers-reduced-motion: no-preference) {
+  .card-frame--holo { --hx: .5; --hy: .5; position: relative; }
+  .card-frame--holo.is-holo {
+    will-change: transform;
+    transition: none;
+    transform: perspective(700px)
+      rotateY(calc((var(--hx) - .5) * 16deg))
+      rotateX(calc((.5 - var(--hy)) * 16deg));
+  }
+  .card-frame--holo::before {
+    content: ""; position: absolute; inset: 0; z-index: 1;
+    pointer-events: none; opacity: 0;
+    background: radial-gradient(circle at calc(var(--hx) * 100%) calc(var(--hy) * 100%),
+      rgba(255, 255, 255, .45), transparent 55%);
+    mix-blend-mode: screen;
+  }
+  .card-frame--holo.is-holo::before { opacity: 1; }
+  .card-frame--holo.is-holo::after {
+    /* The next line looks like a duplicate of .shimmer::after (styles.css,
+       "Foil shimmer") and is deliberate: this rule owns its own content box,
+       so it no longer requires .shimmer on the element. Never delete it as
+       redundant. On a .card-frame--holo that is not also .shimmer there is no
+       ::after box to inherit, and the whole rainbow sweep would not paint. */
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    animation: none;
+    background: linear-gradient(115deg, transparent 20%,
+      rgba(201, 162, 39, .25) clamp(20%, calc(var(--hx) * 100% - 15%), 80%),
+      rgba(43, 93, 158, .25) clamp(20%, calc(var(--hx) * 100%), 80%),
+      rgba(176, 108, 63, .25) clamp(20%, calc(var(--hx) * 100% + 15%), 80%),
+      transparent 80%);
+    mix-blend-mode: color-dodge;
+  }
 }

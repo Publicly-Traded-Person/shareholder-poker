@@ -12,6 +12,14 @@ removes a named manual step; see the plan and spec section 6.
      never the check.
 4. Write the narrative page `site/games/<date>/index.html` (copy an existing
    game page shell). Dignity rule; no em dashes; no collections/owed content.
+   The shell includes the head chrome (favicon link, meta description from
+   the stat line, and the og:title/og:description/og:image/og:url/og:type
+   plus twitter:card link-unfurl block so a shared game link previews
+   correctly), the lens pills under the h1 (Story · Results · Chip race
+   · Standings, plus "The cards" once the month's set page exists), the
+   `stat stat-strip` fact line, `id="story"`/`id="results"` anchors, and
+   `ledger ledger--notes` on the results table. Copy the newest game page
+   to get all of it.
 5. Update `nextGame` in `site/data/games.json`.
 6. Review the full diff. Get Mike's explicit go. Push. Cloudflare deploys.
 7. Board: comment results on the month's game issue, close it, open next
@@ -21,6 +29,11 @@ removes a named manual step; see the plan and spec section 6.
 
 Card copy is judgment; it does not automate. Render per
 `munger/ccg/launch-aug-2026/ASSETS.md`, add `site/cards/<YYYY-MM>/`.
+
+When the set page ships, add `"cardSet": "YYYY-MM"` to that game's object in
+`site/data/games.json` (after `"pot"`), add the set to the gallery rows in
+`site/cards/index.html`, and re-run `bun tools/render.ts` so the games index
+links it. The data suite checks the referenced page exists.
 
 ## Reminder export (emails, Tier 2)
 
