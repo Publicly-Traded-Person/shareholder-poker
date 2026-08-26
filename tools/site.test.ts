@@ -135,6 +135,32 @@ describe("home page invariants", () => {
     expect(html).toContain('property="og:image"'));
   test("loads the holo script", () =>
     expect(html).toContain('src="/holo.js"'));
+  // Task 2 additions (2026-08-26 bounty/news/fan pass): the restructured
+  // home page loads the runtime fact-filler, carries exactly two bounty
+  // notices, runs its news tiles three-up, and opens with the card fan.
+  test("loads the home facts script", () =>
+    expect(html).toContain('src="/home-facts.js"'));
+  test("posts exactly two bounty notices", () =>
+    expect(html.split('class="notice ').length - 1).toBe(2));
+  test("news band is the three-up tile band", () =>
+    expect(html).toContain('tiles tiles--3'));
+  test("hero carries the card fan", () =>
+    expect(html).toContain('class="card-fan"'));
+  // Cross-boundary invariant guard (2026-08-26 redirect): home-facts.js
+  // restates tools/lib/standings.ts's skull tally in browser JS (site/ has
+  // no build step, so it cannot import the Bun TypeScript module) and both
+  // files match on the literal trophy string "hope-slayer" by convention,
+  // not by any shared constant. Renaming the trophy in one file without the
+  // other would silently empty the bounty board's skull tally while
+  // standings kept counting correctly (or vice versa) — this test fails
+  // loudly instead. If this ever needs to change, update both home-facts.js
+  // and tools/lib/standings.ts in the same commit.
+  test("home-facts.js still keys its skull tally off \"hope-slayer\"", () => {
+    const facts = readPage(
+      new URL("../site/home-facts.js", import.meta.url).pathname
+    );
+    expect(facts).toContain('"hope-slayer"');
+  });
 });
 
 // Task 5: the set page (site/cards/2026-07/index.html) drops emoji chrome,
