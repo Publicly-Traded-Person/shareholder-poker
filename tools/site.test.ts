@@ -164,14 +164,19 @@ describe("cards index gallery", () => {
   const html = readPage(
     new URL("../site/cards/index.html", import.meta.url).pathname
   );
+  // Counts <img src="..."> tags specifically (not a bare substring match):
+  // the og:image meta tag below also points into this same assets/ folder,
+  // and a loose substring count would double-count it as a seventh thumbnail.
   test("shows all six Set 1 thumbnails", () =>
-    expect(html.split("/cards/2026-07/assets/").length - 1).toBe(6));
+    expect(html.split('<img src="/cards/2026-07/assets/').length - 1).toBe(6));
   test("teases Set 2 with a drawn card back", () =>
     expect(html).toContain('class="card-back"'));
   test("links the favicon", () =>
     expect(html).toContain('href="/favicon.svg"'));
   test("marks Cards current in the nav", () =>
     expect(html).toContain('<a href="/cards/" aria-current="page">'));
+  test("carries link-unfurl tags (promo week needs a working preview card)", () =>
+    expect(html).toContain('property="og:image"'));
 });
 
 // Task 8: game pages get the shared shell (lens pills, stat-strip chip,
