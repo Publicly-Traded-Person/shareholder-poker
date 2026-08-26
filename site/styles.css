@@ -213,6 +213,12 @@ h2.display { font-size: clamp(1.4rem, 4vw, 2rem); margin: 0 0 .6em; }
   text-decoration: none; color: var(--ink);
 }
 .pills a:hover { border-color: var(--sapphire); color: var(--sapphire); }
+/* Scoped the same way as the .band-cta a rule above: a bare .pills a
+   (specificity 0,1,1) loses to the pre-existing .band-dark a rule (0,2,1)
+   when a pill sits in a parchment band, so pills silently rendered
+   sapphire there instead of ink. Repeat the color pair per band tone. */
+.band-light .pills a, .band-dark .pills a { color: var(--ink); }
+.band-light .pills a:hover, .band-dark .pills a:hover { border-color: var(--sapphire); color: var(--sapphire); }
 
 /* Unboxed card caption: one muted line under a card, outside the frame.
    Replaces the white figcaption boxes that fought the dark card art. */
@@ -266,15 +272,21 @@ h2.display { font-size: clamp(1.4rem, 4vw, 2rem); margin: 0 0 .6em; }
 .ledger--notes td:not(:last-child) { white-space: nowrap; }
 .ledger--notes td:last-child { min-width: 18em; }
 
-/* Drawn marks: rarity gems, the Hope Coin. Chrome is drawn, never emoji. */
+/* Drawn marks: rarity gems, the Hope Coin. Chrome is drawn, never emoji.
+   Use the -deep metal variants (foil/copper/pewter), not the plain ones:
+   these marks sit on the light bands (paper/parchment) and the plain foil
+   fill measures 2.14:1 there, well under WCAG 1.4.11's 3:1 floor for
+   graphical objects. The :root comment already says the -deep variants
+   exist for this; this is that promise kept. Sapphire alone stays plain
+   (5.88:1 on parchment, passes on its own). */
 .mark { display: inline-block; vertical-align: -1px; }
-.mark--foil { fill: var(--foil); }
+.mark--foil { fill: var(--foil-deep); }
 .mark--sapphire { fill: var(--sapphire); }
-.mark--copper { fill: var(--copper); }
-.mark--pewter { fill: var(--pewter); }
+.mark--copper { fill: var(--copper-deep); }
+.mark--pewter { fill: var(--pewter-deep); }
 .mark--empty { fill: none; stroke: var(--pewter); stroke-width: 1.2; }
-.coin-ring { fill: none; stroke: var(--foil); stroke-width: 1.5; }
-.coin-core { fill: var(--foil); }
+.coin-ring { fill: none; stroke: var(--foil-deep); stroke-width: 1.5; }
+.coin-core { fill: var(--foil-deep); }
 
 /* Current page in the masthead. Pages set aria-current="page" on their own
    nav link (generators emit it; committed pages carry it by hand). */
