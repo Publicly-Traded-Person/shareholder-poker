@@ -185,8 +185,10 @@ h2.display { font-size: clamp(1.4rem, 4vw, 2rem); margin: 0 0 .6em; }
 }
 
 /* Holo effect (driven by /holo.js writing --hx/--hy). Foil card only:
-   scarcity of the effect is what makes the foil mean something. Guarded
-   like the shimmer; without JS or with reduced motion nothing here fires. */
+   scarcity of the effect is what makes the foil mean something. Guarded for
+   reduced motion the same way the shimmer above is, but independent of it:
+   nothing in this block needs .shimmer on the element. Without JS or with
+   reduced motion nothing here fires. */
 @media (prefers-reduced-motion: no-preference) {
   .card-frame--holo { --hx: .5; --hy: .5; position: relative; }
   .card-frame--holo.is-holo {
@@ -205,6 +207,11 @@ h2.display { font-size: clamp(1.4rem, 4vw, 2rem); margin: 0 0 .6em; }
   }
   .card-frame--holo.is-holo::before { opacity: 1; }
   .card-frame--holo.is-holo::after {
+    /* The next line looks like a duplicate of .shimmer::after (styles.css,
+       "Foil shimmer") and is deliberate: this rule owns its own content box,
+       so it no longer requires .shimmer on the element. Never delete it as
+       redundant. On a .card-frame--holo that is not also .shimmer there is no
+       ::after box to inherit, and the whole rainbow sweep would not paint. */
     content: ""; position: absolute; inset: 0; pointer-events: none;
     animation: none;
     background: linear-gradient(115deg, transparent 20%,
