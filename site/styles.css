@@ -330,3 +330,69 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
     mix-blend-mode: color-dodge;
   }
 }
+
+/* Hero card fan (design pass 2, 2026-08-26). Committed card PNGs fanned in
+   the felt hero: compact strip above the heading on mobile, full fan beside
+   the copy on desktop (the .cols split reorders it right). Static art on
+   purpose: the foil band below keeps the shimmer and holo exclusively. */
+.card-fan { display: flex; justify-content: center; align-items: center; margin: 0 0 1rem; }
+.card-fan img {
+  position: relative; max-height: 96px; width: auto; border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .5);
+}
+.card-fan img:nth-child(1) { transform: rotate(-8deg) translateX(12px); }
+.card-fan img:nth-child(2) { z-index: 1; }
+.card-fan img:nth-child(3) { transform: rotate(8deg) translateX(-12px); }
+@media (min-width: 900px) {
+  .card-fan { order: 2; margin: 0; }
+  .card-fan img { max-height: 340px; }
+}
+
+/* News tiles: the standings tile grammar at three-up on desktop. */
+@media (min-width: 900px) { .tiles--3 { grid-template-columns: 1fr 1fr 1fr; } }
+
+/* Eyebrow label, shared voice with .tile h3 and the table headers. */
+.eyebrow {
+  margin: 0 0 .4em; text-transform: uppercase; font-size: .72em;
+  letter-spacing: .07em; color: var(--pewter-deep); font-weight: 700;
+}
+
+/* The bounty board (the pass's signature, spec §2): typed notices pinned
+   to the parchment band. The rotations are the site's first tilted
+   objects; they are static transforms, not motion, so they stay outside
+   the reduced-motion guards on purpose. */
+.notices { display: grid; grid-template-columns: 1fr; gap: 1.75rem; margin: 1.5em 0; }
+@media (min-width: 900px) { .notices { grid-template-columns: 1fr 1fr; } }
+.notice {
+  position: relative; background: #fff; border: 1px solid var(--line);
+  border-radius: 4px; padding: 2rem 1.5rem 1.25rem;
+  box-shadow: 0 8px 24px rgba(26, 28, 32, .14);
+}
+/* The pushpin: a drawn dot on the top edge (drawn chrome, never emoji). */
+.notice::before {
+  content: ""; position: absolute; top: -9px; left: 50%; margin-left: -9px;
+  width: 18px; height: 18px; border-radius: 50%;
+  box-shadow: inset 0 -2px 3px rgba(0, 0, 0, .25), 0 2px 3px rgba(26, 28, 32, .3);
+}
+.notice--copper::before { background: var(--copper); }
+.notice--foil::before { background: var(--foil); }
+.notice--tilt-l { transform: rotate(-1.2deg); }
+.notice--tilt-r { transform: rotate(1deg); }
+.notice .eyebrow {
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  letter-spacing: .12em;
+}
+.notice h3 { margin: 0 0 .5em; font-weight: 800; letter-spacing: -.02em; font-size: 1.3rem; }
+/* Reward line: label voice (uppercase is reserved for eyebrows and table
+   headers; a reward line is a label, set in the mono stat face). */
+.reward {
+  margin: 1.2em 0 0; padding-top: .8em; border-top: 1px dashed var(--line);
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  text-transform: uppercase; font-size: .8rem; letter-spacing: .08em;
+}
+.notice ul.fact { list-style: none; margin: .5em 0 0; padding: 0; }
+
+/* Runtime fact slots (filled by /home-facts.js): invisible until filled so
+   the no-JS page never shows an empty-looking hole. */
+.fact:empty { display: none; }
