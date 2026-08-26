@@ -13,7 +13,9 @@ removes a named manual step; see the plan and spec section 6.
 4. Write the narrative page `site/games/<date>/index.html` (copy an existing
    game page shell). Dignity rule; no em dashes; no collections/owed content.
    The shell includes the head chrome (favicon link, meta description from
-   the stat line), the lens pills under the h1 (Story · Results · Chip race
+   the stat line, and the og:title/og:description/og:image/og:url/og:type
+   plus twitter:card link-unfurl block so a shared game link previews
+   correctly), the lens pills under the h1 (Story · Results · Chip race
    · Standings, plus "The cards" once the month's set page exists), the
    `stat stat-strip` fact line, `id="story"`/`id="results"` anchors, and
    `ledger ledger--notes` on the results table. Copy the newest game page

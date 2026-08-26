@@ -191,5 +191,7 @@ describe("game page shells", () => {
       expect(html).toContain("stat-strip"));
     test(`${rel} links the favicon`, () =>
       expect(html).toContain('href="/favicon.svg"'));
+    test(`${rel} carries link-unfurl tags`, () =>
+      expect(html).toContain('property="og:image"'));
   }
 });
