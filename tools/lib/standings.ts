@@ -14,6 +14,9 @@ export type Game = {
   buyIn: number;
   entries: number;
   pot: number;
+  // "YYYY-MM": that month's set page at /cards/<cardSet>/, once it exists.
+  // Optional; games whose sets are still in production omit it.
+  cardSet?: string;
   results: GameResult[];
 };
 

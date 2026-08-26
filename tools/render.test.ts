@@ -11,6 +11,7 @@ const data: GamesData = {
   ],
   games: [
     { date: "2026-07-14", hands: 201, startingStack: 5000, buyIn: 50, entries: 3, pot: 150,
+      cardSet: "2026-07",
       results: [
         { slug: "chris-g", handle: "LEWD", finish: 1, payout: 105, rebuys: 0, trophies: ["hope-slayer"] },
         { slug: "nick-m", handle: "nickmershon", finish: 2, payout: 45, rebuys: 2, trophies: [] },
@@ -38,6 +39,19 @@ describe("renderStandings", () => {
   test("contains no em dash", () => {
     expect(html).not.toContain("—");
   });
+  test("marks the current page in the nav and links the favicon", () => {
+    expect(html).toContain('<a href="/standings/" aria-current="page">');
+    expect(html).toContain('href="/favicon.svg"');
+  });
+  test("shows the trophy tiles", () => {
+    expect(html).toContain("The Foil");
+    expect(html).toContain('class="tiles"');
+    expect(html).toContain("Chris G.");
+  });
+  test("draws marks as svg, never emoji", () => {
+    expect(html).not.toContain("\u{1FA99}");
+    expect(html).toContain('class="mark');
+  });
 });
 
 describe("renderGamesIndex", () => {
@@ -55,5 +69,15 @@ describe("renderGamesIndex", () => {
   });
   test("contains no em dash", () => {
     expect(html).not.toContain("—");
+  });
+  test("renders each game as a game-row card", () => {
+    expect(html).toContain('class="game-row"');
+    expect(html).toContain("3 entries · $150 pot · 201 hands");
+  });
+  test("links the month's card set when the game has one", () => {
+    expect(html).toContain('href="/cards/2026-07/"');
+  });
+  test("marks the current page in the nav", () => {
+    expect(html).toContain('<a href="/games/" aria-current="page">');
   });
 });
