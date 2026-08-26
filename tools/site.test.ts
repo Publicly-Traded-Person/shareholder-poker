@@ -23,6 +23,29 @@ export function siteHtmlFiles(
 // Reads one page as text; every page block below goes through this.
 export const readPage = (p: string) => readFileSync(p, "utf8");
 
+// Returns the text inside each <!-- ... --> block of an XML/SVG source, so a
+// caller can check the XML comment rules against those interiors alone. Takes
+// the raw file text; returns one string per comment, in document order (an
+// empty array when there are no comments). Throws nothing: an unterminated
+// comment yields the rest of the document, which fails the same checks a
+// malformed comment would, so a truncated file cannot pass by accident.
+export function commentInteriors(xml: string): string[] {
+  const OPEN = "<!--";
+  const CLOSE = "-->";
+  const out: string[] = [];
+  let i = xml.indexOf(OPEN);
+  while (i !== -1) {
+    const start = i + OPEN.length;
+    const end = xml.indexOf(CLOSE, start);
+    // Slice stops before CLOSE so the delimiter's own hyphens are not counted
+    // as content; they are legal exactly where they close the comment.
+    out.push(end === -1 ? xml.slice(start) : xml.slice(start, end));
+    if (end === -1) break;
+    i = xml.indexOf(OPEN, end + CLOSE.length);
+  }
+  return out;
+}
+
 describe("site-wide copy rules (the pre-merge greps, now permanent)", () => {
   const pages = siteHtmlFiles();
   test("no em dash in any committed page", () => {
@@ -45,4 +68,36 @@ describe("utility pages carry the favicon", () => {
         'href="/favicon.svg"'
       ));
   }
+});
+
+// A standalone .svg is served as image/svg+xml and parsed by the browser's
+// STRICT XML parser, not the forgiving HTML one. One well-formedness error and
+// the icon simply never paints: no console error a visitor would see, no other
+// test failing, just an empty tab. That silence is why this needs a guard.
+// The rule that actually bit us (XML 1.0 section 2.5): the string "--" must
+// never appear inside a comment, so the CSS variable names cannot be written
+// with their leading hyphens in the header comment.
+// Scope: this is a comment-rule check on the one SVG this repo ships, not a
+// general XML validator; Bun has no DOMParser and the repo has no XML dep.
+describe("favicon.svg is well-formed XML", () => {
+  const faviconPath = new URL("../site/favicon.svg", import.meta.url).pathname;
+
+  test("no comment contains a double hyphen", () => {
+    const offenders = commentInteriors(readPage(faviconPath)).filter((c) =>
+      c.includes("--")
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  test("every comment is terminated", () => {
+    const svg = readPage(faviconPath);
+    expect(svg.split("<!--").length - 1).toBe(svg.split("-->").length - 1);
+  });
+
+  test("the spade still paints on felt", () => {
+    const svg = readPage(faviconPath);
+    expect(svg).toContain('xmlns="http://www.w3.org/2000/svg"');
+    expect(svg).toContain('fill="#101216"'); // felt
+    expect(svg).toContain('fill="#c9a227"'); // foil
+  });
 });
