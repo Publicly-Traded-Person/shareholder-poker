@@ -33,3 +33,19 @@ describe("site-wide copy rules (the pre-merge greps, now permanent)", () => {
       expect(readPage(p).toLowerCase()).not.toContain("experiment");
   });
 });
+
+// Task 4: home page invariants. Guards the design-pass rework of
+// site/index.html (wide foil band, holo card, one lime button, unfurl tags).
+describe("home page invariants", () => {
+  const html = readPage(new URL("../site/index.html", import.meta.url).pathname);
+  test("links the favicon", () =>
+    expect(html).toContain('href="/favicon.svg"'));
+  test("exactly one lime button (brand: one lime action per page)", () =>
+    expect(html.split("btn-primary").length - 1).toBe(1));
+  test("marks Home current in the nav", () =>
+    expect(html).toContain('<a href="/" aria-current="page">'));
+  test("carries link-unfurl tags", () =>
+    expect(html).toContain('property="og:image"'));
+  test("loads the holo script", () =>
+    expect(html).toContain('src="/holo.js"'));
+});
