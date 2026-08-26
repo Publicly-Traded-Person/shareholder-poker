@@ -21,9 +21,9 @@ removes a named manual step; see the plan and spec section 6.
    `ledger ledger--notes` on the results table. Copy the newest game page
    to get all of it.
 
-   Home page: refresh the two news one-liners ("Last game", "The coin"),
-   and the bounty notices if a bounty was settled or the Coin moved. The
-   numbers under them fill themselves from games.json at runtime
+   Home page: refresh the three news one-liners ("Last game", "The cards",
+   "The coin"), and the bounty notices if a bounty was settled or the Coin
+   moved. The numbers under them fill themselves from games.json at runtime
    (site/home-facts.js); never type numbers into the home page.
 5. Update `nextGame` in `site/data/games.json`.
 6. Review the full diff. Get Mike's explicit go. Push. Cloudflare deploys.
@@ -38,7 +38,11 @@ Card copy is judgment; it does not automate. Render per
 When the set page ships, add `"cardSet": "YYYY-MM"` to that game's object in
 `site/data/games.json` (after `"pot"`), add the set to the gallery rows in
 `site/cards/index.html`, and re-run `bun tools/render.ts` so the games index
-links it. The data suite checks the referenced page exists.
+links it. The data suite checks the referenced page exists. In the same
+change, refresh the home page's "The cards" tile (`site/index.html`) so it
+names the set that just shipped instead of the one still in production; it
+is hand-typed copy, not runtime-filled, so nothing else will catch it going
+stale.
 
 ## Reminder export (emails, Tier 2)
 

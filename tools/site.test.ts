@@ -146,6 +146,21 @@ describe("home page invariants", () => {
     expect(html).toContain('tiles tiles--3'));
   test("hero carries the card fan", () =>
     expect(html).toContain('class="card-fan"'));
+  // Cross-boundary invariant guard (2026-08-26 redirect): home-facts.js
+  // restates tools/lib/standings.ts's skull tally in browser JS (site/ has
+  // no build step, so it cannot import the Bun TypeScript module) and both
+  // files match on the literal trophy string "hope-slayer" by convention,
+  // not by any shared constant. Renaming the trophy in one file without the
+  // other would silently empty the bounty board's skull tally while
+  // standings kept counting correctly (or vice versa) — this test fails
+  // loudly instead. If this ever needs to change, update both home-facts.js
+  // and tools/lib/standings.ts in the same commit.
+  test("home-facts.js still keys its skull tally off \"hope-slayer\"", () => {
+    const facts = readPage(
+      new URL("../site/home-facts.js", import.meta.url).pathname
+    );
+    expect(facts).toContain('"hope-slayer"');
+  });
 });
 
 // Task 5: the set page (site/cards/2026-07/index.html) drops emoji chrome,
