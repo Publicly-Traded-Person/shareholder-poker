@@ -84,7 +84,7 @@ describe("utility pages carry the favicon", () => {
   ]) {
     test(rel, () =>
       expect(readPage(new URL(rel, import.meta.url).pathname)).toContain(
-        'href="/favicon.svg"'
+        '<link rel="icon" type="image/svg+xml" href="/favicon.svg">'
       ));
   }
 });
