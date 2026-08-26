@@ -33,3 +33,24 @@ describe("site-wide copy rules (the pre-merge greps, now permanent)", () => {
       expect(readPage(p).toLowerCase()).not.toContain("experiment");
   });
 });
+
+// Task 5: the set page (site/cards/2026-07/index.html) drops emoji chrome,
+// the pack-rip gif, and boxed captions in favor of the shared .card-caption
+// / .mark classes from Task 1 and the holo effect from Task 3.
+describe("set page invariants (2026-07)", () => {
+  const html = readPage(
+    new URL("../site/cards/2026-07/index.html", import.meta.url).pathname
+  );
+  test("no emoji chrome", () => {
+    for (const e of ["\u2728", "\u2b50", "\u25c6", "\u25cf", "\u{1FA99}"])
+      expect(html).not.toContain(e);
+  });
+  test("captions are unboxed card-caption lines", () =>
+    expect(html).toContain('class="card-caption"'));
+  test("the pack rip gif is gone", () =>
+    expect(html).not.toContain("pack-rip.gif"));
+  test("links the favicon", () =>
+    expect(html).toContain('href="/favicon.svg"'));
+  test("marks Cards current in the nav", () =>
+    expect(html).toContain('<a href="/cards/" aria-current="page">'));
+});
