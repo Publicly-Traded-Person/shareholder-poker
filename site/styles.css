@@ -279,3 +279,34 @@ h2.display { font-size: clamp(1.4rem, 4vw, 2rem); margin: 0 0 .6em; }
 /* Current page in the masthead. Pages set aria-current="page" on their own
    nav link (generators emit it; committed pages carry it by hand). */
 nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2px solid var(--sapphire); }
+
+/* Holo effect (driven by /holo.js writing --hx/--hy). Foil card only:
+   scarcity of the effect is what makes the foil mean something. Guarded
+   like the shimmer; without JS or with reduced motion nothing here fires. */
+@media (prefers-reduced-motion: no-preference) {
+  .card-frame--holo { --hx: .5; --hy: .5; position: relative; }
+  .card-frame--holo.is-holo {
+    will-change: transform;
+    transition: none;
+    transform: perspective(700px)
+      rotateY(calc((var(--hx) - .5) * 16deg))
+      rotateX(calc((.5 - var(--hy)) * 16deg));
+  }
+  .card-frame--holo::before {
+    content: ""; position: absolute; inset: 0; z-index: 1;
+    pointer-events: none; opacity: 0;
+    background: radial-gradient(circle at calc(var(--hx) * 100%) calc(var(--hy) * 100%),
+      rgba(255, 255, 255, .45), transparent 55%);
+    mix-blend-mode: screen;
+  }
+  .card-frame--holo.is-holo::before { opacity: 1; }
+  .card-frame--holo.is-holo::after {
+    animation: none;
+    background: linear-gradient(115deg, transparent 20%,
+      rgba(201, 162, 39, .25) calc(var(--hx) * 100% - 15%),
+      rgba(43, 93, 158, .25) calc(var(--hx) * 100%),
+      rgba(176, 108, 63, .25) calc(var(--hx) * 100% + 15%),
+      transparent 80%);
+    mix-blend-mode: color-dodge;
+  }
+}
