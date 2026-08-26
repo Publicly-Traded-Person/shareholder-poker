@@ -5,11 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>K5M Shareholder Poker</title>
 <meta name="description" content="Shareholders who play poker. Second Tuesday of every month, 7pm Pacific. Real stakes, real cards, real grudges.">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta property="og:title" content="K5M Shareholder Poker">
+<meta property="og:description" content="Shareholders who play poker. Second Tuesday of every month, 7pm Pacific. Real stakes, real cards, real grudges.">
+<meta property="og:image" content="https://poker.kmikeym.com/cards/2026-07/assets/card-1-lewd.png">
+<meta property="og:url" content="https://poker.kmikeym.com/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 <nav class="band-dark" style="padding:1rem 1.25rem;">
-  <div class="band-inner"><a href="/">Home</a> · <a href="/games/">Games</a> · <a href="/cards/">Cards</a> · <a href="/standings/">Standings</a></div>
+  <div class="band-inner"><a href="/" aria-current="page">Home</a> · <a href="/games/">Games</a> · <a href="/cards/">Cards</a> · <a href="/standings/">Standings</a></div>
 </nav>
 <section class="band-cta">
   <div class="band-inner">
@@ -29,13 +36,13 @@
 </section>
 
 <section class="band-light">
-  <div class="band-inner">
+  <div class="band-inner band-inner--wide">
     <h2 class="display">The foil is in play</h2>
-    <div style="display:flex; gap:1.5rem; flex-wrap:wrap; align-items:center;">
-      <figure class="card-frame shimmer" style="max-width:220px;">
+    <div class="cols">
+      <figure class="card-frame card-frame--holo shimmer" style="max-width:300px; margin:0 auto;">
         <img src="/cards/2026-07/assets/card-1-lewd.png" alt="Foil champion card: Chris G.">
       </figure>
-      <div style="flex:1; min-width:240px;">
+      <div>
         <p>This is a real card. Chris G. earned the foil by winning July's game outright, heads-up against the reigning champion.</p>
         <p><strong>Then August happened.</strong> Thomas D. won his first title at this table, on his second trip to it, and took a Hope Slayer skull on the way. The next foil has his name on it.</p>
         <p><a class="btn-secondary" href="/cards/2026-07/">See the full set</a></p>
@@ -85,7 +92,7 @@
   <div class="band-inner">
     <h2 class="display">The table is set</h2>
     <p><span id="next-game-short">September 8, 7:00pm PT</span>. New players welcome: the last new face at this table needed one game to learn it and one more to win it.</p>
-    <a class="btn-primary" id="rsvp-jump" href="#rsvp-form" onclick="document.getElementById('rsvp-email').focus()">RSVP for the next game</a>
+    <a class="btn-secondary" id="rsvp-jump" href="#rsvp-form" onclick="document.getElementById('rsvp-email').focus()">RSVP for the next game</a>
   </div>
 </section>
 
@@ -95,5 +102,6 @@
   </div>
 </footer>
 <script src="/rsvp.js"></script>
+<script src="/holo.js" defer></script>
 </body>
 </html>
