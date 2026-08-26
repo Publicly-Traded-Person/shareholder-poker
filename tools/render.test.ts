@@ -52,6 +52,9 @@ describe("renderStandings", () => {
     expect(html).not.toContain("\u{1FA99}");
     expect(html).toContain('class="mark');
   });
+  test("declares its own canonical url for link unfurls", () => {
+    expect(html).toContain('<meta property="og:url" content="https://poker.kmikeym.com/standings/">');
+  });
 });
 
 describe("renderGamesIndex", () => {
@@ -79,5 +82,8 @@ describe("renderGamesIndex", () => {
   });
   test("marks the current page in the nav", () => {
     expect(html).toContain('<a href="/games/" aria-current="page">');
+  });
+  test("declares its own canonical url for link unfurls", () => {
+    expect(html).toContain('<meta property="og:url" content="https://poker.kmikeym.com/games/">');
   });
 });

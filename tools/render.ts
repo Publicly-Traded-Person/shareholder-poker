@@ -32,7 +32,10 @@ const nav = (current: string) =>
 // footerTone is the background class for the closing footer band. Bands must
 // alternate light/dark with no two of the same tone touching (brand rule), so
 // the caller passes whichever tone opposes its own last section. `current` is
-// the page's own nav href; `description` fills the meta/og description.
+// the page's own nav href, used twice: it marks the nav link with aria-current
+// and it becomes the absolute og:url, so a shared link unfurls pointing at this
+// page rather than at whatever page the scraper guessed. `description` fills
+// the meta/og description.
 function page(
   title: string,
   body: string,
@@ -50,6 +53,7 @@ function page(
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <meta property="og:title" content="${esc(title)} | K5M Shareholder Poker">
 <meta property="og:description" content="${esc(description)}">
+<meta property="og:url" content="https://poker.kmikeym.com${current}">
 <meta property="og:image" content="https://poker.kmikeym.com/cards/2026-07/assets/card-1-lewd.png">
 <meta name="twitter:card" content="summary">
 <link rel="stylesheet" href="/styles.css">
