@@ -33,3 +33,16 @@ describe("site-wide copy rules (the pre-merge greps, now permanent)", () => {
       expect(readPage(p).toLowerCase()).not.toContain("experiment");
   });
 });
+
+describe("utility pages carry the favicon", () => {
+  for (const rel of [
+    "../site/404.html",
+    "../site/games/2026-07-14/chip-race.html",
+    "../site/games/2026-08-11/chip-race.html",
+  ]) {
+    test(rel, () =>
+      expect(readPage(new URL(rel, import.meta.url).pathname)).toContain(
+        'href="/favicon.svg"'
+      ));
+  }
+});

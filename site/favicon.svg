@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Favicon for poker.kmikeym.com: gold spade on table felt. Served at
+       /favicon.svg; every page links it. Palette = --felt / --foil. -->
+  <rect width="32" height="32" rx="6" fill="#101216"/>
+  <path d="M16 5c3.5 5 9 7.5 9 12.5a5 5 0 0 1-8 4c.3 2.5 1.2 4 2.5 5h-7c1.3-1 2.2-2.5 2.5-5a5 5 0 0 1-8-4C7 12.5 12.5 10 16 5Z" fill="#c9a227"/>
+</svg>
