@@ -192,6 +192,11 @@ h2.display { font-size: clamp(1.4rem, 4vw, 2rem); margin: 0 0 .6em; }
 .band-inner--wide { max-width: 1080px; margin: 0 auto; }
 .cols { display: grid; grid-template-columns: 1fr; gap: 2rem; align-items: center; }
 @media (min-width: 900px) { .cols { grid-template-columns: 1fr 1fr; } }
+/* Grid `fr` tracks floor at their content's intrinsic min-width, not 0.
+   A wide child (like the 3-card fan) can force its whole column past its
+   fair share and blow out the page's horizontal scroll, which the brand
+   forbids. min-width: 0 removes that floor so tracks actually share space. */
+.cols > * { min-width: 0; }
 
 /* Section header as a labeled hairline (Scryfall pattern). Plain --line
    hairlines on purpose: the rarity gradient is masthead-only (brand rule). */
@@ -346,7 +351,11 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
 .card-fan img:nth-child(3) { transform: rotate(8deg) translateX(-12px); }
 @media (min-width: 900px) {
   .card-fan { order: 2; margin: 0; }
-  .card-fan img { max-height: 340px; }
+  /* clamp, not a flat 340px: between 900px and roughly 1200px the fan's
+     column is narrower than three 340px-tall cards need, and the fr-floor
+     fix above only stops the blowout, not the squeeze, so the cards must
+     shrink with the viewport (24vw) down to a 180px floor. */
+  .card-fan img { max-height: clamp(180px, 24vw, 340px); }
 }
 
 /* News tiles: the standings tile grammar at three-up on desktop. */

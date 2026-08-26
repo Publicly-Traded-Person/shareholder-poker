@@ -8,8 +8,13 @@
      #fact-last-game       latest game stat line
      #fact-last-game-link  href to the latest game page
      #fact-coin            Hope Coin holder + held-since
-     #fact-skulls          <li> per hunter with skull gems */
+     #fact-skulls          <li> per hunter: name, skull gems, "N of 3" text
+                            (the count is a real text node, not just the
+                            gems, so a screen reader hears it too) */
 (function () {
+  /* Shorthand for the one lookup this file does everywhere; returns null
+     for a missing id (every caller below checks before using the result,
+     so this script never throws on a page that lacks a given slot). */
   function el(id) { return document.getElementById(id); }
   /* The gem marks live as <template> elements in the page markup (ids
      gem-full / gem-empty, beside the other drawn marks); this script only
@@ -75,9 +80,20 @@
             var g = gem(i < n ? "gem-full" : "gem-empty");
             if (g) li.appendChild(g);
           }
+          /* The gems are aria-hidden (drawn chrome, not content), so
+             without this the count exists only as a visual gem tally and
+             a screen reader hears just the name. A plain text node makes
+             the count real content for everyone, matching how the
+             standings page states name, gems, and count together. */
+          li.appendChild(document.createTextNode(" " + n + " of 3"));
           listEl.appendChild(li);
         });
       }
     })
-    .catch(function () { /* the static page stands on its own */ });
+    .catch(function (err) {
+      /* Visitors never see this: the static page stands on its own with
+         every .fact slot empty. It exists for Charlie, checking the
+         console during the monthly publish when a fill silently failed. */
+      console.warn("home-facts: " + err);
+    });
 })();
