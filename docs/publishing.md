@@ -22,6 +22,11 @@ removes a named manual step; see the plan and spec section 6.
 Card copy is judgment; it does not automate. Render per
 `munger/ccg/launch-aug-2026/ASSETS.md`, add `site/cards/<YYYY-MM>/`.
 
+When the set page ships, add `"cardSet": "YYYY-MM"` to that game's object in
+`site/data/games.json` (after `"pot"`), add the set to the gallery rows in
+`site/cards/index.html`, and re-run `bun tools/render.ts` so the games index
+links it. The data suite checks the referenced page exists.
+
 ## Reminder export (emails, Tier 2)
 
 `wrangler d1 execute poker-rsvp-db --command "SELECT email FROM rsvps WHERE game='YYYY-MM-DD'"`

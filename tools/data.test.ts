@@ -8,6 +8,7 @@
 // because /data/games.json is a public URL. Handle-derived slugs with no
 // surname (kmikeym, webvee) are fine. See docs/brand.md "Names".
 import { describe, expect, test } from "bun:test";
+import { existsSync } from "node:fs";
 import type { GamesData } from "./lib/standings";
 
 const data = JSON.parse(
@@ -48,5 +49,17 @@ describe("data consistency (the checks the seed validator ran, now permanent)", 
   });
   test("hopeCoin holder is a known slug", () => {
     expect(slugs.has(data.hopeCoin.holder)).toBe(true);
+  });
+});
+
+describe("card set references", () => {
+  test("cardSet names that month's set page, and the page exists", () => {
+    for (const g of data.games) {
+      if (g.cardSet === undefined) continue;
+      expect(g.cardSet).toBe(g.date.slice(0, 7));
+      expect(
+        existsSync(new URL(`../site/cards/${g.cardSet}/index.html`, import.meta.url).pathname)
+      ).toBe(true);
+    }
   });
 });
