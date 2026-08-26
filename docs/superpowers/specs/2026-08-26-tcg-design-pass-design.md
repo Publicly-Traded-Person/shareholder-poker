@@ -257,16 +257,13 @@ Every item runs before the PR is called done:
 - Set 2 card assets and page (waiting on production).
 - Newsletter integration beyond the existing footer link.
 
-## 11. Open decisions (Mike or Charlie, before or during implementation)
+## 11. Decisions (settled by Mike, 2026-08-26)
 
-1. **The home page has two lime buttons** (hero submit, footer RSVP jump).
-   `docs/brand.md` says exactly one lime CTA per page; the prior spec §7
-   orders the home page to end with "RSVP again". Recommendation: the rule
-   means one lime *action* per page, the footer repeat drops to the white
-   outline style, lime appears once. Flagged rather than absorbed, per
-   brand.md's own instruction.
-2. **Pack rip: cut now or build the deal** (§6). Recommendation: cut now,
-   file the deal as a follow-up.
-3. **OG image: reuse the foil card PNG or compose a proper 1200x630 image**
-   from existing card art. Recommendation: reuse the PNG this week; a
-   composed image is a follow-up with the pack-rip issue.
+1. **One lime action per page.** The hero submit stays lime; the footer
+   RSVP jump drops to the white outline style (`.btn-secondary`). This
+   reading reconciles `docs/brand.md` (one lime CTA per page) with the
+   prior spec §7 ("RSVP again"): the action repeats, the lime does not.
+2. **Pack rip: cut now.** The GIF and its band go; the set grid is the
+   reveal. The tap-through deal (§6b) is filed as a follow-up issue.
+3. **OG image: the foil card PNG**, absolute URL. A composed 1200x630
+   image is filed with the pack-rip follow-up.
