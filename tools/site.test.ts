@@ -33,3 +33,23 @@ describe("site-wide copy rules (the pre-merge greps, now permanent)", () => {
       expect(readPage(p).toLowerCase()).not.toContain("experiment");
   });
 });
+
+// Task 8: game pages get the shared shell (lens pills, stat-strip chip,
+// notes-table variant, favicon) so docs/publishing.md can tell Charlie to
+// copy the newest game page and get all of it for free.
+describe("game page shells", () => {
+  for (const rel of [
+    "../site/games/2026-07-14/index.html",
+    "../site/games/2026-08-11/index.html",
+  ]) {
+    const html = readPage(new URL(rel, import.meta.url).pathname);
+    test(`${rel} has the lens pills`, () =>
+      expect(html).toContain('class="pills"'));
+    test(`${rel} uses the notes table variant`, () =>
+      expect(html).toContain("ledger ledger--notes"));
+    test(`${rel} has the stat strip`, () =>
+      expect(html).toContain("stat-strip"));
+    test(`${rel} links the favicon`, () =>
+      expect(html).toContain('href="/favicon.svg"'));
+  }
+});
