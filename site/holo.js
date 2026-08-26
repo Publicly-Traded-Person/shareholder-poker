@@ -26,6 +26,9 @@
       });
     });
     card.addEventListener("pointerleave", function () {
+      /* A pointermove rAF scheduled just before pointerleave fires afterwards
+         and overwrites the .5 reset with stale coordinates; cancel it. */
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
       card.classList.remove("is-holo");
       card.style.setProperty("--hx", 0.5);
       card.style.setProperty("--hy", 0.5);
