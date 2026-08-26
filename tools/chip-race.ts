@@ -35,6 +35,8 @@ export function buildChipRace(csv: string, opts: { date: string; startingStack: 
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chip race ${opts.date}</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta name="description" content="Chip race: ${opts.date}. ${entries} entries, ${hands} hands.">
 <style>
   body { margin: 0; padding: 1rem; background: #1c1f26; color: #eceae2; font-family: -apple-system, sans-serif; }
   .wrap { overflow-x: auto; }
