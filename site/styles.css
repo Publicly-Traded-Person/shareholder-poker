@@ -453,11 +453,13 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
   display: inline-block; width: 10px; height: 10px; border-radius: 2px;
   margin-right: .45em; vertical-align: -1px;
 }
-/* Hover: the chart dims and the hovered line pops. Hover-capable devices
-   only; on touch the chart stays fully lit. A hover state is not motion, so
-   no reduced-motion gate. */
+/* Hover: the field dims ONLY while an actual line is under the pointer
+   (:has), and that line pops. The first cut dimmed on any svg hover, which
+   read as the whole chart darkening for no reason (Mike, 2026-08-26).
+   Browsers without :has simply get the line pop without the dim. Hover-
+   capable devices only; a hover state is not motion, no reduced-motion gate. */
 @media (hover: hover) {
-  .chip-race svg:hover polyline { opacity: .3; }
+  .chip-race svg:has(polyline:hover) polyline { opacity: .35; }
   .chip-race svg polyline:hover { opacity: 1; stroke-width: 4; }
 }
 
