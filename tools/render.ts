@@ -131,38 +131,119 @@ ${rows}
   );
 }
 
+// The standing schedule rule, as arithmetic: the second Tuesday of a month.
+// Used ONLY for the season page's "upcoming" cards, which the page labels as
+// schedule projections; nextGame in games.json stays the one authoritative
+// date (a moved game changes nextGame, never this function).
+export function secondTuesday(year: number, month: number): string {
+  const firstDow = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+  const day = 1 + ((2 - firstDow + 7) % 7) + 7;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+// "2026-09-08" -> "Sept 8" for button copy; month names match rsvp.js.
+const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"];
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+function shortDate(iso: string): string {
+  const [, m, d] = iso.split("-").map(Number);
+  return `${SHORT_MONTHS[m - 1]} ${d}`;
+}
+
+// The season page (F1 schedule pattern, Mike 2026-08-26): every game a
+// uniform card in chronological order; played games show the podium, the
+// next game is the page's single felt-and-lime card, upcoming games are
+// unopened packs projected from the standing rule.
 export function renderGamesIndex(data: GamesData): string {
   const nameOf = new Map(data.players.map(p => [p.slug, p.name]));
-  const items = [...data.games].sort((a, b) => b.date.localeCompare(a.date)).map(g => {
-    const winner = g.results.find(r => r.finish === 1)!;
+
+  const played = [...data.games].sort((a, b) => a.date.localeCompare(b.date)).map(g => {
+    const top3 = g.results.filter(r => r.finish <= 3).sort((a, b) => a.finish - b.finish);
+    const podium = top3.map(r => {
+      const payout = r.payout > 0 ? ` <span class="stat">$${r.payout}</span>` : "";
+      const gem = r.finish === 1 ? " " + GEM("foil") : "";
+      return `        <li><span class="stat">${r.finish}</span> ${esc(nameOf.get(r.slug) ?? r.slug)}${gem}${payout}</li>`;
+    }).join("\n");
+    const [, m] = g.date.split("-").map(Number);
     const cards = g.cardSet ? ` · <a href="/cards/${g.cardSet}/">The cards</a>` : "";
-    return `    <li class="game-row">
-      <span class="date"><a href="/games/${g.date}/">${g.date}</a></span>
-      <span class="winner">${esc(nameOf.get(winner.slug) ?? winner.slug)} ${GEM("foil")} won</span>
-      <span class="stat">${g.entries} entries · $${g.pot} pot · ${g.hands} hands</span>
-      <span class="links"><a href="/games/${g.date}/">The game</a>${cards}</span>
+    return `    <li class="season-card">
+      <p class="eyebrow">${MONTHS[m - 1]} · Played</p>
+      <p class="season-date"><a href="/games/${g.date}/">${g.date}</a></p>
+      <ol class="podium">
+${podium}
+      </ol>
+      <p class="stat">${g.entries} entries · $${g.pot} pot · ${g.hands} hands</p>
+      <p class="season-links"><a href="/games/${g.date}/">The game</a>${cards}</p>
     </li>`;
   }).join("\n");
+
+  // Upcoming: the two months after the next game, per the standing rule.
+  const [ny, nm] = data.nextGame.date.split("-").map(Number);
+  const upcoming = [1, 2].map(k => {
+    const y = ny + Math.floor((nm - 1 + k) / 12);
+    const m = ((nm - 1 + k) % 12) + 1;
+    const date = secondTuesday(y, m);
+    return `    <li class="season-card season-card--upcoming">
+      <p class="eyebrow">${MONTHS[m - 1]} · Upcoming</p>
+      <p class="season-date">${date}</p>
+      <span class="card-back">Unopened</span>
+      <p class="stat">Second Tuesday, per the standing schedule.</p>
+    </li>`;
+  }).join("\n");
+
+  const [, nextM] = data.nextGame.date.split("-").map(Number);
   const body = `
 <section class="band-light">
   <div class="band-inner band-inner--wide">
     <h1 class="display">Games</h1>
-    <p>Second Tuesday of every month, 7pm PT. Next: <strong>${data.nextGame.date}</strong>.</p>
+    <p>Second Tuesday of every month, 7pm PT. One game, one set of cards, one line in the record.</p>
     <p class="stat">${RECORD_QUALIFIER}</p>
-    <ul class="game-rows">
-${items}
-    </ul>
+    <ol class="season">
+${played}
+    <li class="season-card season-card--next">
+      <p class="eyebrow">${MONTHS[nextM - 1]} · Next game</p>
+      <p class="season-date">${data.nextGame.date}</p>
+      <p>${data.nextGame.time}, cards on Poker Now, faces on Zoom. New players welcome.</p>
+      <p><a class="btn-primary" href="/#rsvp-form">RSVP for ${shortDate(data.nextGame.date)}</a></p>
+      <p class="season-links"><a href="/next-game.ics">Add to calendar</a></p>
+    </li>
+${upcoming}
+    </ol>
   </div>
 </section>`;
   return page(
     "Games", body, "band-dark", "/games/",
-    "Every K5M Shareholder Poker game, newest first: winners, pots, and hand counts."
+    "The season: every K5M Shareholder Poker game played, the next one, and what the schedule holds."
   );
+}
+
+// The next game as a calendar file, served at /next-game.ics and regenerated
+// with the season page. Deterministic on purpose: DTSTAMP derives from the
+// game date, never the wall clock, so the render drift check stays clean.
+// 7pm Pacific, three hours (the site's own "How the night runs" numbers).
+export function renderNextGameIcs(data: GamesData): string {
+  const d = data.nextGame.date.replaceAll("-", "");
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//poker.kmikeym.com//EN",
+    "BEGIN:VEVENT",
+    `UID:poker-kmikeym-${data.nextGame.date}`,
+    `DTSTAMP:${d}T000000Z`,
+    `DTSTART;TZID=America/Los_Angeles:${d}T190000`,
+    `DTEND;TZID=America/Los_Angeles:${d}T220000`,
+    "SUMMARY:K5M Shareholder Poker",
+    "DESCRIPTION:No-limit Hold'em. Cards on Poker Now\\, faces on Zoom. RSVP at poker.kmikeym.com.",
+    "URL:https://poker.kmikeym.com/",
+    "END:VEVENT",
+    "END:VCALENDAR",
+    "",
+  ].join("\r\n");
 }
 
 if (import.meta.main) {
   const data = JSON.parse(await Bun.file("site/data/games.json").text()) as GamesData;
   await Bun.write("site/standings/index.html", renderStandings(data));
   await Bun.write("site/games/index.html", renderGamesIndex(data));
-  console.log("rendered site/standings/index.html and site/games/index.html");
+  await Bun.write("site/next-game.ics", renderNextGameIcs(data));
+  console.log("rendered site/standings/index.html, site/games/index.html, site/next-game.ics");
 }

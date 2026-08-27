@@ -240,17 +240,39 @@ h2.display { font-size: clamp(1.4rem, 4vw, 2rem); margin: 0 0 .6em; }
 .tile--foil { border-left-color: var(--foil); }
 .tile h3 { margin: 0 0 .3em; text-transform: uppercase; font-size: .72em; letter-spacing: .07em; color: var(--pewter-deep); }
 
-/* Game rows on /games/: one bordered card per game instead of a bullet. */
-.game-rows { list-style: none; margin: 1.25em 0; padding: 0; display: grid; gap: 1rem; }
-.game-row {
-  background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
-  box-shadow: 0 1px 3px rgba(26, 28, 32, .06); padding: 1rem 1.25rem;
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem 1.5rem;
+/* The season grid on /games/ (F1 schedule pattern, 2026-08-26): every game
+   a uniform card, chronological. Played cards are white tiles with the
+   podium; the NEXT game is the page's single felt card and carries its one
+   lime RSVP (lime on felt only, per the brand rule); upcoming games are
+   subdued schedule projections wearing the card-back motif. */
+.season {
+  list-style: none; margin: 1.25em 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.25rem;
 }
-.game-row .date { font-weight: 800; letter-spacing: -.02em; font-size: 1.15rem; }
-.game-row .winner { color: var(--foil-deep); font-weight: 700; }
-.game-row .links { margin-left: auto; display: flex; gap: 1rem; }
-@media (max-width: 899px) { .game-row .links { margin-left: 0; width: 100%; } }
+.season-card {
+  background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(26, 28, 32, .06); padding: 1.1rem 1.25rem;
+}
+.season-date { margin: 0 0 .6em; font-weight: 800; letter-spacing: -.02em; font-size: 1.3rem; }
+.season-date a { color: inherit; text-decoration: none; }
+.season-date a:hover { color: var(--sapphire); }
+.podium { list-style: none; margin: 0 0 .6em; padding: 0; }
+.podium li { padding: .15em 0; }
+.podium .stat { color: var(--muted-ink); }
+.season-links a { font-weight: 600; }
+/* The one glowing card: felt, like the CTA bands, so its lime is at home.
+   No rarity metals on this card (the lime quarantine keeps them apart). */
+.season-card--next { background: var(--felt); color: var(--felt-ink); border-color: var(--felt); }
+/* Band rules (.band-light p, .band-light .stat) outrank inherited card color,
+   the same cascade trap the pills hit; scope the felt card's text explicitly. */
+.band-light .season-card--next p { color: var(--felt-ink); }
+.band-light .season-card--next .stat { color: var(--pewter); }
+.season-card--next .eyebrow { color: var(--lime); }
+.season-card--next .season-links a { color: #9dc3f0; }
+/* Upcoming: quieter paper, the unopened pack. */
+.season-card--upcoming { background: var(--parchment); box-shadow: none; }
+.season-card--upcoming .season-date { color: var(--muted-ink); }
+.season-card--upcoming .card-back { margin: .2em 0 .6em; }
 
 /* Set rows on /cards/: name left, six thumbnails right. */
 .set-rows { list-style: none; margin: 1.25em 0; padding: 0; display: grid; gap: 1.5rem; }
@@ -431,11 +453,13 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
   display: inline-block; width: 10px; height: 10px; border-radius: 2px;
   margin-right: .45em; vertical-align: -1px;
 }
-/* Hover: the chart dims and the hovered line pops. Hover-capable devices
-   only; on touch the chart stays fully lit. A hover state is not motion, so
-   no reduced-motion gate. */
+/* Hover: the field dims ONLY while an actual line is under the pointer
+   (:has), and that line pops. The first cut dimmed on any svg hover, which
+   read as the whole chart darkening for no reason (Mike, 2026-08-26).
+   Browsers without :has simply get the line pop without the dim. Hover-
+   capable devices only; a hover state is not motion, no reduced-motion gate. */
 @media (hover: hover) {
-  .chip-race svg:hover polyline { opacity: .3; }
+  .chip-race svg:has(polyline:hover) polyline { opacity: .35; }
   .chip-race svg polyline:hover { opacity: 1; stroke-width: 4; }
 }
 
