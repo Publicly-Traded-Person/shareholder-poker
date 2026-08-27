@@ -89,12 +89,17 @@ shows their actual card. Charlie stages the images; the tool does the rest.
 ### One-time setup (first set only)
 
 Before the first set ever ships, run these two commands from this repo's
-root. Both are idempotent (`schema.sql` uses `IF NOT EXISTS`), so rerunning
-them later never breaks anything:
+root:
 
 - Create the private bucket: `npx wrangler r2 bucket create poker-portraits`
+  (running this again just reports the bucket already exists; harmless, but
+  not silent)
 - Apply the consent tables: `npx wrangler d1 execute poker-rsvp-db --remote --file site/schema.sql`
   (and the `--local` twin for rehearsal: `npx wrangler d1 execute poker-rsvp-db --local --file site/schema.sql`)
+  This one is idempotent (`schema.sql` uses `IF NOT EXISTS`), so rerunning it
+  later never breaks anything.
+
+### Every set
 
 1. In munger, run `ccg/stage-candidates.sh` (Charlie's side). It produces
    `candidates/` with a `manifest.json` and `<handle>/<variant>.png` whole-card
