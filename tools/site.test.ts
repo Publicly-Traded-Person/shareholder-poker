@@ -77,10 +77,10 @@ describe("site-wide copy rules (the pre-merge greps, now permanent)", () => {
 });
 
 describe("utility pages carry the favicon", () => {
+  // The standalone chip-race pages were folded into the game pages
+  // (2026-08-26); their favicon coverage moved to the game-page shell tests.
   for (const rel of [
     "../site/404.html",
-    "../site/games/2026-07-14/chip-race.html",
-    "../site/games/2026-08-11/chip-race.html",
   ]) {
     test(rel, () =>
       expect(readPage(new URL(rel, import.meta.url).pathname)).toContain(
@@ -224,5 +224,15 @@ describe("game page shells", () => {
       expect(html).toContain('href="/favicon.svg"'));
     test(`${rel} carries link-unfurl tags`, () =>
       expect(html).toContain('property="og:image"'));
+    test(`${rel} embeds the chip race between injection markers`, () => {
+      expect(html).toContain("CHIP-RACE:START");
+      expect(html).toContain("CHIP-RACE:END");
+      expect(html).toContain('class="chip-race"');
+      expect(html).toContain('class="chip-legend"');
+    });
+    test(`${rel} pills link the in-page chart anchor, not a retired page`, () => {
+      expect(html).toContain('href="#chip-race"');
+      expect(html).not.toContain('href="chip-race.html"');
+    });
   }
 });

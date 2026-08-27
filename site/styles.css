@@ -405,3 +405,44 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
 /* Runtime fact slots (filled by /home-facts.js): invisible until filled so
    the no-JS page never shows an empty-looking hole. */
 .fact:empty { display: none; }
+
+/* Chip race, embedded on the game page (design decision 2026-08-26: the
+   chart lives ON the game page, restoring spec 2026-08-17 §7; the old
+   standalone chip-race.html URLs redirect via _redirects). The figure is a
+   dark object in the light room, same doctrine as the card art. Markup comes
+   from tools/chip-race.ts --inject; these rules style it. */
+.chip-race {
+  margin: 1.25em 0; padding: 1rem 1.25rem;
+  background: #1c1f26; color: #eceae2;
+  border: 1px solid var(--line); border-radius: var(--radius);
+}
+.chip-race .wrap { overflow-x: auto; }
+.chip-race svg { display: block; min-width: 560px; width: 100%; height: auto; }
+.chip-race .meta {
+  margin: 0 0 .75em;
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: .85em; color: var(--pewter);
+}
+.chip-race .chip-legend {
+  display: flex; flex-wrap: wrap; gap: .4em 1.2em;
+  margin: .75em 0 0; font-size: .85em; font-weight: 600;
+}
+.chip-race .swatch {
+  display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+  margin-right: .45em; vertical-align: -1px;
+}
+/* Hover: the chart dims and the hovered line pops. Hover-capable devices
+   only; on touch the chart stays fully lit. A hover state is not motion, so
+   no reduced-motion gate. */
+@media (hover: hover) {
+  .chip-race svg:hover polyline { opacity: .3; }
+  .chip-race svg polyline:hover { opacity: 1; stroke-width: 4; }
+}
+
+/* Skull marks (Mike, 2026-08-26: skulls should look like skulls). Drawn in
+   the house style, never emoji (renders identically everywhere); filled =
+   a Hope Slayer kill taken, outline = an open slot. Bone-iron pewter-deep
+   clears WCAG 1.4.11 on the light bands; sockets punch through in paper. */
+.mark--skull { fill: var(--pewter-deep); }
+.mark--skull .socket { fill: var(--paper); }
+.mark--skull-empty { fill: none; stroke: var(--pewter); stroke-width: 1.1; }

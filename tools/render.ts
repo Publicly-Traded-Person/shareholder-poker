@@ -20,6 +20,13 @@ const GEM_EMPTY =
   `<svg class="mark mark--empty" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M6 1 11 6 6 11 1 6Z"/></svg>`;
 const COIN =
   `<svg class="mark" viewBox="0 0 12 12" width="12" height="12" role="img" aria-label="Hope Coin"><circle class="coin-ring" cx="6" cy="6" r="5"/><circle class="coin-core" cx="6" cy="6" r="2.2"/></svg>`;
+// Skull marks for the Hope Slayer tally (Mike, 2026-08-26: skulls should
+// look like skulls, and drawn ones render the same on every platform where
+// the emoji does not). Filled = a kill taken; outline = an open slot.
+const SKULL =
+  `<svg class="mark mark--skull" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M6 1a4.3 4.3 0 0 0-4.3 4.3c0 1.6.9 3 2.3 3.7V11h4V9a4.3 4.3 0 0 0 2.3-3.7A4.3 4.3 0 0 0 6 1Z"/><circle class="socket" cx="4.4" cy="5.3" r=".95"/><circle class="socket" cx="7.6" cy="5.3" r=".95"/></svg>`;
+const SKULL_EMPTY =
+  `<svg class="mark mark--skull-empty" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M6 1.6a3.7 3.7 0 0 0-3.7 3.7c0 1.4.8 2.6 2 3.2v1.9h3.4V8.5a3.7 3.7 0 0 0 2-3.2A3.7 3.7 0 0 0 6 1.6Z"/></svg>`;
 
 // nav(current) renders the masthead links, marking the page's own link with
 // aria-current so visitors can see where they are (styled in styles.css).
@@ -81,7 +88,7 @@ export function renderStandings(data: GamesData): string {
   const champName = nameOf.get(champ.slug) ?? champ.slug;
   const skulls = Object.entries(s.hopeCoin.skulls)
     .map(([slug, n]) =>
-      `<li>${esc(nameOf.get(slug) ?? slug)}: ${GEM("copper").repeat(n)}${GEM_EMPTY.repeat(3 - n)} <span class="stat">${n} of 3</span> skulls</li>`)
+      `<li>${esc(nameOf.get(slug) ?? slug)}: ${SKULL.repeat(n)}${SKULL_EMPTY.repeat(3 - n)} <span class="stat">${n} of 3</span> skulls</li>`)
     .join("\n          ");
   const rows = s.rows.map((r, i) => `      <tr class="finish-${i + 1}">
         <td>${esc(r.name)}${r.slug === champ.slug ? " " + GEM("foil") : ""}${r.slug === s.hopeCoin.holder ? " " + COIN : ""}</td>
