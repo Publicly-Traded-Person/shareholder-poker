@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { renderStandings, renderGamesIndex } from "./render";
+import { renderStandings, renderGamesIndex, renderNextGameIcs, secondTuesday } from "./render";
 import type { GamesData } from "./lib/standings";
 
 const data: GamesData = {
@@ -77,8 +77,8 @@ describe("renderGamesIndex", () => {
   test("contains no em dash", () => {
     expect(html).not.toContain("—");
   });
-  test("renders each game as a game-row card", () => {
-    expect(html).toContain('class="game-row"');
+  test("renders each played game as a season card with its stat line", () => {
+    expect(html).toContain('class="season-card"');
     expect(html).toContain("3 entries · $150 pot · 201 hands");
   });
   test("links the month's card set when the game has one", () => {
@@ -89,5 +89,58 @@ describe("renderGamesIndex", () => {
   });
   test("declares its own canonical url for link unfurls", () => {
     expect(html).toContain('<meta property="og:url" content="https://poker.kmikeym.com/games/">');
+  });
+});
+
+describe("secondTuesday", () => {
+  test("computes the standing schedule's dates", () => {
+    expect(secondTuesday(2026, 9)).toBe("2026-09-08");
+    expect(secondTuesday(2026, 10)).toBe("2026-10-13");
+    expect(secondTuesday(2026, 11)).toBe("2026-11-10");
+    expect(secondTuesday(2027, 1)).toBe("2027-01-12");
+  });
+});
+
+describe("season page (renderGamesIndex)", () => {
+  const html = renderGamesIndex(data);
+  test("orders the season chronologically with played, next, upcoming", () => {
+    const played = html.indexOf("2026-07-14");
+    const next = html.indexOf("season-card--next");
+    const upcoming = html.indexOf("season-card--upcoming");
+    expect(played).toBeGreaterThan(-1);
+    expect(next).toBeGreaterThan(played);
+    expect(upcoming).toBeGreaterThan(next);
+  });
+  test("the next-game card is the page's only lime, on felt, with the date", () => {
+    expect(html.split("btn-primary").length - 1).toBe(1);
+    expect(html).toContain("season-card--next");
+    expect(html).toContain("2026-09-08");
+    expect(html).toContain("RSVP for Sept 8");
+  });
+  test("played cards carry the podium from the record", () => {
+    expect(html).toContain('class="podium"');
+    expect(html).toContain("Chris G.");
+    expect(html).toContain("$105");
+    expect(html).toContain("Nick M.");
+  });
+  test("upcoming cards derive from the standing rule and say so", () => {
+    expect(html).toContain("2026-10-13");
+    expect(html).toContain("2026-11-10");
+    expect(html).toContain("Second Tuesday, per the standing schedule");
+  });
+  test("links the calendar file", () => {
+    expect(html).toContain('href="/next-game.ics"');
+  });
+});
+
+describe("renderNextGameIcs", () => {
+  const ics = renderNextGameIcs(data);
+  test("is a deterministic VEVENT for the next game at 7pm Pacific", () => {
+    expect(ics).toContain("BEGIN:VCALENDAR");
+    expect(ics).toContain("DTSTART;TZID=America/Los_Angeles:20260908T190000");
+    expect(ics).toContain("DTEND;TZID=America/Los_Angeles:20260908T220000");
+    expect(ics).toContain("UID:poker-kmikeym-2026-09-08");
+    expect(ics).toContain("DTSTAMP:20260908T000000Z");
+    expect(ics).toContain("URL:https://poker.kmikeym.com/");
   });
 });

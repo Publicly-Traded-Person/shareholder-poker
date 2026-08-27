@@ -36,7 +36,10 @@ removes a named manual step; see the plan and spec section 6.
    "The coin"), and the bounty notices if a bounty was settled or the Coin
    moved. The numbers under them fill themselves from games.json at runtime
    (site/home-facts.js); never type numbers into the home page.
-5. Update `nextGame` in `site/data/games.json`.
+5. Update `nextGame` in `site/data/games.json`, then re-run
+   `bun tools/render.ts`: the season page's next-game card, its upcoming
+   projections, and `site/next-game.ics` all derive from `nextGame`, and the
+   pre-merge drift check fails if the regeneration is skipped.
 6. Review the full diff. Get Mike's explicit go. Push. Cloudflare deploys.
 7. Board: comment results on the month's game issue, close it, open next
    month's issue, add to project #1.
