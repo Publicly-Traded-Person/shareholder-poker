@@ -119,7 +119,13 @@ describe("SQL builders", () => {
   });
   test("status resolves the latest answer per ask and filters by set", () => {
     const sql = statusSql("2026-08");
-    expect(sql).toContain("ORDER BY w2.answered_at DESC, w2.rowid DESC");
+    // rowid-only, NOT answered_at: portrait_answers has two writers on two
+    // clocks (the POST Function's request-time clock and the CLI revoke's
+    // operator-machine clock), so this must match latestAnswer's insertion-
+    // order resolution in functions/api/_portrait.js exactly, or --status
+    // could show a different "current answer" than the page and API do.
+    expect(sql).toContain("ORDER BY w2.rowid DESC");
+    expect(sql).not.toContain("answered_at DESC");
     expect(sql).toContain("a.set_slug = '2026-08'");
     expect(statusSql()).not.toContain("WHERE a.set_slug");
   });
