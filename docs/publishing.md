@@ -81,6 +81,37 @@ names the set that just shipped instead of the one still in production; it
 is hand-typed copy, not runtime-filled, so nothing else will catch it going
 stale.
 
+## Portrait consent (per set, Tier 2b)
+
+Card portraits ship only with the player's yes, given on a private page that
+shows their actual card. Charlie stages the images; the tool does the rest.
+
+1. In munger, run `ccg/stage-candidates.sh` (Charlie's side). It produces
+   `candidates/` with a `manifest.json` and `<handle>/<variant>.png` whole-card
+   renders. Source photos never leave munger's gitignored `photos-raw/`.
+2. From this repo:
+   `bun tools/portrait-asks.ts <path-to-candidates>`
+   It validates the manifest against `games.json` handles (unknown handle
+   halts, same as publish-game: fix the input, never the check), uploads the
+   PNGs to the private `poker-portraits` R2 bucket, writes one ask per player
+   into D1, and prints one link per player.
+3. Hand the printed links to Mike. Sending them is HIS call and is held
+   separately from any merge (they soft-reveal the set to the people on it).
+4. Check answers any time: `bun tools/portrait-asks.ts --status --set YYYY-MM`.
+   No admin page exists on purpose.
+5. If a player asks in person to take their photo down:
+   `bun tools/portrait-asks.ts --revoke <handle> --set YYYY-MM`
+   That appends a declined row. It never deletes history: the ledger keeps
+   the fact that consent was once given, and the latest row wins.
+6. Asks die on their own 60 days after staging (the link 404s). After a set
+   is settled, `bun tools/portrait-asks.ts --prune` deletes the now
+   unreachable candidate PNGs of expired asks from the bucket, so faces
+   without a yes do not sit in storage forever.
+
+Rehearsal: add `--local` to any command to run against `wrangler pages dev`
+state instead of production. Nothing in this flow touches git: candidate
+images live only in R2, answers live only in D1.
+
 ## Reminder export (emails, Tier 2)
 
 `wrangler d1 execute poker-rsvp-db --command "SELECT email FROM rsvps WHERE game='YYYY-MM-DD'"`
