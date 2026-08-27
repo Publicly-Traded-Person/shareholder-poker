@@ -392,3 +392,212 @@ describe("GET /portrait/<token>", () => {
     expect(res.status).toBe(404);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 5: the two API Functions (image streaming + answer recording), served
+// at GET /api/portrait/<token>/img/<variant> and POST /api/portrait/<token>.
+// Appended below the shared stubs and Task 6's page block; import
+// declarations are hoisted, so these sit with their block rather than at the
+// top of the file.
+// @ts-ignore - plain JS module, Cloudflare Pages parameter filename
+import { onRequestGet as imgOnRequestGet } from "../functions/api/portrait/[token]/img/[variant].js";
+// @ts-ignore - plain JS module, Cloudflare Pages parameter filename
+import { onRequestPost as answerOnRequestPost } from "../functions/api/portrait/[token].js";
+
+// Every response body, on every branch of both handlers, must never contain
+// "@" - the no-email boundary (spec s3, ASK carries a fake email precisely to
+// catch a handler that echoes a row through unfiltered).
+async function expectNoEmail(res: Response) {
+  const text = await res.clone().text();
+  expect(text.includes("@")).toBe(false);
+}
+
+describe("GET /api/portrait/<token>/img/<variant>", () => {
+  const get = (token: string, variant: string, env: any) =>
+    imgOnRequestGet({ params: { token, variant }, env } as any);
+
+  test("unknown token 404s", async () => {
+    const { env } = makePortraitEnv([ASK]);
+    const res = await get("f".repeat(32), "a", env);
+    expect(res.status).toBe(404);
+    await expectNoEmail(res);
+  });
+
+  test("invalid token shape 404s", async () => {
+    const { env } = makePortraitEnv([ASK]);
+    const res = await get("not-a-token", "a", env);
+    expect(res.status).toBe(404);
+    await expectNoEmail(res);
+  });
+
+  // STOCKS THE BUCKET with the exact object this request would otherwise be
+  // served, on purpose: without an object present the stub bucket is empty
+  // and the handler 404s at the missing-object check no matter what, which
+  // would leave the expiry guard free to be deleted with this test still
+  // green. With the object present, expiry is the only thing that can
+  // produce the 404 - the single highest-stakes guard in this feature, since
+  // this endpoint is the only path by which an unconsented face reaches a
+  // browser (spec s4).
+  test("expired ask 404s", async () => {
+    const { env } = makePortraitEnv([{ ...ASK, expires_at: PAST }],
+      { [`asks/${ASK.set_slug}/${ASK.handle}/a.png`]: "PNG_STUB_BYTES" });
+    const res = await get(TOKEN, "a", env);
+    expect(res.status).toBe(404);
+    await expectNoEmail(res);
+  });
+
+  // The next two tests also STOCK THE BUCKET with the very object the request
+  // asks for, on purpose. Without it the stub bucket is empty and the handler
+  // 404s at the missing-object check no matter what, so the variant guard
+  // under test could be deleted and these would still pass. With the object
+  // present the ask-level guard is the only thing that can produce the 404.
+  test("variant not in the ask 404s", async () => {
+    const { env } = makePortraitEnv([ASK], { "asks/2026-08/genet/z.png": "PNG_STUB_BYTES" });
+    const res = await get(TOKEN, "z", env);
+    expect(res.status).toBe(404);
+    await expectNoEmail(res);
+  });
+
+  test("malformed variants column 404s (halt, never guess)", async () => {
+    const { env } = makePortraitEnv([{ ...ASK, variants: "not json" }],
+      { "asks/2026-08/genet/a.png": "PNG_STUB_BYTES" });
+    const res = await get(TOKEN, "a", env);
+    expect(res.status).toBe(404);
+    await expectNoEmail(res);
+  });
+
+  test("missing R2 object 404s", async () => {
+    const { env } = makePortraitEnv([ASK], {});
+    const res = await get(TOKEN, "a", env);
+    expect(res.status).toBe(404);
+    await expectNoEmail(res);
+  });
+
+  test("happy path streams the stub PNG body untouched", async () => {
+    const key = `asks/${ASK.set_slug}/${ASK.handle}/a.png`;
+    const { env } = makePortraitEnv([ASK], { [key]: "PNG_STUB_BYTES" });
+    const res = await get(TOKEN, "a", env);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("image/png");
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(res.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+    expect(await res.clone().text()).toBe("PNG_STUB_BYTES");
+    await expectNoEmail(res);
+  });
+});
+
+describe("POST /api/portrait/<token>", () => {
+  const post = (token: string, rawBody: string, env: any) =>
+    answerOnRequestPost({
+      request: new Request(`https://poker.kmikeym.com/api/portrait/${token}`,
+        { method: "POST", body: rawBody }),
+      params: { token },
+      env,
+    } as any);
+
+  test("invalid token shape 404s", async () => {
+    const { env } = makePortraitEnv([ASK]);
+    const res = await post("not-a-token", JSON.stringify({ answer: "declined" }), env);
+    expect(res.status).toBe(404);
+    await expectNoEmail(res);
+  });
+
+  test("unknown token 404s", async () => {
+    const { env } = makePortraitEnv([ASK]);
+    const res = await post("f".repeat(32), JSON.stringify({ answer: "declined" }), env);
+    expect(res.status).toBe(404);
+    await expectNoEmail(res);
+  });
+
+  test("expired ask 404s", async () => {
+    const { env } = makePortraitEnv([{ ...ASK, expires_at: PAST }]);
+    const res = await post(TOKEN, JSON.stringify({ answer: "declined" }), env);
+    expect(res.status).toBe(404);
+    await expectNoEmail(res);
+  });
+
+  test("non-JSON body 400s", async () => {
+    const { env } = makePortraitEnv([ASK]);
+    const res = await post(TOKEN, "not json", env);
+    expect(res.status).toBe(400);
+    await expectNoEmail(res);
+  });
+
+  test("body over 1024 bytes 400s", async () => {
+    const { env } = makePortraitEnv([ASK]);
+    const big = JSON.stringify({ answer: "declined", pad: "x".repeat(1100) });
+    expect(big.length).toBeGreaterThan(1024);
+    const res = await post(TOKEN, big, env);
+    expect(res.status).toBe(400);
+    await expectNoEmail(res);
+  });
+
+  test("answer outside the allowed set 400s", async () => {
+    const { env } = makePortraitEnv([ASK]);
+    const res = await post(TOKEN, JSON.stringify({ answer: "maybe" }), env);
+    expect(res.status).toBe(400);
+    await expectNoEmail(res);
+  });
+
+  test("approved without a variant 400s", async () => {
+    const { env } = makePortraitEnv([ASK]);
+    const res = await post(TOKEN, JSON.stringify({ answer: "approved" }), env);
+    expect(res.status).toBe(400);
+    await expectNoEmail(res);
+  });
+
+  test("approved with a variant outside the ask 400s", async () => {
+    const { env } = makePortraitEnv([ASK]);
+    const res = await post(TOKEN, JSON.stringify({ answer: "approved", variant: "z" }), env);
+    expect(res.status).toBe(400);
+    await expectNoEmail(res);
+  });
+
+  test("declined with a variant 400s", async () => {
+    const { env } = makePortraitEnv([ASK]);
+    const res = await post(TOKEN, JSON.stringify({ answer: "declined", variant: "a" }), env);
+    expect(res.status).toBe(400);
+    await expectNoEmail(res);
+  });
+
+  // Same halt-don't-guess posture as the image endpoint: a malformed variants
+  // column must stop the request BEFORE the insert, on both answers. Without
+  // the handler's parseVariants guard a decline would silently record a row
+  // against an ask nobody can read, so this asserts no side effect as well as
+  // the 404.
+  test("malformed variants column 404s and records nothing", async () => {
+    const bad = [{ ...ASK, variants: "not json" }];
+    const declined = makePortraitEnv(bad);
+    const resDeclined = await post(TOKEN, JSON.stringify({ answer: "declined" }), declined.env);
+    expect(resDeclined.status).toBe(404);
+    await expectNoEmail(resDeclined);
+    expect(declined.answers.length).toBe(0);
+
+    const approved = makePortraitEnv(bad);
+    const resApproved = await post(TOKEN, JSON.stringify({ answer: "approved", variant: "a" }), approved.env);
+    expect(resApproved.status).toBe(404);
+    await expectNoEmail(resApproved);
+    expect(approved.answers.length).toBe(0);
+  });
+
+  test("approved happy path records exactly one row and returns it", async () => {
+    const { env, answers } = makePortraitEnv([ASK]);
+    const res = await post(TOKEN, JSON.stringify({ answer: "approved", variant: "b" }), env);
+    expect(res.status).toBe(200);
+    expect(await res.clone().json()).toEqual({ ok: true, answer: "approved", variant: "b" });
+    await expectNoEmail(res);
+    expect(answers.length).toBe(1);
+    expect(answers[0].variant).toBe("b");
+    expect(answers[0].answered_at).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+  });
+
+  test("declined happy path records a row with variant null", async () => {
+    const { env, answers } = makePortraitEnv([ASK]);
+    const res = await post(TOKEN, JSON.stringify({ answer: "declined" }), env);
+    expect(res.status).toBe(200);
+    expect(await res.clone().json()).toEqual({ ok: true, answer: "declined", variant: null });
+    await expectNoEmail(res);
+    expect(answers.length).toBe(1);
+    expect(answers[0].variant).toBe(null);
+  });
+});
