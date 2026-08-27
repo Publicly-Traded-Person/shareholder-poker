@@ -1,3 +1,11 @@
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
+
+# Portrait consent capability URLs. NOTE: Pages applies _headers to static
+# assets only, so the Functions set X-Robots-Tag on their own responses;
+# these entries cover any future static file that lands under these paths.
+/portrait/*
+  X-Robots-Tag: noindex, nofollow
+/api/portrait/*
+  X-Robots-Tag: noindex, nofollow

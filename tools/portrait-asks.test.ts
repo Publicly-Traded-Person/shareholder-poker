@@ -1,0 +1,213 @@
+// Tests for the portrait-asks CLI's four verbs (stage, status, revoke,
+// prune), exercised entirely through injected deps so nothing here touches a
+// real filesystem, D1, R2, or wrangler subprocess - only main()'s untested
+// glue (argv parsing, the real wrangler-backed deps, process.exit) is left
+// outside this file, same split as tools/publish-game.ts / prepareGame.
+// All fixture players are SYNTHETIC (repo privacy rule): "genet" and "rosap"
+// are invented handles, never a real player.
+import { describe, expect, test } from "bun:test";
+import { stage, status, revoke, prune, type PortraitDeps } from "./portrait-asks";
+import { toSqlUtc } from "../functions/api/_portrait.js";
+import type { GamesData } from "./lib/standings";
+
+const NOW = new Date("2026-08-27T00:00:00Z");
+
+const GAMES: GamesData = {
+  nextGame: { date: "2026-09-08", time: "7:00 PM" },
+  hopeCoin: { holder: "genet", since: "2026-08-11" },
+  players: [
+    { slug: "gene-t", name: "Gene T.", aka: ["genet"] },
+    { slug: "rosa-p", name: "Rosa P.", aka: ["rosap"] },
+  ],
+  games: [
+    {
+      date: "2026-08-11",
+      hands: 100,
+      startingStack: 5000,
+      buyIn: 50,
+      entries: 2,
+      pot: 100,
+      cardSet: "2026-08",
+      results: [
+        { slug: "gene-t", handle: "genet", finish: 1, payout: 100, rebuys: 0, trophies: [] },
+        { slug: "rosa-p", handle: "rosap", finish: 2, payout: 0, rebuys: 0, trophies: [] },
+      ],
+    },
+  ],
+} as unknown as GamesData;
+
+// A recorder deps factory: every call is appended to `calls` so a test can
+// assert both the return value AND the exact side effects (or absence of
+// them) a verb produced. `overrides` replaces individual fields wholesale -
+// tests that override d1/r2put/r2delete lose that field's call recording,
+// which is fine because those tests assert through other channels instead.
+function makeDeps(overrides: Partial<PortraitDeps> = {}): {
+  deps: PortraitDeps;
+  calls: { d1: string[]; r2put: [string, string][]; r2delete: string[]; printed: string[] };
+} {
+  const calls = {
+    d1: [] as string[],
+    r2put: [] as [string, string][],
+    r2delete: [] as string[],
+    printed: [] as string[],
+  };
+  const deps: PortraitDeps = {
+    d1: (sql: string) => {
+      calls.d1.push(sql);
+      return { results: [], changes: 0 };
+    },
+    r2put: (key: string, file: string) => {
+      calls.r2put.push([key, file]);
+    },
+    r2delete: (key: string) => {
+      calls.r2delete.push(key);
+    },
+    now: () => NOW,
+    print: (line: string) => {
+      calls.printed.push(line);
+    },
+    readDir: () => ["genet/a.png", "genet/b.png", "rosap/a.png"],
+    readManifest: () => ({
+      set_slug: "2026-08",
+      players: [
+        { handle: "genet", variants: ["a", "b"] },
+        { handle: "rosap", variants: ["a"] },
+      ],
+    }),
+    readGames: () => GAMES,
+    ...overrides,
+  };
+  return { deps, calls };
+}
+
+describe("stage", () => {
+  test("validates before any side effect: a bad manifest records zero r2put/d1 calls", async () => {
+    const { deps, calls } = makeDeps({
+      readManifest: () => ({ set_slug: "2026-08", players: [{ handle: "stranger", variants: ["a"] }] }),
+      readDir: () => ["stranger/a.png"],
+    });
+    await expect(stage("candidates/2026-08", deps)).rejects.toThrow(/unknown handle "stranger"/);
+    expect(calls.r2put).toEqual([]);
+    expect(calls.d1).toEqual([]);
+    expect(calls.printed).toEqual([]);
+  });
+
+  test("happy path uploads every file, upserts one ask per player, prints one link per player", async () => {
+    const { deps, calls } = makeDeps();
+    await stage("candidates/2026-08", deps);
+
+    expect(calls.r2put).toEqual([
+      ["asks/2026-08/genet/a.png", "candidates/2026-08/genet/a.png"],
+      ["asks/2026-08/genet/b.png", "candidates/2026-08/genet/b.png"],
+      ["asks/2026-08/rosap/a.png", "candidates/2026-08/rosap/a.png"],
+    ]);
+
+    expect(calls.d1.length).toBe(2); // one upsert per player, not per variant
+    expect(calls.d1[0]).toContain("INSERT INTO portrait_asks");
+    expect(calls.d1[0]).toContain("'genet'");
+    expect(calls.d1[1]).toContain("'rosap'");
+
+    expect(calls.printed.length).toBe(2);
+    expect(calls.printed[0]).toMatch(/^genet\s+https:\/\/poker\.kmikeym\.com\/portrait\/[0-9a-f]{32}$/);
+    expect(calls.printed[1]).toMatch(/^rosap\s+https:\/\/poker\.kmikeym\.com\/portrait\/[0-9a-f]{32}$/);
+
+    // Every player gets a distinct, freshly minted token (never reused).
+    const tokenOf = (line: string) => line.split("/portrait/")[1];
+    expect(tokenOf(calls.printed[0])).not.toBe(tokenOf(calls.printed[1]));
+  });
+
+  test("expiry is 60 days after now() in SQL shape", async () => {
+    const { deps, calls } = makeDeps();
+    await stage("candidates/2026-08", deps);
+    // Computed independently from the shared toSqlUtc helper rather than a
+    // hand-counted calendar date, so a date-math slip can't hide behind a
+    // matching hardcoded string on both sides.
+    const expectedExpiry = toSqlUtc(new Date(NOW.getTime() + 60 * 24 * 60 * 60 * 1000));
+    expect(calls.d1[0]).toContain(`'${expectedExpiry}'`);
+    expect(calls.d1[0]).toContain(`'${toSqlUtc(NOW)}'`); // created_at
+  });
+});
+
+describe("revoke", () => {
+  test("halts when d1 reports changes === 0, naming the handle, the set, and 'no ask exists'", async () => {
+    const { deps } = makeDeps({ d1: () => ({ results: [], changes: 0 }) });
+    await expect(revoke("genet", "2026-08", deps)).rejects.toThrow(/genet/);
+    await expect(revoke("genet", "2026-08", deps)).rejects.toThrow(/2026-08/);
+    await expect(revoke("genet", "2026-08", deps)).rejects.toThrow(/no ask exists/);
+  });
+
+  test("succeeds and prints a confirmation when an ask existed", async () => {
+    const { deps, calls } = makeDeps({ d1: () => ({ results: [], changes: 1 }) });
+    await revoke("genet", "2026-08", deps);
+    expect(calls.printed.length).toBe(1);
+    expect(calls.printed[0]).toContain("genet");
+    expect(calls.printed[0]).toContain("2026-08");
+  });
+});
+
+describe("status", () => {
+  test("prints formatStatusRows output for the query results", async () => {
+    const rows = [
+      {
+        handle: "genet",
+        set_slug: "2026-08",
+        variants: '["a","b"]',
+        answer: "approved",
+        variant: "b",
+        answered_at: "2026-09-01 10:00:00",
+        expires_at: "2026-10-26 10:00:00",
+        token: "c".repeat(32),
+      },
+      {
+        handle: "rosap",
+        set_slug: "2026-08",
+        variants: '["a"]',
+        answer: null,
+        variant: null,
+        answered_at: null,
+        expires_at: "2026-10-26 10:00:00",
+        token: "d".repeat(32),
+      },
+    ];
+    const { deps, calls } = makeDeps({ d1: () => ({ results: rows, changes: 0 }) });
+    await status({}, deps);
+    expect(calls.printed.length).toBe(1);
+    expect(calls.printed[0]).toContain("genet");
+    expect(calls.printed[0]).toContain("approved (b)");
+    expect(calls.printed[0]).toContain("no answer yet");
+    // Never leak a capability token into the terminal (same boundary as
+    // formatStatusRows itself).
+    expect(calls.printed[0]).not.toContain("c".repeat(32));
+    expect(calls.printed[0]).not.toContain("d".repeat(32));
+  });
+
+  test("passes the --set filter through to the query", async () => {
+    const { deps, calls } = makeDeps({
+      d1: (sql: string) => {
+        calls.d1.push(sql);
+        return { results: [], changes: 0 };
+      },
+    });
+    await status({ set: "2026-08" }, deps);
+    expect(calls.d1[0]).toContain("a.set_slug = '2026-08'");
+  });
+});
+
+describe("prune", () => {
+  test("deletes exactly pruneKeys of the expired selection and prints a count", async () => {
+    const rows = [{ set_slug: "2026-08", handle: "genet", variants: '["a","b"]' }];
+    const { deps, calls } = makeDeps({ d1: () => ({ results: rows, changes: 0 }) });
+    await prune(deps);
+    expect(calls.r2delete).toEqual(["asks/2026-08/genet/a.png", "asks/2026-08/genet/b.png"]);
+    expect(calls.printed.length).toBe(1);
+    expect(calls.printed[0]).toContain("2");
+    expect(calls.printed[0]).toContain("1 expired ask");
+  });
+
+  test("prints 'nothing expired' and deletes nothing when the selection is empty", async () => {
+    const { deps, calls } = makeDeps({ d1: () => ({ results: [], changes: 0 }) });
+    await prune(deps);
+    expect(calls.r2delete).toEqual([]);
+    expect(calls.printed).toEqual(["nothing expired"]);
+  });
+});

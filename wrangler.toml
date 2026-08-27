@@ -11,3 +11,11 @@ pages_build_output_dir = "site"
 binding = "POKER_RSVP_DB"
 database_name = "poker-rsvp-db"
 database_id = "34534627-37ad-4c09-a240-19d26afc9dad"
+
+# Candidate card portraits, Tier 2b (portrait consent spec s3): PRIVATE bucket.
+# Holds rendered candidate cards only (never source photos), one object per
+# player per variant at asks/<set_slug>/<handle>/<variant>.png. Never public,
+# never in git; every read goes through functions/api/portrait/.../img/.
+[[r2_buckets]]
+binding = "POKER_PORTRAITS"
+bucket_name = "poker-portraits"
