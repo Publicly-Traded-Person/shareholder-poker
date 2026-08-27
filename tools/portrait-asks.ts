@@ -1,0 +1,269 @@
+// Stages Charlie's candidates/<set_slug>/ handoff (a manifest.json plus
+// rendered <handle>/<variant>.png card renders) into the private
+// poker-portraits R2 bucket and the portrait_asks / portrait_answers D1
+// tables, then prints one consent link per staged player. Sits in the
+// monthly flow right after munger's ccg/stage-candidates.sh (Charlie's side)
+// and before Mike sends any link to a player. Full runbook: the "Portrait
+// consent" section of docs/publishing.md.
+//
+// Usage:
+//   bun tools/portrait-asks.ts <candidates-dir> [--local]
+//   bun tools/portrait-asks.ts --status [--set YYYY-MM] [--local]
+//   bun tools/portrait-asks.ts --revoke <handle> --set YYYY-MM [--local]
+//   bun tools/portrait-asks.ts --prune [--local]
+//
+// --local runs every wrangler call against local dev state (`wrangler d1
+// execute --local` / `wrangler r2 object ... --local`) instead of
+// production, for rehearsal before touching anything real.
+
+import { readFileSync, readdirSync } from "node:fs";
+import { randomToken, toSqlUtc } from "../functions/api/_portrait.js";
+import {
+  knownHandles,
+  validateCandidates,
+  uploadPlan,
+  askUpsertSql,
+  revokeInsertSql,
+  statusSql,
+  formatStatusRows,
+  pruneSelectSql,
+  pruneKeys,
+  linkFor,
+  type CandidateSet,
+} from "./lib/portraits";
+import type { GamesData } from "./lib/standings";
+
+const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
+
+// The seam between the four verbs below and the outside world: wrangler
+// subprocess calls, the current time, stdout, and the reads over the
+// candidates directory and the committed roster. Every exported verb takes
+// this object instead of touching Bun/process/fs directly, so bun test can
+// exercise every branch - including the halt-before-any-side-effect ordering
+// on a bad manifest - with an in-memory recorder and no real D1/R2/wrangler
+// or filesystem in the loop.
+//
+// `readGames` is one field beyond the plan's originally enumerated deps
+// shape (d1, r2put, r2delete, now, print, readDir, readManifest). It exists
+// because validateCandidates needs a known-handles set drawn from the real
+// roster (site/data/games.json), and that file's real committed rows are
+// real players - exactly the fixture data the repo privacy rule (committed
+// test fixtures are synthetic, invented players only) forbids a test from
+// depending on. Without this field, exercising stage()'s handle-validation
+// path in a test would mean either hardcoding a real player's handle into
+// tools/portrait-asks.test.ts, or having stage() read the live file directly
+// and hoping today's real roster happens to contain a usable fixture -
+// both worse than adding one injectable read. Production wiring reads the
+// real file (see realDeps below); it never writes it (games.json stays
+// read-only for this feature, same as every other portrait tool).
+export type PortraitDeps = {
+  d1(sql: string): { results: any[]; changes: number } | Promise<{ results: any[]; changes: number }>;
+  r2put(key: string, file: string): void | Promise<void>;
+  r2delete(key: string): void | Promise<void>;
+  now(): Date;
+  print(line: string): void;
+  readDir(dir: string): string[];
+  readManifest(dir: string): unknown;
+  readGames(): GamesData;
+};
+
+// Validates Charlie's candidates/<dir> handoff, and only on a clean pass
+// uploads every PNG, upserts one portrait_asks row per player (a fresh,
+// unguessable token each run), and prints "<handle>  <link>" once per
+// player. Throws (via validateCandidates) before a single r2put or d1 call
+// when the manifest disagrees with the roster or the PNG directory: staging
+// is all-or-nothing, never partial, so a bad handoff never leaves half a
+// month's asks live. Expiry is 60 days from deps.now(); an ask that nobody
+// answers simply goes stale and 404s (functions/api/_portrait.js isExpired).
+export async function stage(dir: string, deps: PortraitDeps): Promise<void> {
+  const manifest = deps.readManifest(dir);
+  const pngRelPaths = deps.readDir(dir);
+  const known = knownHandles(deps.readGames());
+  const set: CandidateSet = validateCandidates(manifest, pngRelPaths, known);
+
+  for (const { local, key } of uploadPlan(set)) {
+    await deps.r2put(key, `${dir}/${local}`);
+  }
+
+  const createdAt = toSqlUtc(deps.now());
+  const expiresAt = toSqlUtc(new Date(deps.now().getTime() + SIXTY_DAYS_MS));
+
+  for (const player of set.players) {
+    const token = randomToken();
+    await deps.d1(
+      askUpsertSql({
+        token,
+        handle: player.handle,
+        setSlug: set.setSlug,
+        variants: player.variants,
+        createdAt,
+        expiresAt,
+      })
+    );
+    deps.print(`${player.handle}  ${linkFor(token)}`);
+  }
+}
+
+// Prints one line per staged ask (formatStatusRows), optionally filtered to
+// a single set. Read-only: never writes D1 or R2. Returns nothing; throws
+// only if deps.d1 itself throws (a wrangler failure, surfaced verbatim so
+// Charlie can debug from the stderr wrangler printed).
+export async function status(opts: { set?: string }, deps: PortraitDeps): Promise<void> {
+  const { results } = await deps.d1(statusSql(opts.set));
+  deps.print(formatStatusRows(results));
+}
+
+// Appends a declined row for whichever ask currently exists for this handle
+// and set. Throws when d1 reports zero rows changed: revoke never invents an
+// ask to decline, so "no ask exists" must stop the run loudly rather than
+// silently no-op, or Charlie could believe a photo was pulled when nothing
+// was ever staged for that handle/set in the first place.
+export async function revoke(handle: string, set: string, deps: PortraitDeps): Promise<void> {
+  const nowStr = toSqlUtc(deps.now());
+  const { changes } = await deps.d1(revokeInsertSql(handle, set, nowStr));
+  if (changes === 0) {
+    throw new Error(
+      `no ask exists for handle "${handle}" in set ${set}; nothing to revoke (check the handle and --set)`
+    );
+  }
+  deps.print(`revoked: ${handle} declined for ${set}`);
+}
+
+// Deletes the R2 objects backing every ask whose expires_at is now in the
+// past (pruneSelectSql / pruneKeys, Task 3). Deliberately leaves the
+// portrait_asks / portrait_answers rows in D1 untouched - they are already
+// inert (isExpired makes them 404 everywhere) and the answers ledger is
+// append-only by design (spec s5), so this only ever removes the
+// now-unreachable image bytes, never the consent history. Prints
+// "nothing expired" and performs no deletes when the expired selection is
+// empty.
+export async function prune(deps: PortraitDeps): Promise<void> {
+  const nowStr = toSqlUtc(deps.now());
+  const { results } = await deps.d1(pruneSelectSql(nowStr));
+  if (results.length === 0) {
+    deps.print("nothing expired");
+    return;
+  }
+  const keys = pruneKeys(results);
+  for (const key of keys) {
+    await deps.r2delete(key);
+  }
+  deps.print(`pruned ${keys.length} portrait file(s) from ${results.length} expired ask(s)`);
+}
+
+// Builds the real (non-test) deps: every D1/R2 call shells out to wrangler
+// with Bun.spawnSync, scoped to --local or --remote by the CLI's --local
+// flag. A nonzero wrangler exit throws with wrangler's own stderr verbatim,
+// on purpose: Charlie debugs a failed stage from that text, and inventing a
+// friendlier message here would just hide the actual wrangler error.
+function realDeps(local: boolean): PortraitDeps {
+  const scope = local ? "--local" : "--remote";
+
+  const run = (args: string[]): string => {
+    const proc = Bun.spawnSync(["npx", "wrangler", ...args]);
+    if (proc.exitCode !== 0) {
+      throw new Error(new TextDecoder().decode(proc.stderr) || `wrangler ${args.join(" ")} failed`);
+    }
+    return new TextDecoder().decode(proc.stdout);
+  };
+
+  return {
+    d1(sql: string) {
+      const stdout = run(["d1", "execute", "poker-rsvp-db", scope, "--json", "--command", sql]);
+      const out = JSON.parse(stdout);
+      const first = Array.isArray(out) ? out[0] : out;
+      return { results: first?.results ?? [], changes: first?.meta?.changes ?? 0 };
+    },
+    r2put(key: string, file: string) {
+      run(["r2", "object", "put", `poker-portraits/${key}`, "--file", file, "--content-type", "image/png", scope]);
+    },
+    r2delete(key: string) {
+      run(["r2", "object", "delete", `poker-portraits/${key}`, scope]);
+    },
+    now: () => new Date(),
+    print: (line: string) => console.log(line),
+    // One level of subdirectories under dir (each named for a handle),
+    // returning "<handle>/<file>.png" relative paths - the shape
+    // validateCandidates and uploadPlan both expect.
+    readDir(dir: string): string[] {
+      const out: string[] = [];
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        for (const file of readdirSync(`${dir}/${entry.name}`)) {
+          if (file.toLowerCase().endsWith(".png")) out.push(`${entry.name}/${file}`);
+        }
+      }
+      return out;
+    },
+    readManifest(dir: string): unknown {
+      return JSON.parse(readFileSync(`${dir}/manifest.json`, "utf8"));
+    },
+    // Read-only per this feature's global constraint: never written here.
+    readGames(): GamesData {
+      return JSON.parse(readFileSync("site/data/games.json", "utf8"));
+    },
+  };
+}
+
+const USAGE = [
+  "usage:",
+  "  bun tools/portrait-asks.ts <candidates-dir> [--local]",
+  "  bun tools/portrait-asks.ts --status [--set YYYY-MM] [--local]",
+  "  bun tools/portrait-asks.ts --revoke <handle> --set YYYY-MM [--local]",
+  "  bun tools/portrait-asks.ts --prune [--local]",
+].join("\n");
+
+const KNOWN_FLAGS = new Set(["--local", "--status", "--set", "--revoke", "--prune"]);
+
+// CLI entry point: parses argv into one of the four verbs above and runs it
+// against real (wrangler-backed) deps. An unknown flag or a missing required
+// argument prints usage and exits 1 without attempting any wrangler call;
+// a verb that throws (validation failure, revoke-with-no-ask, a wrangler
+// error) prints that error's message and exits 1.
+export async function main(argv: string[]): Promise<void> {
+  for (const a of argv) {
+    if (a.startsWith("--") && !KNOWN_FLAGS.has(a)) {
+      console.error(`unknown flag: ${a}\n\n${USAGE}`);
+      process.exit(1);
+    }
+  }
+
+  const flagValue = (name: string): string | undefined => {
+    const i = argv.indexOf(name);
+    return i >= 0 ? argv[i + 1] : undefined;
+  };
+  const local = argv.includes("--local");
+  const deps = realDeps(local);
+
+  try {
+    if (argv.includes("--status")) {
+      await status({ set: flagValue("--set") }, deps);
+    } else if (argv.includes("--revoke")) {
+      const handle = flagValue("--revoke");
+      const set = flagValue("--set");
+      if (!handle || !set) {
+        console.error(USAGE);
+        process.exit(1);
+        return;
+      }
+      await revoke(handle, set, deps);
+    } else if (argv.includes("--prune")) {
+      await prune(deps);
+    } else {
+      const dir = argv.find((a) => !a.startsWith("--"));
+      if (!dir) {
+        console.error(USAGE);
+        process.exit(1);
+        return;
+      }
+      await stage(dir, deps);
+    }
+  } catch (e) {
+    console.error((e as Error).message);
+    process.exit(1);
+  }
+}
+
+if (import.meta.main) {
+  await main(process.argv.slice(2));
+}
