@@ -49,7 +49,10 @@ describe("toSqlUtc / isExpired", () => {
 });
 
 // The consent-withdrawal path. Rows arrive in INSERTION order (SELECT ...
-// ORDER BY rowid ASC); ties on answered_at resolve to the later insertion.
+// ORDER BY rowid ASC); the LAST VALID row wins, full stop. answered_at is
+// never consulted for ordering (see latestAnswer's own why-comment: two
+// writers on two clocks means the timestamp cannot be trusted to agree with
+// true append order).
 describe("latestAnswer", () => {
   const row = (answer: string, variant: string | null, at: string) =>
     ({ answer, variant, answered_at: at });
@@ -85,6 +88,16 @@ describe("latestAnswer", () => {
     const r = latestAnswer([row("maybe", "a", "2026-09-05 10:00:00"),
                             row("approved", "a", "2026-09-01 10:00:00")]);
     expect(r?.answer).toBe("approved");
+  });
+  // Clock skew: the POST Function and the CLI's revoke stamp answered_at from
+  // two different clocks, so a row inserted LATER can carry an EARLIER
+  // timestamp than the row before it. Ordering by answered_at would let that
+  // skewed approve outlive a decline that was actually the last word; this
+  // is exactly the bug the REDIRECT to insertion-order-only closes.
+  test("an earlier-stamped decline after an approval still resolves to declined", () => {
+    const r = latestAnswer([row("approved", "a", "2026-09-05 10:00:00"),
+                            row("declined", null, "2026-09-01 10:00:00")]);
+    expect(r).toEqual({ answer: "declined", variant: null, answeredAt: "2026-09-01 10:00:00" });
   });
 });
 

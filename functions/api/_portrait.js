@@ -32,23 +32,24 @@ export function isExpired(expiresAt, nowStr) {
   return !(typeof expiresAt === "string" && expiresAt > nowStr);
 }
 
-// The current answer is the LATEST valid row; ties on answered_at (a
-// same-second change of mind) resolve to the later insertion, so callers must
-// pass rows in insertion order (SELECT ... ORDER BY rowid ASC). A declined
-// row never carries a variant out. A bug here is an ethical problem, not a
-// display problem (spec s10), which is why this is pure and heavily tested.
+// The current answer is the LAST VALID row in insertion order (callers must
+// pass rows from SELECT ... ORDER BY rowid ASC), full stop -- answered_at is
+// never consulted for ordering. This is deliberate: portrait_answers has two
+// writers on two different clocks (the POST Function's request-time clock
+// and the CLI revoke's operator-machine clock), so answered_at can disagree
+// with true append order. Picking the row with the latest timestamp would
+// let an earlier decline lose to a later approve whose clock happened to run
+// fast (or the reverse), silently reviving a withdrawn consent. Insertion
+// order (rowid) is the one thing both writers agree on, because SQLite
+// assigns it in write order regardless of either clock. A declined row never
+// carries a variant out. A bug here is an ethical problem, not a display
+// problem (spec s10), which is why this is pure and heavily tested.
 export function latestAnswer(rows) {
   if (!Array.isArray(rows)) return null;
   let best = null;
-  let bestIdx = -1;
-  rows.forEach((r, i) => {
-    if (!r || (r.answer !== "approved" && r.answer !== "declined")) return;
-    const later =
-      best === null ||
-      r.answered_at > best.answered_at ||
-      (r.answered_at === best.answered_at && i > bestIdx);
-    if (later) { best = r; bestIdx = i; }
-  });
+  for (const r of rows) {
+    if (r && (r.answer === "approved" || r.answer === "declined")) best = r;
+  }
   if (best === null) return null;
   return {
     answer: best.answer,
