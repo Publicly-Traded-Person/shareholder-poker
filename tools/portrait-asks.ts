@@ -35,6 +35,15 @@ import type { GamesData } from "./lib/standings";
 
 const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
 
+// Resolved against this file's own module URL, not the process cwd: Charlie
+// (or a cron job, or a test) may invoke `bun tools/portrait-asks.ts` from
+// anywhere, and a cwd-relative "site/data/games.json" throws ENOENT the
+// moment the working directory isn't the repo root. Anchoring to
+// import.meta.url makes the path absolute and correct regardless of where
+// the process was launched from - the same pattern tools/*.test.ts already
+// uses to reach site/ from tools/.
+const GAMES_JSON_URL = new URL("../site/data/games.json", import.meta.url);
+
 // The seam between the four verbs below and the outside world: wrangler
 // subprocess calls, the current time, stdout, and the reads over the
 // candidates directory and the committed roster. Every exported verb takes
@@ -199,8 +208,9 @@ function realDeps(local: boolean): PortraitDeps {
       return JSON.parse(readFileSync(`${dir}/manifest.json`, "utf8"));
     },
     // Read-only per this feature's global constraint: never written here.
+    // Path is repo-relative via GAMES_JSON_URL (see above), not cwd-relative.
     readGames(): GamesData {
-      return JSON.parse(readFileSync("site/data/games.json", "utf8"));
+      return JSON.parse(readFileSync(GAMES_JSON_URL, "utf8"));
     },
   };
 }
