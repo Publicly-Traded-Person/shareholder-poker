@@ -29,7 +29,11 @@ export async function onRequestPost({ request, params, env }) {
   if (!isValidToken(token)) return json({ error: "not found" }, 404);
 
   // Body cap before parsing: the whole valid payload is two short fields.
-  const raw = await request.text();
+  // request.text() itself can reject (a client that aborts mid-upload, or a
+  // malformed transfer encoding) - caught here so that counts as a bad body
+  // too, not an unhandled 500 that could leak a stack trace to the caller.
+  let raw;
+  try { raw = await request.text(); } catch { return json({ error: "bad body" }, 400); }
   if (raw.length > 1024) return json({ error: "bad body" }, 400);
   let body;
   try { body = JSON.parse(raw); } catch { return json({ error: "bad body" }, 400); }

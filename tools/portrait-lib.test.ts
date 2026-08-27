@@ -483,6 +483,8 @@ describe("GET /api/portrait/<token>/img/<variant>", () => {
     const { env } = makePortraitEnv([ASK], {});
     const res = await get(TOKEN, "a", env);
     expect(res.status).toBe(404);
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(res.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
     await expectNoEmail(res);
   });
 
@@ -598,6 +600,8 @@ describe("POST /api/portrait/<token>", () => {
     const res = await post(TOKEN, JSON.stringify({ answer: "approved", variant: "b" }), env);
     expect(res.status).toBe(200);
     expect(await res.clone().json()).toEqual({ ok: true, answer: "approved", variant: "b" });
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(res.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
     await expectNoEmail(res);
     expect(answers.length).toBe(1);
     expect(answers[0].variant).toBe("b");
