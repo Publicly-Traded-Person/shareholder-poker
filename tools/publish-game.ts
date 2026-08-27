@@ -5,7 +5,6 @@
 import { parseRows, stackSnapshots, handCount, entryCount } from "./lib/pokernow";
 import { resolveSlug } from "./lib/slugs";
 import { renderStandings, renderGamesIndex } from "./render";
-import { buildChipRace } from "./chip-race";
 import type { Game, GamesData } from "./lib/standings";
 
 export type ResultInput = { handle: string; finish: number; payout: number; rebuys: number; trophies: string[] };
@@ -93,9 +92,8 @@ if (import.meta.main) {
 
   data.games.push(game);
   await Bun.write("site/data/games.json", JSON.stringify(data, null, 2) + "\n");
-  await Bun.write(`site/games/${date}/chip-race.html`, buildChipRace(csv, { date, startingStack: game.startingStack }));
   await Bun.write("site/standings/index.html", renderStandings(data));
   await Bun.write("site/games/index.html", renderGamesIndex(data));
   console.log(`published ${date}: ${game.entries} entries, $${game.pot} pot, ${game.hands} hands.`);
-  console.log(`NEXT (manual): write site/games/${date}/index.html narrative, update nextGame in games.json, review diff, get Mike's go, push.`);
+  console.log(`NEXT (manual): write site/games/${date}/index.html narrative (the shell carries CHIP-RACE markers), then\n  bun tools/chip-race.ts ${args[0]} --date ${date} --start ${game.startingStack} --inject site/games/${date}/index.html\nthen update nextGame in games.json, review diff, get Mike's go, push.`);
 }

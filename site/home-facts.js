@@ -17,7 +17,7 @@
      so this script never throws on a page that lacks a given slot). */
   function el(id) { return document.getElementById(id); }
   /* The gem marks live as <template> elements in the page markup (ids
-     gem-full / gem-empty, beside the other drawn marks); this script only
+     skull-full / skull-empty, beside the other drawn marks); this script only
      clones nodes and writes text, so no string ever reaches an HTML sink. */
   function gem(kind) {
     var t = el(kind);
@@ -77,7 +77,7 @@
           var li = document.createElement("li");
           li.textContent = (nameOf[slug] || slug) + ": ";
           for (var i = 0; i < 3; i++) {
-            var g = gem(i < n ? "gem-full" : "gem-empty");
+            var g = gem(i < n ? "skull-full" : "skull-empty");
             if (g) li.appendChild(g);
           }
           /* The gems are aria-hidden (drawn chrome, not content), so

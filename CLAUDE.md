@@ -48,7 +48,7 @@ D1 `poker-rsvp-db`). Spec: `docs/superpowers/specs/2026-08-17-poker-quarterly-sy
 bun test tools          # the suite (58 tests at ship). Green before any commit.
 bun tools/render.ts     # regenerate site/standings/ + site/games/ from games.json
 bun tools/publish-game.ts <log.csv> --date YYYY-MM-DD --results results.json
-bun tools/chip-race.ts <log.csv> --date YYYY-MM-DD --start 5000 --out <file>
+bun tools/chip-race.ts <log.csv> --date YYYY-MM-DD --start 5000 --inject site/games/<date>/index.html
 python3 -m http.server -d site   # local preview
 ```
 

@@ -48,6 +48,10 @@ describe("renderStandings", () => {
     expect(html).toContain('class="tiles"');
     expect(html).toContain("Chris G.");
   });
+  test("skull tallies use drawn skulls, filled plus outline to three", () => {
+    expect(html).toContain('class="mark mark--skull"');
+    expect(html).toContain('class="mark mark--skull-empty"');
+  });
   test("draws marks as svg, never emoji", () => {
     expect(html).not.toContain("\u{1FA99}");
     expect(html).toContain('class="mark');

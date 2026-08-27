@@ -12,6 +12,17 @@ removes a named manual step; see the plan and spec section 6.
      never the check.
 4. Write the narrative page `site/games/<date>/index.html` (copy an existing
    game page shell). Dignity rule; no em dashes; no collections/owed content.
+   Then inject the chip race into it (the shell carries CHIP-RACE markers;
+   the chart lives ON the game page, and old chip-race.html URLs redirect
+   via `site/_redirects`):
+
+   ```
+   bun tools/chip-race.ts <log.csv> --date YYYY-MM-DD --start 5000 --inject site/games/<date>/index.html
+   ```
+
+   The tool halts if the markers are missing (copy the newest game page to
+   get them) and overwrites everything between them, so never hand-edit
+   inside the marker pair.
    The shell includes the head chrome (favicon link, meta description from
    the stat line, and the og:title/og:description/og:image/og:url/og:type
    plus twitter:card link-unfurl block so a shared game link previews
