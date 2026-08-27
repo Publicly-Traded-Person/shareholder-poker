@@ -35,6 +35,29 @@ removes a named manual step; see the plan and spec section 6.
 Card copy is judgment; it does not automate. Render per
 `munger/ccg/launch-aug-2026/ASSETS.md`, add `site/cards/<YYYY-MM>/`.
 
+Building the set page: copy the NEWEST set page (`site/cards/2026-07/` today)
+into the new directory and swap its content. Four of its choices are
+deliberate design rules, not accidents of the July page, so keep them:
+
+- **Captions are one unboxed line** under each card: a drawn gem SVG plus
+  "Rarity · First L. · Title". Never a white caption box, never emoji, and
+  never a surname. The card art itself carries name, handle, and rank; the
+  caption exists only because the painted text is small at phone sizes.
+- **`card-frame--holo` goes on the foil card only.** The pointer-tilt effect
+  is exclusive by design: a champion's foil means something because nothing
+  else moves. Every other card is plain `card-frame shimmer`-free.
+- **There is no pack-rip section.** The July GIF was cut on purpose (it read
+  as a broken image); its replacement is a filed follow-up
+  (shareholder-poker#11). Do not resurrect it from the July launch assets.
+- **Head chrome comes with the copy:** favicon link, meta description, and
+  the og:/twitter unfurl block with the new set's own og:title and og:url.
+  Update the set plate line (cards · minted date · hands) and the footer's
+  "game these cards came from" link to the new game.
+
+Order matters: create `site/cards/<YYYY-MM>/index.html` BEFORE adding
+`cardSet` to `games.json`, because the data suite fails on a `cardSet` whose
+page directory does not exist yet.
+
 When the set page ships, add `"cardSet": "YYYY-MM"` to that game's object in
 `site/data/games.json` (after `"pot"`), add the set to the gallery rows in
 `site/cards/index.html`, and re-run `bun tools/render.ts` so the games index
