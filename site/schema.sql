@@ -40,12 +40,18 @@ CREATE TABLE IF NOT EXISTS portrait_asks (
 -- Deliberately not an UPDATE: a player who approves in September and changes
 -- their mind in March must be able to withdraw, and withdrawal must not erase
 -- the fact that consent was once given. Consent has a history and the schema
--- holds it. Read with: ORDER BY answered_at DESC, rowid DESC LIMIT 1.
+-- holds it. Read with: ORDER BY rowid DESC LIMIT 1 (append order). Never
+-- order by answered_at: the ledger has two writers on two clocks, and a
+-- skewed timestamp must not let an old approval outrank a fresh withdrawal.
 CREATE TABLE IF NOT EXISTS portrait_answers (
   token       TEXT NOT NULL,
   answer      TEXT NOT NULL CHECK (answer IN ('approved','declined')),
   variant     TEXT,                -- chosen variant id when approved; NULL when declined
   answered_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+-- Serves the per-token lookup (WHERE token = ?) that both live readers use to
+-- fetch a token's answer rows before resolving the current one by rowid. The
+-- answered_at component orders results for that lookup only; it is never
+-- relied on to pick the current answer (see the read note above).
 CREATE INDEX IF NOT EXISTS portrait_answers_token_time
   ON portrait_answers (token, answered_at DESC);
