@@ -22,19 +22,34 @@ const notFound = () =>
     `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex, nofollow"><title>Not found</title></head><body><p>This link is not active. If Mike sent it to you, ask him for a fresh one.</p></body></html>`,
     { status: 404, headers: HEADERS });
 
+// True only for a real, finite number. A count that is missing, null, or a
+// string means the record does not actually say what happened, and the page
+// drops the whole stats line rather than printing a placeholder or a guess.
+const isCount = (n) => typeof n === "number" && Number.isFinite(n);
+
 // Pulls the player's real game line out of the committed public games.json.
-// Returns null when the set or the player is missing; the page then simply
-// omits the stats line. Never invent a number (repo invariant).
+// Returns null when the set, the player, or any number the stats line prints
+// is missing; the page then simply omits that line. Never invent a number
+// (repo invariant), which on this page is also the whole point: it exists to
+// earn one person's trust, so a number it cannot source it does not show.
+//
+// The entrant count is `entries`, NOT `results.length`. A game can seat more
+// players than it lists result rows for (site/data/games.json ships 2026-08 as
+// 8 entries over 7 rows, 2026-07 as 9 over 6), and `entries` is what
+// tools/render.ts publishes on /standings/ and the game pages. Counting rows
+// here would tell a player "finished 3rd of 7" while /games/2026-08-11/ says
+// "8 entries" a click away.
 function statsFor(data, setSlug, handle) {
   const game = (data.games || []).find((g) => g.cardSet === setSlug);
   const result = game && (game.results || []).find((r) => r.handle === handle);
   if (!game || !result) return null;
+  if (!isCount(game.entries) || !isCount(game.hands) || !isCount(result.finish)) return null;
   const player = (data.players || []).find(
     (p) => p.slug === result.slug || (p.aka || []).includes(handle));
   return {
     name: player ? player.name : handle,
     finish: result.finish,
-    entrants: game.results.length,
+    entrants: game.entries,
     hands: game.hands,
     date: game.date,
   };

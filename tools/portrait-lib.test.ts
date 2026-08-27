@@ -182,11 +182,19 @@ import { onRequestGet as portraitPage } from "../functions/portrait/[token].js";
 describe("GET /portrait/<token>", () => {
   // Stands in for the committed site/data/games.json. SYNTHETIC roster only:
   // no real player ever appears in a committed fixture (repo privacy rule).
+  //
+  // `entries` is deliberately 3 against only 2 result rows, mirroring the real
+  // file: site/data/games.json ships the 2026-08 game as 8 entries over 7 rows
+  // and 2026-07 as 9 over 6. A fixture where the two happened to match would
+  // pass whether the page read `entries` (correct, and what tools/render.ts
+  // publishes) or `results.length` (wrong), so the mismatch is the only thing
+  // making the entrant-count assertion below mean anything.
   const FIXTURE_DATA = {
     players: [{ slug: "gene-t", name: "Gene T.", aka: ["genet"] }],
     games: [{
       date: "2026-08-11",
       hands: 100,
+      entries: 3,
       cardSet: "2026-08",
       results: [
         { slug: "gene-t", handle: "genet", finish: 2, payout: 0, rebuys: 0, trophies: [] },
@@ -260,7 +268,12 @@ describe("GET /portrait/<token>", () => {
     expect(html).toContain("Use this one");
     expect(html).toContain("None of these");
     expect(html).toContain(MONOGRAM_LINE);
-    expect(html).toContain("2nd of 2");
+    // The entrant count is games.json `entries` (3), never the number of
+    // result rows (2). A player reading "of 2" here while /games/2026-08-11/
+    // says "8 entries" is the site contradicting itself on the one page whose
+    // whole job is earning trust, so both halves are asserted.
+    expect(html).toContain("2nd of 3");
+    expect(html).not.toContain("2nd of 2");
     expect(html).toContain("100 hands");
     expect(html).toContain('<meta name="robots" content="noindex, nofollow">');
   });
@@ -328,6 +341,48 @@ describe("GET /portrait/<token>", () => {
     expect(html).not.toContain("Those are the numbers on the card");
     expect(html).not.toContain(" hands");
     expect(html).not.toContain("rosap");
+  });
+
+  // Halt, never guess, applied to the stats line: every number it prints has
+  // to be in the record. Substituting `results.length` for a missing `entries`
+  // would publish a count that contradicts /standings/ and the game page, and
+  // a missing `hands` or `finish` would print "undefined" at a player. In both
+  // cases the line is dropped whole, and the consent ask still works.
+  test("a game with no entries count renders the ask without a stats line", async () => {
+    const { entries, ...gameWithoutEntries } = FIXTURE_DATA.games[0];
+    const data = { ...FIXTURE_DATA, games: [gameWithoutEntries] };
+    const { res, html } = await render([ASK], TOKEN, data);
+    expect(res.status).toBe(200);
+    expect(html).toContain(`src="/api/portrait/${TOKEN}/img/a"`);
+    expect(html).toContain("Use this one");
+    expect(html).toContain("None of these");
+    expect(html).not.toContain("Those are the numbers on the card");
+    expect(html).not.toContain("2nd of");
+    expect(html).not.toContain(" hands");
+  });
+
+  test("a game with no hand count renders the ask without a stats line", async () => {
+    const { hands, ...gameWithoutHands } = FIXTURE_DATA.games[0];
+    const data = { ...FIXTURE_DATA, games: [gameWithoutHands] };
+    const { res, html } = await render([ASK], TOKEN, data);
+    expect(res.status).toBe(200);
+    expect(html).toContain("Use this one");
+    expect(html).not.toContain("Those are the numbers on the card");
+    expect(html).not.toContain("undefined");
+  });
+
+  test("a result with no finish position renders the ask without a stats line", async () => {
+    const { finish, ...rowWithoutFinish } = FIXTURE_DATA.games[0].results[0];
+    const data = {
+      ...FIXTURE_DATA,
+      games: [{ ...FIXTURE_DATA.games[0],
+                results: [rowWithoutFinish, FIXTURE_DATA.games[0].results[1]] }],
+    };
+    const { res, html } = await render([ASK], TOKEN, data);
+    expect(res.status).toBe(200);
+    expect(html).toContain("Use this one");
+    expect(html).not.toContain("Those are the numbers on the card");
+    expect(html).not.toContain("undefined");
   });
 
   // Halt, never guess: a malformed variants column serves no image at all.
