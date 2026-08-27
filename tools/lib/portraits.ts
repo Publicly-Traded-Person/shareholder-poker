@@ -228,11 +228,17 @@ export function revokeInsertSql(handle: string, setSlug: string, nowStr: string)
 }
 
 // Builds the status query: one row per ask, joined to its latest answer (if
-// any) via a correlated subquery that mirrors latestAnswer's own tie-break
-// (answered_at DESC, then rowid DESC so a same-second flip resolves to the
-// later insertion). Filters to one set when setSlug is given; omits the
-// WHERE clause entirely otherwise so `--status` with no `--set` covers every
-// set ever staged.
+// any) via a correlated subquery ordered by rowid DESC only -- NOT
+// answered_at. portrait_answers has two writers on two different clocks (the
+// POST Function's request-time clock and the CLI revoke's operator-machine
+// clock), so answered_at can disagree with true append order the same way it
+// can for latestAnswer in functions/api/_portrait.js. rowid is the one thing
+// both writers agree on (SQLite assigns it in write order regardless of
+// either clock), so this subquery must pick "latest by rowid" exactly like
+// latestAnswer does, or `--status` (the view a maintainer acts on when
+// deciding what ships) could disagree with what the page and API show.
+// Filters to one set when setSlug is given; omits the WHERE clause entirely
+// otherwise so `--status` with no `--set` covers every set ever staged.
 export function statusSql(setSlug?: string): string {
   const where = setSlug ? `WHERE a.set_slug = ${sq(setSlug)}\n` : "";
   return (
@@ -241,7 +247,7 @@ export function statusSql(setSlug?: string): string {
     "FROM portrait_asks a\n" +
     "LEFT JOIN portrait_answers w ON w.rowid = (\n" +
     "  SELECT w2.rowid FROM portrait_answers w2 WHERE w2.token = a.token\n" +
-    "  ORDER BY w2.answered_at DESC, w2.rowid DESC LIMIT 1)\n" +
+    "  ORDER BY w2.rowid DESC LIMIT 1)\n" +
     where +
     "ORDER BY a.handle"
   );
