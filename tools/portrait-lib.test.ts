@@ -170,3 +170,170 @@ export const FUTURE = "2099-01-01 00:00:00";
 export const PAST = "2000-01-01 00:00:00";
 export const ASK: AskRow = { token: TOKEN, handle: "genet", set_slug: "2026-08",
   variants: '["a","b"]', expires_at: FUTURE, email: "leak@example.com" };
+
+// ---------------------------------------------------------------------------
+// Task 6: GET /portrait/<token>, the server-rendered consent page.
+// Appended below the shared stubs; nothing above this line is touched (Task 5
+// appends its own block for the JSON surfaces). Import declarations are
+// hoisted, so this one sits with its block rather than at the top of the file.
+// @ts-ignore - plain JS Pages Function, imported straight into bun:test
+import { onRequestGet as portraitPage } from "../functions/portrait/[token].js";
+
+describe("GET /portrait/<token>", () => {
+  // Stands in for the committed site/data/games.json. SYNTHETIC roster only:
+  // no real player ever appears in a committed fixture (repo privacy rule).
+  const FIXTURE_DATA = {
+    players: [{ slug: "gene-t", name: "Gene T.", aka: ["genet"] }],
+    games: [{
+      date: "2026-08-11",
+      hands: 100,
+      cardSet: "2026-08",
+      results: [
+        { slug: "gene-t", handle: "genet", finish: 2, payout: 0, rebuys: 0, trophies: [] },
+        { slug: "rosa-p", handle: "rosap", finish: 1, payout: 10, rebuys: 0, trophies: [] },
+      ],
+    }],
+  };
+
+  const EM_DASH = "—";
+  const MONOGRAM_LINE =
+    "Turning it down keeps the monogram card you already have. " +
+    "The photo stays out and the card stays yours.";
+
+  // Wraps makePortraitEnv rather than changing it: the factory is shared with
+  // Task 5, which has no ASSETS binding to speak of.
+  function pageEnv(asks: AskRow[], data: unknown = FIXTURE_DATA) {
+    const made = makePortraitEnv(asks);
+    (made.env as any).ASSETS = { fetch: async () => new Response(JSON.stringify(data)) };
+    return made;
+  }
+
+  const pageRequest = () => new Request(`https://poker.kmikeym.com/portrait/${TOKEN}`);
+
+  async function render(asks: AskRow[], token: string = TOKEN, data: unknown = FIXTURE_DATA) {
+    const { env } = pageEnv(asks, data);
+    const res = await portraitPage({ request: pageRequest(), params: { token }, env });
+    return { res, html: await res.text() };
+  }
+
+  // The three headers are the whole privacy posture of this surface: never
+  // cached, never indexed, and identical for a hit and a miss.
+  const expectPrivateHeaders = (res: Response) => {
+    expect(res.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(res.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+  };
+
+  test("an unknown token renders a 404 HTML page with the private headers", async () => {
+    const { res, html } = await render([ASK], "f".repeat(32));
+    expect(res.status).toBe(404);
+    expectPrivateHeaders(res);
+    expect(html).toContain('<meta name="robots" content="noindex, nofollow">');
+    expect(html).not.toContain("genet");
+  });
+
+  test("a malformed token 404s without touching the database", async () => {
+    const { res } = await render([ASK], "../../etc/passwd");
+    expect(res.status).toBe(404);
+    expectPrivateHeaders(res);
+  });
+
+  // 404, never 403: a probe must not be able to tell a real token from a dead
+  // one, so the expired body is byte-identical to the unknown-token body.
+  test("an expired ask 404s with the same body as an unknown token", async () => {
+    const expired = { ...ASK, expires_at: PAST };
+    const gone = await render([expired]);
+    const unknown = await render([], "f".repeat(32));
+    expect(gone.res.status).toBe(404);
+    expectPrivateHeaders(gone.res);
+    expect(gone.html).toBe(unknown.html);
+  });
+
+  test("a live ask renders the card, the pickers, the stats and both actions", async () => {
+    const { res, html } = await render([ASK]);
+    expect(res.status).toBe(200);
+    expectPrivateHeaders(res);
+    expect(html).toContain("Gene T.");
+    expect(html).toContain(`src="/api/portrait/${TOKEN}/img/a"`);
+    expect(html).toContain('data-variant="a"');
+    expect(html).toContain('data-variant="b"');
+    expect(html).toContain("Use this one");
+    expect(html).toContain("None of these");
+    expect(html).toContain(MONOGRAM_LINE);
+    expect(html).toContain("2nd of 2");
+    expect(html).toContain("100 hands");
+    expect(html).toContain('<meta name="robots" content="noindex, nofollow">');
+  });
+
+  test("an existing approval renders as state, with that crop preselected", async () => {
+    const { env, answers } = pageEnv([ASK]);
+    answers.push({ token: TOKEN, answer: "approved", variant: "b",
+                   answered_at: "2026-09-01 10:00:00" });
+    const res = await portraitPage({ request: pageRequest(), params: { token: TOKEN }, env });
+    const html = await res.text();
+    expect(res.status).toBe(200);
+    expect(html).toContain("You approved");
+    expect(html).toContain('data-variant="b" aria-pressed="true"');
+    expect(html).toContain('data-variant="a" aria-pressed="false"');
+    expect(html).toContain(`src="/api/portrait/${TOKEN}/img/b"`);
+  });
+
+  test("no email address reaches the page, not even from the ask row", async () => {
+    const { html } = await render([ASK]);
+    expect(html).not.toContain("@");
+    expect(html).not.toContain("leak@example.com");
+    expect(html).not.toContain("example.com");
+  });
+
+  // Consent is asked for, never sold: the lime CTA belongs to RSVP only.
+  test("both actions are btn-secondary and no lime CTA appears", async () => {
+    const { html } = await render([ASK]);
+    expect(html).not.toContain("btn-primary");
+    expect(html).toContain('id="approve" class="btn-secondary"');
+    expect(html).toContain('id="decline" class="btn-secondary"');
+  });
+
+  test("copy rules hold in runtime-rendered HTML too", async () => {
+    const { html } = await render([ASK]);
+    expect(html).not.toContain(EM_DASH);
+    expect(/experiment/i.test(html)).toBe(false);
+  });
+
+  // A forwarded link must not become a side door into an unannounced set.
+  test("the page links nowhere into the site", async () => {
+    const { html } = await render([ASK]);
+    expect(/<a href="\//.test(html)).toBe(false);
+    expect(html).not.toContain("<a ");
+  });
+
+  test("a set missing from games.json renders the ask without a stats line", async () => {
+    const noSet = { ...FIXTURE_DATA, games: [{ ...FIXTURE_DATA.games[0], cardSet: "2026-07" }] };
+    const { res, html } = await render([ASK], TOKEN, noSet);
+    expect(res.status).toBe(200);
+    expect(html).toContain(`src="/api/portrait/${TOKEN}/img/a"`);
+    expect(html).toContain("Use this one");
+    expect(html).toContain("None of these");
+    expect(html).not.toContain("Those are the numbers on the card");
+    expect(html).not.toContain(" hands");
+  });
+
+  test("a player missing from the set results renders without a stats line", async () => {
+    const noPlayer = {
+      ...FIXTURE_DATA,
+      games: [{ ...FIXTURE_DATA.games[0], results: [FIXTURE_DATA.games[0].results[1]] }],
+    };
+    const { res, html } = await render([ASK], TOKEN, noPlayer);
+    expect(res.status).toBe(200);
+    expect(html).toContain("Use this one");
+    expect(html).not.toContain("Those are the numbers on the card");
+    expect(html).not.toContain(" hands");
+    expect(html).not.toContain("rosap");
+  });
+
+  // Halt, never guess: a malformed variants column serves no image at all.
+  test("an ask with a malformed variants column 404s", async () => {
+    const bad = { ...ASK, variants: "not json" };
+    const { res } = await render([bad]);
+    expect(res.status).toBe(404);
+  });
+});
