@@ -86,10 +86,20 @@ stale.
 Card portraits ship only with the player's yes, given on a private page that
 shows their actual card. Charlie stages the images; the tool does the rest.
 
+### One-time setup (first set only)
+
+Before the first set ever ships, run these two commands from this repo's
+root. Both are idempotent (`schema.sql` uses `IF NOT EXISTS`), so rerunning
+them later never breaks anything:
+
+- Create the private bucket: `npx wrangler r2 bucket create poker-portraits`
+- Apply the consent tables: `npx wrangler d1 execute poker-rsvp-db --remote --file site/schema.sql`
+  (and the `--local` twin for rehearsal: `npx wrangler d1 execute poker-rsvp-db --local --file site/schema.sql`)
+
 1. In munger, run `ccg/stage-candidates.sh` (Charlie's side). It produces
    `candidates/` with a `manifest.json` and `<handle>/<variant>.png` whole-card
    renders. Source photos never leave munger's gitignored `photos-raw/`.
-2. From this repo:
+2. From this repo's root:
    `bun tools/portrait-asks.ts <path-to-candidates>`
    It validates the manifest against `games.json` handles (unknown handle
    halts, same as publish-game: fix the input, never the check), uploads the
