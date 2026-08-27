@@ -99,6 +99,20 @@ describe("latestAnswer", () => {
                             row("declined", null, "2026-09-01 10:00:00")]);
     expect(r).toEqual({ answer: "declined", variant: null, answeredAt: "2026-09-01 10:00:00" });
   });
+  // Re-arms the CHECK-set guard against the insertion-order flip above: the
+  // existing "ignores rows with answers outside the CHECK set" test puts its
+  // invalid row FIRST, so it stays green even if the validity filter in
+  // latestAnswer were deleted (the last row is already the valid one). These
+  // two put the invalid answer in the position that actually exercises the
+  // guard: last, and alone.
+  test("an unrecognized answer in the last slot never becomes current", () => {
+    const r = latestAnswer([row("approved", "a", "2026-09-01 10:00:00"),
+                            row("maybe", "a", "2026-09-02 10:00:00")]);
+    expect(r?.answer).toBe("approved");
+  });
+  test("a list of only invalid answers has no current answer", () => {
+    expect(latestAnswer([row("maybe", "a", "2026-09-01 10:00:00")])).toBe(null);
+  });
 });
 
 describe("parseVariants", () => {
