@@ -552,6 +552,25 @@ describe("POST /api/portrait/<token>", () => {
     await expectNoEmail(res);
   });
 
+  // Every other body test above builds a real Request with an in-memory
+  // string, and reading that body never rejects - so none of them exercise
+  // the try/catch around request.text() in the handler. Only a stub whose
+  // text() itself throws (an aborted upload, a malformed transfer encoding)
+  // reaches that branch. Without the catch this would blow out as an
+  // unhandled 500 instead of the same 400 bad-body response every other
+  // malformed-body case gets, and the handler's own header comment already
+  // promises this behavior (comments are normative in this repo).
+  test("a request whose body stream rejects still 400s as a bad body", async () => {
+    const { env, answers } = makePortraitEnv([ASK]);
+    const badRequest = { text: async () => { throw new Error("aborted"); } };
+    const res = await answerOnRequestPost(
+      { request: badRequest as any, params: { token: TOKEN }, env } as any);
+    expect(res.status).toBe(400);
+    expect(await res.clone().json()).toEqual({ error: "bad body" });
+    await expectNoEmail(res);
+    expect(answers.length).toBe(0);
+  });
+
   test("body over 1024 bytes 400s", async () => {
     const { env } = makePortraitEnv([ASK]);
     const big = JSON.stringify({ answer: "declined", pad: "x".repeat(1100) });
