@@ -165,7 +165,11 @@ set shipped before this feature does not retroactively gain the column.
    with it)`
    If you are genuinely done with a kept panel after the print render ships,
    delete it yourself with `npx wrangler r2 object delete
-   poker-portraits/<key>`. Prune will never do it for you.
+   poker-portraits/<key> --remote`. The explicit `--remote` matters here the
+   same as it does on every other r2 command in this runbook: without it the
+   command can silently hit local dev state instead of the real bucket, and
+   this is a deliberate one-off delete you want to land for real. Prune will
+   never do it for you.
 
 Rehearsal: add `--local` to any command to run against `wrangler pages dev`
 state instead of production. Nothing in this flow touches git: candidate

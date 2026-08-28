@@ -162,9 +162,9 @@ render.
 
 **Amendment, 2026-08-28:** the "zero changes" claim above did not hold once
 a real self-upload existed to prune. `--prune` now deliberately keeps an
-expired ask's approved self panel and lists it instead of deleting it (Task
-6 REDIRECT), because that panel lives nowhere but R2 (unlike a staged crop,
-which also sits on disk in `candidates/`). Sweeping it away on schedule
+expired ask's approved self panel and lists it instead of deleting it,
+because that panel lives nowhere but R2 (unlike a staged crop, which also
+sits on disk in `candidates/`). Sweeping it away on schedule
 would destroy the one copy of art a player explicitly consented to, and
 consented one-of-one art is never silently deletable. See
 `docs/publishing.md`'s prune step for the operator-facing behavior, and
