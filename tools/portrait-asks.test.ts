@@ -1,12 +1,12 @@
-// Tests for the portrait-asks CLI's four verbs (stage, status, revoke,
-// prune), exercised entirely through injected deps so nothing here touches a
-// real filesystem, D1, R2, or wrangler subprocess - only main()'s untested
-// glue (argv parsing, the real wrangler-backed deps, process.exit) is left
-// outside this file, same split as tools/publish-game.ts / prepareGame.
-// All fixture players are SYNTHETIC (repo privacy rule): "genet" and "rosap"
-// are invented handles, never a real player.
+// Tests for the portrait-asks CLI's five verbs (stage, status, revoke,
+// prune, pull), exercised entirely through injected deps so nothing here
+// touches a real filesystem, D1, R2, or wrangler subprocess - only main()'s
+// untested glue (argv parsing, the real wrangler-backed deps, process.exit)
+// is left outside this file, same split as tools/publish-game.ts /
+// prepareGame. All fixture players are SYNTHETIC (repo privacy rule):
+// "genet" and "rosap" are invented handles, never a real player.
 import { describe, expect, test } from "bun:test";
-import { stage, status, revoke, prune, type PortraitDeps } from "./portrait-asks";
+import { stage, status, revoke, prune, pull, type PortraitDeps } from "./portrait-asks";
 import { toSqlUtc } from "../functions/api/_portrait.js";
 import type { GamesData } from "./lib/standings";
 
@@ -43,12 +43,19 @@ const GAMES: GamesData = {
 // which is fine because those tests assert through other channels instead.
 function makeDeps(overrides: Partial<PortraitDeps> = {}): {
   deps: PortraitDeps;
-  calls: { d1: string[]; r2put: [string, string][]; r2delete: string[]; printed: string[] };
+  calls: {
+    d1: string[];
+    r2put: [string, string][];
+    r2delete: string[];
+    r2get: [string, string][];
+    printed: string[];
+  };
 } {
   const calls = {
     d1: [] as string[],
     r2put: [] as [string, string][],
     r2delete: [] as string[],
+    r2get: [] as [string, string][],
     printed: [] as string[],
   };
   const deps: PortraitDeps = {
@@ -62,6 +69,9 @@ function makeDeps(overrides: Partial<PortraitDeps> = {}): {
     r2delete: (key: string) => {
       calls.r2delete.push(key);
     },
+    r2get: (key: string, outPath: string) => {
+      calls.r2get.push([key, outPath]);
+    },
     now: () => NOW,
     print: (line: string) => {
       calls.printed.push(line);
@@ -70,8 +80,8 @@ function makeDeps(overrides: Partial<PortraitDeps> = {}): {
     readManifest: () => ({
       set_slug: "2026-08",
       players: [
-        { handle: "genet", variants: ["a", "b"] },
-        { handle: "rosap", variants: ["a"] },
+        { handle: "genet", variants: ["a", "b"], metal: "copper" },
+        { handle: "rosap", variants: ["a"], metal: "pewter" },
       ],
     }),
     readGames: () => GAMES,
@@ -105,7 +115,9 @@ describe("stage", () => {
     expect(calls.d1.length).toBe(2); // one upsert per player, not per variant
     expect(calls.d1[0]).toContain("INSERT INTO portrait_asks");
     expect(calls.d1[0]).toContain("'genet'");
+    expect(calls.d1[0]).toContain("'copper'"); // genet's metal from the manifest fixture
     expect(calls.d1[1]).toContain("'rosap'");
+    expect(calls.d1[1]).toContain("'pewter'"); // rosap's metal from the manifest fixture
 
     expect(calls.printed.length).toBe(2);
     expect(calls.printed[0]).toMatch(/^genet\s+https:\/\/poker\.kmikeym\.com\/portrait\/[0-9a-f]{32}$/);
@@ -209,5 +221,77 @@ describe("prune", () => {
     await prune(deps);
     expect(calls.r2delete).toEqual([]);
     expect(calls.printed).toEqual(["nothing expired"]);
+  });
+});
+
+// One statusSql-shaped row, as the fake d1 below returns it. `answer` and
+// `variant` are the fields pull() actually branches on; the rest just have
+// to be present so the row looks like a real statusSql result.
+function statusRow(overrides: Partial<{
+  handle: string; answer: string | null; variant: string | null;
+}> = {}) {
+  return {
+    handle: "genet",
+    set_slug: "2026-08",
+    variants: '["a","b","self"]',
+    answer: null,
+    variant: null,
+    answered_at: null,
+    expires_at: "2026-10-26 10:00:00",
+    token: "a".repeat(32),
+    ...overrides,
+  };
+}
+
+describe("pull", () => {
+  test("halts naming both handle and set when no ask exists for that handle", async () => {
+    const { deps } = makeDeps({ d1: () => ({ results: [], changes: 0 }) });
+    await expect(pull("genet", "2026-08", undefined, deps)).rejects.toThrow(/genet/);
+    await expect(pull("genet", "2026-08", undefined, deps)).rejects.toThrow(/2026-08/);
+  });
+
+  test("halts saying declined when the latest answer is a decline", async () => {
+    const { deps } = makeDeps({
+      d1: () => ({ results: [statusRow({ answer: "declined" })], changes: 0 }),
+    });
+    await expect(pull("genet", "2026-08", undefined, deps)).rejects.toThrow(/declined/);
+  });
+
+  test("halts naming the variant when the latest approval is a staged crop, not self", async () => {
+    const { deps } = makeDeps({
+      d1: () => ({ results: [statusRow({ answer: "approved", variant: "b" })], changes: 0 }),
+    });
+    await expect(pull("genet", "2026-08", undefined, deps)).rejects.toThrow(/"b"/);
+  });
+
+  test("fetches the self panel to a default filename and prints one confirmation line", async () => {
+    const { deps, calls } = makeDeps({
+      d1: () => ({ results: [statusRow({ answer: "approved", variant: "self" })], changes: 0 }),
+    });
+    await pull("genet", "2026-08", undefined, deps);
+    expect(calls.r2get).toEqual([["asks/2026-08/genet/self.png", "genet-self.png"]]);
+    expect(calls.printed.length).toBe(1);
+    expect(calls.printed[0]).toContain("genet");
+  });
+
+  test("honors --out for the destination path", async () => {
+    const { deps, calls } = makeDeps({
+      d1: () => ({ results: [statusRow({ answer: "approved", variant: "self" })], changes: 0 }),
+    });
+    await pull("genet", "2026-08", "out/genet.png", deps);
+    expect(calls.r2get).toEqual([["asks/2026-08/genet/self.png", "out/genet.png"]]);
+  });
+
+  test("resolves through statusSql, matching the append-order rule status uses", async () => {
+    const { deps, calls } = makeDeps({
+      d1: (sql: string) => {
+        calls.d1.push(sql);
+        return { results: [statusRow({ answer: "approved", variant: "self" })], changes: 0 };
+      },
+    });
+    await pull("genet", "2026-08", undefined, deps);
+    expect(calls.d1.length).toBe(1);
+    expect(calls.d1[0]).toContain("ORDER BY w2.rowid DESC");
+    expect(calls.d1[0]).toContain("a.set_slug = '2026-08'");
   });
 });

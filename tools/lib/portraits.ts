@@ -16,9 +16,12 @@ import type { GamesData } from "./standings";
 
 // One player's staged variant set for one month's card release, after
 // validateCandidates has confirmed the manifest and the PNG directory agree.
+// `metal` is carried through from the manifest (validated: one of
+// foil/sapphire/copper/pewter) so a self-uploaded photo can later be
+// duotoned to match the rarity of the card actually being printed.
 export type CandidateSet = {
   setSlug: string;
-  players: { handle: string; variants: string[] }[];
+  players: { handle: string; variants: string[]; metal: string }[];
 };
 
 // A single upsert target the CLI passes through askUpsertSql.
@@ -27,6 +30,7 @@ type AskUpsert = {
   handle: string;
   setSlug: string;
   variants: string[];
+  metal: string;
   createdAt: string;
   expiresAt: string;
 };
@@ -50,6 +54,10 @@ type PruneRow = { set_slug: string; handle: string; variants: string };
 const SET_SLUG_RE = /^\d{4}-\d{2}$/;
 const HANDLE_RE = /^[A-Za-z0-9_.-]{1,32}$/;
 const VARIANT_RE = /^[a-z0-9]{1,8}$/;
+// The only four rarity metals a card prints on (site/portrait-dither.js
+// METALS keys, kept in sync by hand - see that file's header). Anything
+// else halts staging rather than guessing a fallback tier.
+const METAL_RE = /^(foil|sapphire|copper|pewter)$/;
 
 // Every handle this roster already recognizes: the union of each player's
 // aka list and every handle that has ever appeared in a played game's
@@ -72,6 +80,11 @@ export function knownHandles(data: GamesData): Set<string> {
 // PNG files actually present. Collects EVERY problem before throwing, so a
 // bad handoff can be fixed in one editing pass instead of one failure at a
 // time (repo halt-don't-guess posture, same as publish-game's checks).
+//
+// Each player entry also must declare a metal (one of foil, sapphire,
+// copper, pewter) - the rarity tier a self-upload gets duotoned against -
+// and a missing or unrecognized value is a problem like any other, never a
+// silently-assumed default.
 //
 // Throws Error with every problem, one per line, prefixed
 // "refusing to stage:\n  ". Never partially validates: any problem means the
@@ -110,6 +123,7 @@ export function validateCandidates(
       }
       const handle = (p as Record<string, unknown>).handle;
       const variants = (p as Record<string, unknown>).variants;
+      const metal = (p as Record<string, unknown>).metal;
 
       if (typeof handle !== "string" || !HANDLE_RE.test(handle)) {
         problems.push(`invalid handle shape: ${JSON.stringify(handle)}`);
@@ -146,7 +160,18 @@ export function validateCandidates(
       }
       if (!variantsOk) continue;
 
-      players.push({ handle, variants: [...variants] as string[] });
+      // Checked last, after every other shape on this player is confirmed:
+      // that way a player with, say, both a bad variant AND a missing metal
+      // still gets flagged for the variant (an unrelated problem is never
+      // masked by this one bailing out first).
+      if (typeof metal !== "string" || !METAL_RE.test(metal)) {
+        problems.push(
+          `player "${handle}" metal must be one of foil, sapphire, copper, or pewter, got ${JSON.stringify(metal)}`
+        );
+        continue;
+      }
+
+      players.push({ handle, metal, variants: [...variants] as string[] });
       for (const v of variants as string[]) {
         expectedPngs.add(`${handle}/${v}.png`);
       }
@@ -203,12 +228,16 @@ export function sq(s: string): string {
 // a player who was already staged this month REPLACES their row and rotates
 // the token: this is deliberate (spec s9) so a previously shared link goes
 // dead the moment a new one is issued, rather than both links staying live.
+// Also writes `metal` (the rarity tier for this month's card, validated by
+// validateCandidates): the consent page reads it back to duotone a
+// self-uploaded photo to match the printed card. Re-staging updates it too,
+// same as every other column, in case a metal gets corrected between runs.
 export function askUpsertSql(a: AskUpsert): string {
   return (
-    "INSERT INTO portrait_asks (token, handle, set_slug, variants, created_at, expires_at) " +
-    `VALUES (${sq(a.token)}, ${sq(a.handle)}, ${sq(a.setSlug)}, ${sq(JSON.stringify(a.variants))}, ${sq(a.createdAt)}, ${sq(a.expiresAt)}) ` +
+    "INSERT INTO portrait_asks (token, handle, set_slug, variants, metal, created_at, expires_at) " +
+    `VALUES (${sq(a.token)}, ${sq(a.handle)}, ${sq(a.setSlug)}, ${sq(JSON.stringify(a.variants))}, ${sq(a.metal)}, ${sq(a.createdAt)}, ${sq(a.expiresAt)}) ` +
     "ON CONFLICT(handle, set_slug) DO UPDATE SET " +
-    "token = excluded.token, variants = excluded.variants, " +
+    "token = excluded.token, variants = excluded.variants, metal = excluded.metal, " +
     "created_at = excluded.created_at, expires_at = excluded.expires_at"
   );
 }
