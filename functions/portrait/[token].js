@@ -3,6 +3,16 @@
 // Server-rendered HTML, no build step, brand system via /styles.css. Links
 // NOWHERE into the site: a forwarded link must not become a side door into
 // an unannounced set. Served at GET /portrait/<token> on poker.kmikeym.com.
+//
+// It also carries the SELF-UPLOAD BLOCK, which renders only when three things
+// are true at once: the `portraitUploads` flag in site/data/games.json is on,
+// the ask row carries one of the four rarity metals, and the ask is live. The
+// block's whole point is where the pixels are processed: the photo is decoded,
+// cropped, dithered and duotoned IN THE PLAYER'S OWN TAB by /portrait-dither.js
+// (loaded as a module), and the only thing that ever leaves the device is the
+// finished 620x236 PNG art panel, POSTed to /api/portrait/<token>/upload when
+// the player taps "Use this photo". The raw photograph never reaches any
+// server, which is the promise the block's own copy makes to the player.
 import {
   isValidToken, isExpired, toSqlUtc, parseVariants,
   latestAnswer, escapeHtml, ordinal, monthName,
@@ -58,16 +68,20 @@ function statsFor(data, setSlug, handle) {
 // Renders the consent page for one ask.
 // Takes the Pages Function context ({ request, params, env }); `params.token`
 // is the capability token from the URL. Returns a 200 HTML Response with the
-// card, the crop pickers and the two actions, or the shared 404 page when the
-// token is malformed, unknown, expired, or its ask row is malformed. Throws
-// only if D1 itself fails; a games.json read failure is swallowed so the
-// consent ask still works, just without the stats line.
+// card, the crop pickers, the two actions and (when configured) the
+// self-upload block, or the shared 404 page when the token is malformed,
+// unknown, expired, or its ask row is malformed. Throws only if D1 itself
+// fails; a games.json read failure is swallowed so the consent ask still
+// works, just without the stats line and with uploads off.
 export async function onRequestGet({ request, params, env }) {
   const token = params.token;
   if (!isValidToken(token)) return notFound();
 
+  // `metal` exists in production only after the one-time
+  // `ALTER TABLE portrait_asks ADD COLUMN metal TEXT` migration; the runbook
+  // in docs/publishing.md owns running it before this code deploys.
   const ask = await env.POKER_RSVP_DB
-    .prepare("SELECT handle, set_slug, variants, expires_at FROM portrait_asks WHERE token = ?")
+    .prepare("SELECT handle, set_slug, variants, expires_at, metal FROM portrait_asks WHERE token = ?")
     .bind(token).first();
   if (!ask || isExpired(ask.expires_at, toSqlUtc(new Date()))) return notFound();
   const variants = parseVariants(ask.variants);
@@ -79,10 +93,21 @@ export async function onRequestGet({ request, params, env }) {
   const current = latestAnswer(answerRows);
 
   let stats = null;
+  let uploadsOn = false;
   try {
     const res = await env.ASSETS.fetch(new URL("/data/games.json", request.url));
-    stats = statsFor(await res.json(), ask.set_slug, ask.handle);
-  } catch { /* stats stay null; the consent ask still works without them */ }
+    const data = await res.json();
+    stats = statsFor(data, ask.set_slug, ask.handle);
+    // Fail CLOSED: any read failure leaves uploads off. The block simply
+    // does not render; a capability URL never narrates its own config.
+    uploadsOn = data.portraitUploads === true;
+  } catch { /* stats stay null, uploads stay off; the consent ask still works */ }
+
+  // The four rarity metals, duplicated from site/portrait-dither.js METALS
+  // keys on purpose: this Function cannot import a site/ asset without
+  // leaning on bundler behavior nothing else relies on.
+  const METAL_NAMES = ["foil", "sapphire", "copper", "pewter"];
+  const canUpload = uploadsOn && METAL_NAMES.includes(ask.metal);
 
   const name = escapeHtml(stats ? stats.name : ask.handle);
   const setName = escapeHtml(monthName(ask.set_slug));
@@ -91,10 +116,20 @@ export async function onRequestGet({ request, params, env }) {
       ? current.variant : variants[0];
   const img = (v) => `/api/portrait/${token}/img/${v}`;
 
+  // Display rule (spec s4): the staged crops are whole cards, `self` is the
+  // bare art panel. The page shows the panel at panel proportions and says so
+  // in one caption line rather than faking a full-card composite it cannot
+  // make truthfully.
+  const isPanel = selected === "self";
+
+  // The `variants.length < 2` guard stays: a lone staged crop shows no picker
+  // at all. Once `self` arrives the length is 2 and the picker appears on its
+  // own. `self` is the player's own photo, not a crop someone staged for
+  // them, so it is labeled as theirs.
   const pickerRow = variants.length < 2 ? "" : `
       <div class="picker" role="group" aria-label="Crop options">
         ${variants.map((v) => `<button type="button" class="btn-secondary variant-pick"
-          data-variant="${v}" aria-pressed="${v === selected}">Crop ${v.toUpperCase()}</button>`).join("\n        ")}
+          data-variant="${v}" aria-pressed="${v === selected}">${v === "self" ? "Your photo" : `Crop ${v.toUpperCase()}`}</button>`).join("\n        ")}
       </div>`;
 
   const statsLine = stats === null ? "" : `
@@ -106,6 +141,101 @@ export async function onRequestGet({ request, params, env }) {
       : current.answer === "approved"
         ? `You approved crop ${escapeHtml(String(current.variant).toUpperCase())} on ${escapeHtml(current.answeredAt.slice(0, 10))}. You can change this any time before the set prints.`
         : `You turned the photo down on ${escapeHtml(current.answeredAt.slice(0, 10))}. You can change this any time before the set prints.`;
+
+  // Renders nothing at all when uploads are not configured for this ask. The
+  // page never explains why the block is absent (spec s4): a capability URL
+  // should not narrate its own configuration to whoever is holding it.
+  const uploadBlock = !canUpload ? "" : `
+  <div class="upload-block">
+    <p class="fine">Or use a different photo. It never leaves your device; only the finished dithered panel is sent, and only if you approve it.</p>
+    <input type="file" id="photo-in" accept="image/*">
+    <div id="composer" hidden>
+      <canvas id="preview" width="620" height="236"></canvas>
+      <label class="fine">Zoom <input type="range" id="zoom" min="0.05" max="4" step="0.01"></label>
+      <p class="fine">Drag the picture to frame it. The face reads best on the left.</p>
+      <button type="button" id="use-photo" class="btn-secondary">Use this photo</button>
+    </div>
+  </div>`;
+
+  // The companion script, also conditional. It is a module because
+  // /portrait-dither.js is one. Everything it does with the photograph happens
+  // in the player's tab; the only network call it makes carries the finished
+  // 620x236 panel. Reloading on success is deliberate: the reloaded page shows
+  // the server's truth (self selected, approved state), which is simpler and
+  // more honest than mirroring that state client-side.
+  const uploadScript = !canUpload ? "" : `
+<script type="module">
+  import { composePanel } from "/portrait-dither.js";
+  const metal = ${JSON.stringify(ask.metal)};
+  const input = document.getElementById("photo-in");
+  const composer = document.getElementById("composer");
+  const preview = document.getElementById("preview");
+  const zoom = document.getElementById("zoom");
+  const ctx = preview.getContext("2d");
+  let src = null;
+  let view = { scale: 1, ox: 0, oy: 0 };
+
+  function render() {
+    if (!src) return;
+    const panel = composePanel(src, view, metal);
+    ctx.putImageData(new ImageData(panel.data, panel.width, panel.height), 0, 0);
+  }
+
+  input.addEventListener("change", async function () {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    // The photo is decoded and processed HERE, in this tab, and nowhere
+    // else. imageOrientation un-lies phone EXIF rotation.
+    const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const off = document.createElement("canvas");
+    off.width = bmp.width; off.height = bmp.height;
+    const octx = off.getContext("2d");
+    octx.drawImage(bmp, 0, 0);
+    src = octx.getImageData(0, 0, bmp.width, bmp.height);
+    const fit = Math.max(620 / src.width, 236 / src.height);
+    view = { scale: fit, ox: (src.width - 620 / fit) / 2, oy: (src.height - 236 / fit) / 2 };
+    zoom.min = String(Math.min(fit, 0.05));
+    zoom.value = String(fit);
+    composer.hidden = false;
+    render();
+  });
+
+  zoom.addEventListener("input", function () {
+    view.scale = Number(zoom.value);
+    render();
+  });
+
+  let drag = null;
+  preview.addEventListener("pointerdown", function (e) {
+    drag = { x: e.clientX, y: e.clientY, ox: view.ox, oy: view.oy };
+    preview.setPointerCapture(e.pointerId);
+  });
+  preview.addEventListener("pointermove", function (e) {
+    if (!drag) return;
+    const cssScale = preview.getBoundingClientRect().width / 620;
+    view.ox = drag.ox - (e.clientX - drag.x) / cssScale / view.scale;
+    view.oy = drag.oy - (e.clientY - drag.y) / cssScale / view.scale;
+    render();
+  });
+  preview.addEventListener("pointerup", function () { drag = null; });
+
+  document.getElementById("use-photo").addEventListener("click", function () {
+    preview.toBlob(function (blob) {
+      fetch("/api/portrait/${token}/upload", {
+        method: "POST",
+        headers: { "Content-Type": "image/png" },
+        body: blob,
+      }).then(function (r) {
+        if (r.ok) { location.reload(); return; }
+        document.getElementById("state").textContent =
+          "That did not go through. Try again, or just tell Mike.";
+      }).catch(function () {
+        document.getElementById("state").textContent =
+          "That did not go through. Try again, or just tell Mike.";
+      });
+    }, "image/png");
+  });
+</script>`;
 
   const html = `<!doctype html>
 <html lang="en">
@@ -120,6 +250,16 @@ export async function onRequestGet({ request, params, env }) {
   .portrait-page { max-width: 40rem; margin: 0 auto; }
   .portrait-page .card-shot { margin: 1.5rem 0; }
   .portrait-page .card-shot img { display: block; width: min(100%, 22rem); margin: 0 auto; border-radius: 12px; }
+  /* The panel is 620x236 art, not a 22rem-wide card, so it fills the column.
+     Scoped under .portrait-page so it OUTWEIGHS the card rule above; the
+     bare .card-shot--panel img selector would lose on specificity and the
+     panel would silently render at card width. */
+  .portrait-page .card-shot--panel img { width: 100%; border-radius: 8px; }
+  .upload-block { margin: 1.5rem 0; text-align: center; }
+  .upload-block label { display: block; margin: .5rem 0; }
+  /* touch-action: none so a drag across the preview frames the photo instead
+     of scrolling the page out from under the player's thumb. */
+  #preview { width: 100%; max-width: 620px; border-radius: 8px; touch-action: none; }
   .picker { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; margin: 1rem 0; }
   .picker .variant-pick[aria-pressed="true"] { border-color: var(--sapphire); color: var(--sapphire); }
   .actions { display: flex; gap: .75rem; justify-content: center; flex-wrap: wrap; margin: 1.75rem 0 .75rem; }
@@ -134,7 +274,7 @@ export async function onRequestGet({ request, params, env }) {
   <p>Your table card for the ${setName} set is below, exactly as it would print,
   with your photo on it. Pick the crop you like best, or turn the photo down.
   Nothing ships until you say so.</p>
-  <figure class="card-shot"><img id="card-img" src="${img(selected)}" alt="Your ${setName} player card"></figure>
+  <figure class="card-shot${isPanel ? " card-shot--panel" : ""}"><img id="card-img" src="${img(selected)}" alt="Your ${setName} player card"><figcaption id="panel-note" class="fine"${isPanel ? "" : " hidden"}>Your art panel; the printed card carries it in the art slot.</figcaption></figure>
   ${pickerRow}
   ${statsLine}
   <div class="actions">
@@ -143,6 +283,7 @@ export async function onRequestGet({ request, params, env }) {
   </div>
   <p class="state" id="state">${stateLine}</p>
   <p class="fine">Turning it down keeps the monogram card you already have. The photo stays out and the card stays yours.</p>
+  ${uploadBlock}
   <noscript><p class="fine">This page needs JavaScript to record your answer. Tell Mike directly instead; that works too.</p></noscript>
 </main>
 <script>
@@ -177,7 +318,7 @@ export async function onRequestGet({ request, params, env }) {
     send({ answer: "declined" },
       "Noted, the photo stays out. You can change this any time before the set prints.");
   });
-</script>
+</script>${uploadScript}
 </body>
 </html>`;
   return new Response(html, { status: 200, headers: HEADERS });
