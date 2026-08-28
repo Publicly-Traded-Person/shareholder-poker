@@ -13,6 +13,9 @@
 // finished 620x236 PNG art panel, POSTed to /api/portrait/<token>/upload when
 // the player taps "Use this photo". The raw photograph never reaches any
 // server, which is the promise the block's own copy makes to the player.
+// The approval wording (state line, approve-button success text) is
+// self-aware: a `self` variant is the player's own photo, not a crop someone
+// staged for them, so both strings say "photo" rather than "crop SELF".
 import {
   isValidToken, isExpired, toSqlUtc, parseVariants,
   latestAnswer, escapeHtml, ordinal, monthName,
@@ -135,11 +138,16 @@ export async function onRequestGet({ request, params, env }) {
   const statsLine = stats === null ? "" : `
       <p class="stat">${escapeHtml(stats.date)}: finished ${ordinal(stats.finish)} of ${stats.entrants}, ${stats.hands} hands. Those are the numbers on the card.</p>`;
 
+  // Self-aware wording (redirect, 2026-08-28): `self` is the player's OWN
+  // photo, not a crop someone staged for them, so the approval line says so
+  // in photo terms. Staged variants keep the original crop wording.
   const stateLine =
     current === null
       ? `This card ships only if you say yes. No answer means it stays the monogram.`
       : current.answer === "approved"
-        ? `You approved crop ${escapeHtml(String(current.variant).toUpperCase())} on ${escapeHtml(current.answeredAt.slice(0, 10))}. You can change this any time before the set prints.`
+        ? current.variant === "self"
+          ? `You approved your photo on ${escapeHtml(current.answeredAt.slice(0, 10))}. You can change this any time before the set prints.`
+          : `You approved crop ${escapeHtml(String(current.variant).toUpperCase())} on ${escapeHtml(current.answeredAt.slice(0, 10))}. You can change this any time before the set prints.`
         : `You turned the photo down on ${escapeHtml(current.answeredAt.slice(0, 10))}. You can change this any time before the set prints.`;
 
   // Renders nothing at all when uploads are not configured for this ask. The
@@ -311,8 +319,13 @@ export async function onRequestGet({ request, params, env }) {
     });
   }
   document.getElementById("approve").addEventListener("click", function () {
-    send({ answer: "approved", variant: selected },
-      "Approved, crop " + selected.toUpperCase() + ". You can change this any time before the set prints.");
+    // Same self-vs-crop wording split as the server-rendered state line:
+    // a self-upload confirms as a photo, never a crop, without waiting on
+    // the page reload to say so correctly.
+    var doneText = selected === "self"
+      ? "Approved, your photo. You can change this any time before the set prints."
+      : "Approved, crop " + selected.toUpperCase() + ". You can change this any time before the set prints.";
+    send({ answer: "approved", variant: selected }, doneText);
   });
   document.getElementById("decline").addEventListener("click", function () {
     send({ answer: "declined" },

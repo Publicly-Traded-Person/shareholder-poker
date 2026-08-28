@@ -1130,10 +1130,42 @@ describe("GET /portrait/<token> upload block", () => {
     expect(res.status).toBe(200);
     expect(html).toContain(`src="/api/portrait/${TOKEN}/img/self"`);
     expect(html).toContain("Your photo");
-    expect(html).toContain("You approved crop SELF on 2026-09-01");
+    // Self-aware wording (redirect, 2026-08-28): a self-upload is the
+    // player's own photo, not a crop, so the approval line says "photo".
+    expect(html).toContain("You approved your photo on 2026-09-01");
     // Consent already on record is not a reason to offer a NEW upload: the
     // flag is off, so the whole block (input, button, dither script, copy)
     // must be gone, same bar as every other block-absent case above.
     expectBlockAbsent(html);
+  });
+
+  // Twin of the case above, isolating the wording itself (flag ON this time)
+  // rather than the flag-off pairing: the state line must say "approved your
+  // photo" and must not carry the word "crop" before it, the way the old
+  // "approved crop SELF" wording did.
+  test("an approved self answer states it in photo terms, not crop terms", async () => {
+    const { env, answers } = uploadEnv([SELF_ASK]);
+    answers.push({ token: TOKEN, answer: "approved", variant: "self",
+                   answered_at: "2026-09-01 10:00:00" });
+    const { res, html } = await renderWith(env);
+    expect(res.status).toBe(200);
+    // Scoped to the state paragraph itself, not the whole page: the picker
+    // still renders "Crop A" / "Crop B" for the staged variants on this ask,
+    // and a page-wide "not crop" check would fail on those for no reason.
+    const stateMatch = html.match(/<p class="state" id="state">([^<]*)<\/p>/);
+    expect(stateMatch?.[1]).toContain("approved your photo");
+    expect(stateMatch?.[1]).not.toContain("crop");
+  });
+
+  // The client-side approve button's success text mirrors the server-side
+  // split so a self-upload confirms as "photo" without waiting on the page
+  // reload to say it correctly. Asserted on the inline script's own source,
+  // since this text is computed in the browser, not by the server.
+  test("the client-side approve success text branches on self vs crop", async () => {
+    const { html } = await render([SELF_ASK]);
+    expect(html).toContain(
+      '"Approved, your photo. You can change this any time before the set prints."');
+    expect(html).toContain(
+      '"Approved, crop " + selected.toUpperCase() + ". You can change this any time before the set prints."');
   });
 });
