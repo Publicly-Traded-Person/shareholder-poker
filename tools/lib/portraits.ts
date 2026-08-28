@@ -49,7 +49,11 @@ type StatusRow = {
   token: string;
 };
 
-type PruneRow = { set_slug: string; handle: string; variants: string };
+// The latest answer fields ride along with every expired ask (see
+// pruneSelectSql) so pruneKeys can tell a consented self-upload apart from a
+// staged crop before deciding what is safe to delete. `null` on both when
+// the ask has no answer at all (the LEFT JOIN finds no matching row).
+type PruneRow = { set_slug: string; handle: string; variants: string; answer: string | null; variant: string | null };
 
 const SET_SLUG_RE = /^\d{4}-\d{2}$/;
 const HANDLE_RE = /^[A-Za-z0-9_.-]{1,32}$/;
@@ -331,15 +335,52 @@ function parseVariantsForDisplay(json: string): string[] {
 // (not <) so an ask expiring in this exact second is pruned now rather than
 // on the next run - matching isExpired's not-strictly-in-the-future rule in
 // functions/api/_portrait.js.
+//
+// Also carries each ask's latest answer, via the EXACT SAME correlated-rowid
+// join shape statusSql uses (ORDER BY w2.rowid DESC, never answered_at - see
+// statusSql's own comment for why). pruneKeys needs to know whether the
+// current answer is an approved self-upload before it can decide what is
+// safe to delete: re-deriving that resolution a second, different way here
+// would risk --prune and --status disagreeing about which answer is
+// "current" for the same ask.
 export function pruneSelectSql(nowStr: string): string {
-  return `SELECT token, handle, set_slug, variants FROM portrait_asks WHERE expires_at <= ${sq(nowStr)}`;
+  return (
+    "SELECT a.token, a.handle, a.set_slug, a.variants,\n" +
+    "       w.answer, w.variant\n" +
+    "FROM portrait_asks a\n" +
+    "LEFT JOIN portrait_answers w ON w.rowid = (\n" +
+    "  SELECT w2.rowid FROM portrait_answers w2 WHERE w2.token = a.token\n" +
+    "  ORDER BY w2.rowid DESC LIMIT 1)\n" +
+    `WHERE a.expires_at <= ${sq(nowStr)}`
+  );
 }
 
-// Expands each expired ask row into the R2 keys that back it, so --prune can
-// delete the objects along with (elsewhere) the D1 rows. One row can expand
-// to multiple keys since a single ask can carry several variants.
-export function pruneKeys(rows: PruneRow[]): string[] {
-  const keys: string[] = [];
+// Expands each expired ask row into the R2 keys that back it, splitting them
+// into keys safe to delete and keys that must survive --prune, so the CLI
+// (Task 6 REDIRECT) can delete one set and report the other.
+//
+// An approved self-uploaded panel (answer === "approved" && variant ===
+// "self") is the ONE piece of art that exists nowhere but R2 - a staged crop
+// always has a second copy sitting in Charlie's candidates/ directory on
+// disk, so losing the R2 copy of a crop only costs a re-upload, but losing an
+// approved self-upload destroys the only copy of art a player explicitly
+// consented to. That is why the self key for such an ask is excluded from
+// `toDelete` and returned in `toKeep` instead: consented one-of-one art must
+// never be silently deletable by an automated sweep (Mike, 2026-08-28).
+//
+// A DECLINED self-upload has no consent behind it, so it deletes along with
+// everything else for that ask - a self panel nobody approved is just a face
+// without a yes, and should die on schedule like any other expired asset. An
+// ask with no answer at all (never approved, never declined) also deletes
+// everything: with nothing consented, there is nothing to protect.
+//
+// Only ever special-cases the literal "self" variant id within an ask whose
+// CURRENT (latest, rowid-resolved) answer is approved/self; every other
+// variant of that same ask, and every key of every other ask, deletes as
+// before.
+export function pruneKeys(rows: PruneRow[]): { toDelete: string[]; toKeep: string[] } {
+  const toDelete: string[] = [];
+  const toKeep: string[] = [];
   for (const r of rows) {
     let variants: unknown;
     try {
@@ -348,11 +389,17 @@ export function pruneKeys(rows: PruneRow[]): string[] {
       continue;
     }
     if (!Array.isArray(variants)) continue;
+    const consentedSelf = r.answer === "approved" && r.variant === "self";
     for (const v of variants) {
-      keys.push(`asks/${r.set_slug}/${r.handle}/${String(v)}.png`);
+      const key = `asks/${r.set_slug}/${r.handle}/${String(v)}.png`;
+      if (consentedSelf && String(v) === "self") {
+        toKeep.push(key);
+      } else {
+        toDelete.push(key);
+      }
     }
   }
-  return keys;
+  return { toDelete, toKeep };
 }
 
 // The consent link shown to a player, built from a freshly minted token.

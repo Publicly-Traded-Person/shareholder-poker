@@ -207,7 +207,7 @@ describe("status", () => {
 
 describe("prune", () => {
   test("deletes exactly pruneKeys of the expired selection and prints a count", async () => {
-    const rows = [{ set_slug: "2026-08", handle: "genet", variants: '["a","b"]' }];
+    const rows = [{ set_slug: "2026-08", handle: "genet", variants: '["a","b"]', answer: null, variant: null }];
     const { deps, calls } = makeDeps({ d1: () => ({ results: rows, changes: 0 }) });
     await prune(deps);
     expect(calls.r2delete).toEqual(["asks/2026-08/genet/a.png", "asks/2026-08/genet/b.png"]);
@@ -221,6 +221,35 @@ describe("prune", () => {
     await prune(deps);
     expect(calls.r2delete).toEqual([]);
     expect(calls.printed).toEqual(["nothing expired"]);
+  });
+
+  // REDIRECT (2026-08-28): --prune must never silently destroy a consented
+  // self-upload, since it exists nowhere but R2. This pins that the kept key
+  // is reported to Charlie and never handed to r2delete.
+  test("keeps an approved self panel: prints the kept line, never calls r2delete for it", async () => {
+    const rows = [
+      { set_slug: "2026-08", handle: "genet", variants: '["a","self"]', answer: "approved", variant: "self" },
+    ];
+    const { deps, calls } = makeDeps({ d1: () => ({ results: rows, changes: 0 }) });
+    await prune(deps);
+    expect(calls.r2delete).toEqual(["asks/2026-08/genet/a.png"]);
+    expect(calls.r2delete).not.toContain("asks/2026-08/genet/self.png");
+    expect(calls.printed.length).toBe(2);
+    expect(calls.printed[0]).toBe(
+      "kept: asks/2026-08/genet/self.png (approved self panel; pull it for the print render, then delete it deliberately with wrangler if you are done with it)"
+    );
+    expect(calls.printed[1]).toContain("1 portrait file");
+    expect(calls.printed[1]).toContain("1 expired ask");
+  });
+
+  test("a declined self panel deletes along with everything else for that ask (no consent behind it)", async () => {
+    const rows = [
+      { set_slug: "2026-08", handle: "genet", variants: '["a","self"]', answer: "declined", variant: null },
+    ];
+    const { deps, calls } = makeDeps({ d1: () => ({ results: rows, changes: 0 }) });
+    await prune(deps);
+    expect(calls.r2delete).toEqual(["asks/2026-08/genet/a.png", "asks/2026-08/genet/self.png"]);
+    expect(calls.printed).toEqual(["pruned 2 portrait file(s) from 1 expired ask(s)"]);
   });
 });
 

@@ -158,10 +158,56 @@ describe("SQL builders", () => {
     expect(sql).toContain("a.set_slug = '2026-08'");
     expect(statusSql()).not.toContain("WHERE a.set_slug");
   });
-  test("prune selects only expired asks and maps their keys", () => {
-    expect(pruneSelectSql("2026-09-01 10:00:00")).toContain("expires_at <= '2026-09-01 10:00:00'");
-    expect(pruneKeys([{ set_slug: "2026-08", handle: "genet", variants: '["a","b"]' }]))
-      .toEqual(["asks/2026-08/genet/a.png", "asks/2026-08/genet/b.png"]);
+  test("prune selects only expired asks, resolving the latest answer by rowid (never answered_at)", () => {
+    const sql = pruneSelectSql("2026-09-01 10:00:00");
+    expect(sql).toContain("expires_at <= '2026-09-01 10:00:00'");
+    // Same append-order rule as statusSql, on purpose (see pruneSelectSql's
+    // own comment): --prune and --status must never disagree about which
+    // answer is current for a given ask.
+    expect(sql).toContain("ORDER BY w2.rowid DESC");
+    expect(sql).not.toContain("answered_at DESC");
+  });
+
+  test("pruneKeys with no answer on the ask deletes every variant (nothing to protect)", () => {
+    expect(
+      pruneKeys([{ set_slug: "2026-08", handle: "genet", variants: '["a","b"]', answer: null, variant: null }])
+    ).toEqual({
+      toDelete: ["asks/2026-08/genet/a.png", "asks/2026-08/genet/b.png"],
+      toKeep: [],
+    });
+  });
+
+  test("pruneKeys keeps exactly the self key when the latest answer is approved/self, deleting the rest", () => {
+    expect(
+      pruneKeys([
+        { set_slug: "2026-08", handle: "genet", variants: '["a","self"]', answer: "approved", variant: "self" },
+      ])
+    ).toEqual({
+      toDelete: ["asks/2026-08/genet/a.png"],
+      toKeep: ["asks/2026-08/genet/self.png"],
+    });
+  });
+
+  test("pruneKeys deletes the self key too when the latest answer is declined (no consent behind it)", () => {
+    expect(
+      pruneKeys([
+        { set_slug: "2026-08", handle: "genet", variants: '["a","self"]', answer: "declined", variant: null },
+      ])
+    ).toEqual({
+      toDelete: ["asks/2026-08/genet/a.png", "asks/2026-08/genet/self.png"],
+      toKeep: [],
+    });
+  });
+
+  test("pruneKeys deletes the self key when approved but the approved variant is a staged crop, not self", () => {
+    expect(
+      pruneKeys([
+        { set_slug: "2026-08", handle: "genet", variants: '["a","self"]', answer: "approved", variant: "a" },
+      ])
+    ).toEqual({
+      toDelete: ["asks/2026-08/genet/a.png", "asks/2026-08/genet/self.png"],
+      toKeep: [],
+    });
   });
 });
 

@@ -149,13 +149,23 @@ export async function revoke(handle: string, set: string, deps: PortraitDeps): P
 }
 
 // Deletes the R2 objects backing every ask whose expires_at is now in the
-// past (pruneSelectSql / pruneKeys, Task 3). Deliberately leaves the
-// portrait_asks / portrait_answers rows in D1 untouched - they are already
-// inert (isExpired makes them 404 everywhere) and the answers ledger is
-// append-only by design (spec s5), so this only ever removes the
-// now-unreachable image bytes, never the consent history. Prints
-// "nothing expired" and performs no deletes when the expired selection is
-// empty.
+// past (pruneSelectSql / pruneKeys). Deliberately leaves the portrait_asks /
+// portrait_answers rows in D1 untouched - they are already inert (isExpired
+// makes them 404 everywhere) and the answers ledger is append-only by design
+// (spec s5), so this only ever removes the now-unreachable image bytes,
+// never the consent history. Prints "nothing expired" and performs no
+// deletes when the expired selection is empty.
+//
+// One deliberate exception to "delete everything expired": an expired ask
+// whose CURRENT answer is approved/self keeps its self key. That panel
+// exists nowhere but R2 (unlike a staged crop, which also sits in Charlie's
+// candidates/ directory), so an automated sweep silently destroying it would
+// destroy the only copy of art a player explicitly consented to - consented
+// one-of-one art is never silently deletable (Mike, 2026-08-28; see
+// pruneKeys' own comment for the full reasoning, including why a DECLINED
+// self-upload does not get this protection). Each kept key is printed on its
+// own line so Charlie sees it and can `wrangler r2 object delete` it by hand
+// later if they are genuinely done with it.
 export async function prune(deps: PortraitDeps): Promise<void> {
   const nowStr = toSqlUtc(deps.now());
   const { results } = await deps.d1(pruneSelectSql(nowStr));
@@ -163,11 +173,16 @@ export async function prune(deps: PortraitDeps): Promise<void> {
     deps.print("nothing expired");
     return;
   }
-  const keys = pruneKeys(results);
-  for (const key of keys) {
+  const { toDelete, toKeep } = pruneKeys(results);
+  for (const key of toDelete) {
     await deps.r2delete(key);
   }
-  deps.print(`pruned ${keys.length} portrait file(s) from ${results.length} expired ask(s)`);
+  for (const key of toKeep) {
+    deps.print(
+      `kept: ${key} (approved self panel; pull it for the print render, then delete it deliberately with wrangler if you are done with it)`
+    );
+  }
+  deps.print(`pruned ${toDelete.length} portrait file(s) from ${results.length} expired ask(s)`);
 }
 
 // Fetches a player's self-uploaded panel back out of R2 for the print step.
