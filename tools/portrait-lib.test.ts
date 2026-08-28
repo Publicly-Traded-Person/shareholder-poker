@@ -392,6 +392,31 @@ describe("GET /portrait/<token>", () => {
     expect(/experiment/i.test(html)).toBe(false);
   });
 
+  // A single-crop ask has nothing to pick: the copy asks for approval instead,
+  // and no confirmation may name a crop letter the player was never shown.
+  test("a single-crop ask says approve, never pick, and shows no picker", async () => {
+    const one = { ...ASK, variants: '["a"]' };
+    const { res, html } = await render([one]);
+    expect(res.status).toBe(200);
+    expect(html).not.toContain("Pick the crop");
+    expect(html).toContain("Approve it, or turn the photo down.");
+    expect(html).not.toContain("data-variant=");
+    expect(html).not.toContain("Approved, crop");
+    expect(html).toContain("Use this one");
+    expect(html).toContain("None of these");
+  });
+
+  test("a single-crop approved revisit says photo, not a crop letter", async () => {
+    const one = { ...ASK, variants: '["a"]' };
+    const { env, answers } = pageEnv([one]);
+    answers.push({ token: TOKEN, answer: "approved", variant: "a",
+                   answered_at: "2026-08-27 10:00:00" });
+    const res = await portraitPage({ request: pageRequest(), params: { token: TOKEN }, env });
+    const html = await res.text();
+    expect(html).toContain("You approved the photo on 2026-08-27.");
+    expect(html).not.toContain("You approved crop");
+  });
+
   // A forwarded link must not become a side door into an unannounced set.
   test("the page links nowhere into the site", async () => {
     const { html } = await render([ASK]);
