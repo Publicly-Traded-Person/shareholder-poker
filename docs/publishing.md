@@ -98,12 +98,25 @@ root:
   (and the `--local` twin for rehearsal: `npx wrangler d1 execute poker-rsvp-db --local --file site/schema.sql`)
   This one is idempotent (`schema.sql` uses `IF NOT EXISTS`), so rerunning it
   later never breaks anything.
+- Add the metal column to an already-deployed database (a database created
+  from `schema.sql` fresh, after 2026-08-27, already has it and does not need
+  this): `npx wrangler d1 execute poker-rsvp-db --remote --command "ALTER TABLE portrait_asks ADD COLUMN metal TEXT"`
+  (and the `--local` twin: `npx wrangler d1 execute poker-rsvp-db --local --command "ALTER TABLE portrait_asks ADD COLUMN metal TEXT"`).
+  Run this once per database. Running it again is harmless, it just errors
+  with "duplicate column name", which you can ignore. This MUST run before
+  deploying any version of the site that reads the `metal` column (the
+  consent page's SELECT does, starting with this feature) - deploying first
+  would 500 every existing portrait link.
 
 ### Every set
 
 1. In munger, run `ccg/stage-candidates.sh` (Charlie's side). It produces
    `candidates/` with a `manifest.json` and `<handle>/<variant>.png` whole-card
-   renders. Source photos never leave munger's gitignored `photos-raw/`.
+   renders. Source photos never leave munger's gitignored `photos-raw/`. The
+   manifest now also carries a `metal` per player (foil, sapphire, copper, or
+   pewter, matching that player's card rarity); staging halts on a manifest
+   entry missing it or naming anything else, same as an unknown handle - fix
+   the input, never the check.
 2. From this repo's root:
    `bun tools/portrait-asks.ts <path-to-candidates>`
    It validates the manifest against `games.json` handles (unknown handle
@@ -112,8 +125,15 @@ root:
    into D1, and prints one link per player.
 3. Hand the printed links to Mike. Sending them is HIS call and is held
    separately from any merge (they soft-reveal the set to the people on it).
+   While `"portraitUploads": true` in `site/data/games.json` (the default
+   from here on), a player can also skip the staged crops entirely and use
+   their own photo instead: their browser dithers and composes it into the
+   card art panel on their own device, and only that finished panel - never
+   the original photo - is sent back to us. Using the picture on the page
+   IS the approval; there is no separate confirm step for a self-upload.
 4. Check answers any time: `bun tools/portrait-asks.ts --status --set YYYY-MM`.
-   No admin page exists on purpose.
+   No admin page exists on purpose. A self-upload shows the same as any other
+   approval, as `approved (self)`.
 5. If a player asks in person to take their photo down:
    `bun tools/portrait-asks.ts --revoke <handle> --set YYYY-MM`
    That appends a declined row. It never deletes history: the ledger keeps
@@ -122,10 +142,30 @@ root:
    is settled, `bun tools/portrait-asks.ts --prune` deletes the now
    unreachable candidate PNGs of expired asks from the bucket, so faces
    without a yes do not sit in storage forever.
+7. Before rendering any card whose status reads `approved (self)`, pull that
+   player's panel down out of R2:
+   `bun tools/portrait-asks.ts --pull <handle> --set YYYY-MM`
+   That writes `<handle>-self.png` in the current directory (or wherever
+   `--out <path>` says); use it as that player's art in the render, in place
+   of a staged crop. A staged crop needs no pull, it already sits on disk
+   under `candidates/`. `--pull` refuses (halts, never guesses) unless the
+   latest answer for that handle/set is `approved`/`self` - nothing to fetch
+   for a decline, a not-yet-answered ask, or an approved staged crop.
 
 Rehearsal: add `--local` to any command to run against `wrangler pages dev`
 state instead of production. Nothing in this flow touches git: candidate
 images live only in R2, answers live only in D1.
+
+### Turning uploads off
+
+Self-upload is a standing feature, not a per-set toggle, but Mike can shut it
+off at any time by signal. Flip `"portraitUploads"` to `false` in
+`site/data/games.json`, PR that one-line change, and merge (every push to
+`main` deploys). Consent already given does not evaporate: existing
+`approved (self)` answers keep serving on their page and keep printing
+exactly as before. The flip only stops new uploads - the upload block simply
+stops rendering on every consent page from the next deploy on, flag-off and
+no-ask/expired render the identical 404 on the endpoint itself.
 
 ## Reminder export (emails, Tier 2)
 
