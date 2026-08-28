@@ -92,3 +92,34 @@ export function monthName(setSlug) {
   const [y, m] = String(setSlug).split("-");
   return `${MONTHS[Number(m) - 1]} ${y}`;
 }
+
+// The art panel dimensions the upload endpoint enforces. Duplicated from
+// site/portrait-dither.js on purpose (a Function importing a site/ asset
+// would lean on bundler behavior nothing else here relies on); the sync
+// test in tools/portrait-lib.test.ts pins the two pairs equal.
+export const PANEL_W = 620;
+export const PANEL_H = 236;
+
+// Reads the dimensions out of a PNG's fixed-position header: 8 signature
+// bytes, IHDR chunk, big-endian width at 16..19 and height at 20..23.
+// Returns null on anything that is not a PNG-shaped buffer, so the caller
+// can reject without parsing untrusted bytes any further than 24 offsets.
+export function pngDims(bytes) {
+  const SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (!(bytes instanceof Uint8Array) || bytes.length < 24) return null;
+  for (let i = 0; i < 8; i++) if (bytes[i] !== SIG[i]) return null;
+  if (bytes[12] !== 0x49 || bytes[13] !== 0x48 || bytes[14] !== 0x44 || bytes[15] !== 0x52) return null;
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return { w: dv.getUint32(16), h: dv.getUint32(20) };
+}
+
+// Adds one variant id to a portrait_asks.variants JSON array, idempotently.
+// Returns the updated (or unchanged) JSON string, or null when the stored
+// column fails parseVariants: a malformed ask must halt the caller, never
+// be silently repaired (halt-don't-guess).
+export function addVariant(variantsJson, id) {
+  const v = parseVariants(variantsJson);
+  if (v === null) return null;
+  if (v.includes(id)) return variantsJson;
+  return JSON.stringify([...v, id]);
+}
