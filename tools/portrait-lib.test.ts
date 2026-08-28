@@ -155,8 +155,12 @@ describe("escapeHtml / ordinal / monthName", () => {
 // describe blocks below this line; the factory and constants are theirs to
 // use and NOT to rename). The asks rows carry an email field that the real
 // schema does not even have: any handler that echoed a row through would leak.
+// `metal` is optional because the column is nullable and because asks staged
+// before the ALTER TABLE migration simply do not have one; the page treats a
+// missing or unrecognized metal as "no upload block" rather than guessing a
+// palette (halt, never guess).
 export type AskRow = { token: string; handle: string; set_slug: string; variants: string;
-                       expires_at: string; email?: string };
+                       expires_at: string; email?: string; metal?: string };
 export type AnswerRow = { token: string; answer: string; variant: string | null; answered_at: string };
 
 export function makePortraitEnv(asks: AskRow[], objects: Record<string, string> = {}) {
@@ -700,5 +704,173 @@ describe("POST /api/portrait/<token>", () => {
     await expectNoEmail(res);
     expect(answers.length).toBe(1);
     expect(answers[0].variant).toBe(null);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 5: the self-upload block on GET /portrait/<token>. Appended below the
+// blocks above; nothing above this line is touched except the shared AskRow
+// type, which gained an optional `metal` field. The page module is already
+// imported as `portraitPage` with its own block and import declarations are
+// hoisted, so this block reuses that binding rather than importing twice.
+//
+// What is under test is a three-way AND: the block renders only when the
+// games.json flag is on, the ask carries one of the four real rarity metals,
+// and the ask is live. Each leg gets its own case, because any leg failing
+// OPEN would put an upload surface on a page that was never configured for
+// one.
+describe("GET /portrait/<token> upload block", () => {
+  // Same SYNTHETIC roster as the page block above (no real player ever appears
+  // in a committed fixture, repo privacy rule), plus the one root flag the
+  // page reads out of site/data/games.json.
+  const FIXTURE_DATA = {
+    portraitUploads: true,
+    players: [{ slug: "gene-t", name: "Gene T.", aka: ["genet"] }],
+    games: [{
+      date: "2026-08-11",
+      hands: 100,
+      entries: 3,
+      cardSet: "2026-08",
+      results: [
+        { slug: "gene-t", handle: "genet", finish: 2, payout: 0, rebuys: 0, trophies: [] },
+        { slug: "rosa-p", handle: "rosap", finish: 1, payout: 10, rebuys: 0, trophies: [] },
+      ],
+    }],
+  };
+
+  // Every string the upload block is responsible for putting on the page: the
+  // offer, the file input, the approve button, the dither module URL, and the
+  // promise about where the pixels go. Asserted as a set so a case that turns
+  // the block OFF has to lose all six, not just the one a test happened to
+  // name.
+  const UPLOAD_MARKERS = [
+    "Or use a different photo",
+    'id="photo-in"',
+    'accept="image/*"',
+    'id="use-photo"',
+    "/portrait-dither.js",
+    "It never leaves your device",
+  ];
+
+  const PANEL_CAPTION = "Your art panel; the printed card carries it in the art slot.";
+  const EM_DASH = "—";
+
+  // Wraps makePortraitEnv the same way the page block above does: the shared
+  // factory has no ASSETS binding, and this surface needs one.
+  function uploadEnv(asks: AskRow[], data: unknown = FIXTURE_DATA) {
+    const made = makePortraitEnv(asks);
+    (made.env as any).ASSETS = { fetch: async () => new Response(JSON.stringify(data)) };
+    return made;
+  }
+
+  const pageRequest = () => new Request(`https://poker.kmikeym.com/portrait/${TOKEN}`);
+
+  async function renderWith(env: any) {
+    const res = await portraitPage({ request: pageRequest(), params: { token: TOKEN }, env });
+    return { res, html: await res.text() };
+  }
+
+  async function render(asks: AskRow[], data: unknown = FIXTURE_DATA) {
+    return renderWith(uploadEnv(asks, data).env);
+  }
+
+  const expectBlockAbsent = (html: string) => {
+    for (const marker of UPLOAD_MARKERS) expect(html).not.toContain(marker);
+  };
+
+  const COPPER_ASK: AskRow = { ...ASK, metal: "copper" };
+  const SELF_ASK: AskRow = { ...COPPER_ASK, variants: '["a","b","self"]' };
+
+  test("flag on, a real metal and a live ask render the whole block", async () => {
+    const { res, html } = await render([COPPER_ASK]);
+    expect(res.status).toBe(200);
+    for (const marker of UPLOAD_MARKERS) expect(html).toContain(marker);
+  });
+
+  // The block cannot render without a metal: composePanel throws on an unknown
+  // ramp, and guessing one would put a palette the card does not use in front
+  // of the person being asked to consent to it.
+  test("an ask with no metal renders the page without the block", async () => {
+    const { res, html } = await render([ASK]);
+    expect(res.status).toBe(200);
+    expectBlockAbsent(html);
+    // The staged-crop flow is complete on its own; only the block is gone.
+    expect(html).toContain("Use this one");
+    expect(html).toContain("None of these");
+    expect(html).toContain(`src="/api/portrait/${TOKEN}/img/a"`);
+  });
+
+  test("an ask with a metal outside the four ramps renders no block", async () => {
+    const { res, html } = await render([{ ...ASK, metal: "chrome" }]);
+    expect(res.status).toBe(200);
+    expectBlockAbsent(html);
+    expect(html).toContain("Use this one");
+  });
+
+  test("the flag off renders no block even with a real metal", async () => {
+    const { res, html } = await render([COPPER_ASK], { ...FIXTURE_DATA, portraitUploads: false });
+    expect(res.status).toBe(200);
+    expectBlockAbsent(html);
+    expect(html).toContain("Use this one");
+  });
+
+  // Fail CLOSED (spec s8): if the flag cannot be read, uploads are off. The
+  // page still renders, because the consent ask is the point and a dead asset
+  // fetch must not take it down with it.
+  test("a games.json read failure leaves uploads off and still renders the page", async () => {
+    const { env } = makePortraitEnv([COPPER_ASK]);
+    (env as any).ASSETS = { fetch: async () => { throw new Error("asset store unreachable"); } };
+    const { res, html } = await renderWith(env);
+    expect(res.status).toBe(200);
+    expectBlockAbsent(html);
+    expect(html).toContain("Use this one");
+    expect(html).toContain("None of these");
+  });
+
+  // `self` is an ordinary variant everywhere downstream, but it is a person's
+  // own photo, not a crop someone staged for them, so the picker says so.
+  test("a self variant reads as Your photo in the picker, never Crop SELF", async () => {
+    const { html } = await render([SELF_ASK]);
+    expect(html).toContain("Your photo");
+    expect(html).not.toContain("Crop SELF");
+    expect(html).toContain("Crop A");
+    expect(html).toContain("Crop B");
+  });
+
+  // Display rule (spec s4): staged variants are whole cards, `self` is an art
+  // panel. The page shows the panel at panel proportions and says so, rather
+  // than faking a full-card composite it cannot make truthfully.
+  test("self selected shows the panel figure with its caption visible", async () => {
+    const { env, answers } = uploadEnv([SELF_ASK]);
+    answers.push({ token: TOKEN, answer: "approved", variant: "self",
+                   answered_at: "2026-09-01 10:00:00" });
+    const { res, html } = await renderWith(env);
+    expect(res.status).toBe(200);
+    expect(html).toContain('<figure class="card-shot card-shot--panel">');
+    expect(html).toContain(`<figcaption id="panel-note" class="fine">${PANEL_CAPTION}</figcaption>`);
+  });
+
+  test("a staged crop selected keeps the card figure and hides the caption", async () => {
+    const { env, answers } = uploadEnv([SELF_ASK]);
+    answers.push({ token: TOKEN, answer: "approved", variant: "b",
+                   answered_at: "2026-09-01 10:00:00" });
+    const { res, html } = await renderWith(env);
+    expect(res.status).toBe(200);
+    expect(html).toContain('<figure class="card-shot">');
+    expect(html).not.toContain("card-shot--panel\">");
+    expect(html).toContain(
+      `<figcaption id="panel-note" class="fine" hidden>${PANEL_CAPTION}</figcaption>`);
+  });
+
+  // The block adds copy and a second script to a page whose copy rules are
+  // load-bearing, so they are re-asserted with the block ON. ASK carries a
+  // fake email precisely so an "@" anywhere in the output fails loudly.
+  test("copy, privacy and brand rules hold with the block rendered", async () => {
+    const { html } = await render([SELF_ASK]);
+    expect(html).not.toContain(EM_DASH);
+    expect(/experiment/i.test(html)).toBe(false);
+    expect(html).not.toContain("btn-primary");
+    expect(html).not.toContain("@");
+    expect(/<a href="\//.test(html)).toBe(false);
   });
 });
