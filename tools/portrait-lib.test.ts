@@ -7,6 +7,7 @@ import { describe, expect, test } from "bun:test";
 import {
   randomToken, isValidToken, toSqlUtc, isExpired,
   latestAnswer, parseVariants, escapeHtml, ordinal, monthName,
+  pngDims, addVariant, PANEL_W, PANEL_H,
 } from "../functions/api/_portrait.js";
 
 describe("randomToken", () => {
@@ -197,6 +198,56 @@ export const FUTURE = "2099-01-01 00:00:00";
 export const PAST = "2000-01-01 00:00:00";
 export const ASK: AskRow = { token: TOKEN, handle: "genet", set_slug: "2026-08",
   variants: '["a","b"]', expires_at: FUTURE, email: "leak@example.com" };
+
+// Minimal real PNG header: 8-byte signature, IHDR length + type, then
+// big-endian width and height. 620 = 0x026C, 236 = 0xEC. Shared by the
+// helper tests below and the upload endpoint tests.
+export const pngHeader = (w: number, h: number) => {
+  const b = new Uint8Array(24);
+  b.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d, 0x49, 0x48, 0x44, 0x52]);
+  new DataView(b.buffer).setUint32(16, w);
+  new DataView(b.buffer).setUint32(20, h);
+  return b;
+};
+
+// True once Task 1's dither module lands in the integrated tree. Guards the
+// cross-module constants-sync test below so this task's own tests are green
+// standalone in this worktree (site/portrait-dither.js does not exist here
+// yet) and the sync check arms itself automatically once both tasks merge.
+const ditherModuleExists = await Bun.file(
+  new URL("../site/portrait-dither.js", import.meta.url),
+).exists();
+
+describe("pngDims / addVariant / panel constants", () => {
+  test("panel constants are the fixed art-panel size", () => {
+    expect(PANEL_W).toBe(620);
+    expect(PANEL_H).toBe(236);
+  });
+  test.if(ditherModuleExists)("panel constants match the dither module's", async () => {
+    // @ts-ignore - browser-shared module
+    const dither = await import("../site/portrait-dither.js");
+    expect(PANEL_W).toBe(dither.PANEL_W);
+    expect(PANEL_H).toBe(dither.PANEL_H);
+  });
+  test("reads dimensions from a real header", () => {
+    expect(pngDims(pngHeader(620, 236))).toEqual({ w: 620, h: 236 });
+    expect(pngDims(pngHeader(10, 10))).toEqual({ w: 10, h: 10 });
+  });
+  test("rejects junk without throwing", () => {
+    expect(pngDims(new Uint8Array(0))).toBe(null);
+    expect(pngDims(new Uint8Array(23))).toBe(null);
+    const notPng = pngHeader(620, 236); notPng[0] = 0x00;
+    expect(pngDims(notPng)).toBe(null);
+    const notIhdr = pngHeader(620, 236); notIhdr[12] = 0x4a;
+    expect(pngDims(notIhdr)).toBe(null);
+  });
+  test("addVariant appends once and never mangles", () => {
+    expect(addVariant('["a","b"]', "self")).toBe('["a","b","self"]');
+    expect(addVariant('["a","b","self"]', "self")).toBe('["a","b","self"]');
+    expect(addVariant("not json", "self")).toBe(null);
+    expect(addVariant("[]", "self")).toBe(null);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Task 6: GET /portrait/<token>, the server-rendered consent page.
