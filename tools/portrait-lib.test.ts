@@ -702,3 +702,247 @@ describe("POST /api/portrait/<token>", () => {
     expect(answers[0].variant).toBe(null);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 4: POST /api/portrait/<token>/upload, the self-serve upload endpoint.
+// Uploading a browser-composited panel IS approving (self-upload spec s4):
+// the R2 put, the variants column update, and the approved/self ledger row
+// all happen inside one handler, because a stored-but-unconsented state must
+// never exist. Appended below Task 5's block; import declarations are
+// hoisted, so this one sits with its block rather than at the top of the file.
+// @ts-ignore - plain JS Pages Function, Cloudflare parameter filename
+import { onRequestPost as uploadOnRequestPost } from "../functions/api/portrait/[token]/upload.js";
+
+describe("POST /api/portrait/<token>/upload", () => {
+  // A richer stub than makePortraitEnv on purpose: the upload handler needs an
+  // UPDATE recorder (for the variants column), an R2 put recorder, and an
+  // ASSETS flag read, which the shared factory deliberately lacks. Do NOT
+  // fold this into makePortraitEnv - Task 5's block above depends on that
+  // factory staying exactly as it is.
+  function makeUploadEnv(asks: AskRow[], flag: unknown = { portraitUploads: true }) {
+    const answers: AnswerRow[] = [];
+    const updates: { variants: string; token: string }[] = [];
+    const puts: { key: string; size: number }[] = [];
+    const db = {
+      prepare(sql: string) {
+        let args: any[] = [];
+        const stmt = {
+          bind(...a: any[]) { args = a; return stmt; },
+          async first() {
+            if (!sql.includes("FROM portrait_asks")) throw new Error(`unexpected first(): ${sql}`);
+            return asks.find((r) => r.token === args[0]) ?? null;
+          },
+          async run() {
+            if (sql.includes("UPDATE portrait_asks SET variants")) {
+              updates.push({ variants: args[0], token: args[1] });
+              return { success: true };
+            }
+            if (sql.includes("INSERT INTO portrait_answers")) {
+              answers.push({ token: args[0], answer: "approved", variant: "self", answered_at: args[1] });
+              return { success: true };
+            }
+            throw new Error(`unexpected run(): ${sql}`);
+          },
+          async all() { throw new Error(`unexpected all(): ${sql}`); },
+        };
+        return stmt;
+      },
+    };
+    const bucket = { async put(key: string, bytes: Uint8Array) { puts.push({ key, size: bytes.byteLength }); } };
+    const assets = {
+      async fetch() {
+        if (flag === "throw") throw new Error("assets down");
+        return new Response(JSON.stringify(flag));
+      },
+    };
+    return { env: { POKER_RSVP_DB: db, POKER_PORTRAITS: bucket, ASSETS: assets }, answers, updates, puts };
+  }
+  const pngBody = (w: number, h: number, pad = 100) => {
+    const head = pngHeader(w, h); // file-scope fixture, Task 3's describe block
+    const b = new Uint8Array(head.length + pad);
+    b.set(head);
+    return b;
+  };
+  const uploadReq = (body: Uint8Array | string) =>
+    new Request(`https://poker.example/api/portrait/${TOKEN}/upload`, {
+      method: "POST", headers: { "Content-Type": "image/png" }, body,
+    });
+
+  // JSON-response privacy headers, distinct from GET /portrait's HTML-page
+  // check above (no Content-Type: text/html assertion here).
+  const expectPrivateHeaders = (res: Response) => {
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(res.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+  };
+
+  const expectNoSideEffects = (made: ReturnType<typeof makeUploadEnv>) => {
+    expect(made.puts.length).toBe(0);
+    expect(made.updates.length).toBe(0);
+    expect(made.answers.length).toBe(0);
+  };
+
+  const post = (token: string, body: Uint8Array | string, env: any) =>
+    uploadOnRequestPost({ request: uploadReq(body), params: { token }, env } as any);
+
+  test("invalid token shape 404s", async () => {
+    const made = makeUploadEnv([ASK]);
+    const res = await post("not-a-token", pngBody(PANEL_W, PANEL_H), made.env);
+    expect(res.status).toBe(404);
+    expect(await res.clone().json()).toEqual({ error: "not found" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  test("unknown token 404s", async () => {
+    const made = makeUploadEnv([ASK]);
+    const res = await post("f".repeat(32), pngBody(PANEL_W, PANEL_H), made.env);
+    expect(res.status).toBe(404);
+    expect(await res.clone().json()).toEqual({ error: "not found" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  test("expired ask 404s", async () => {
+    const made = makeUploadEnv([{ ...ASK, expires_at: PAST }]);
+    const res = await post(TOKEN, pngBody(PANEL_W, PANEL_H), made.env);
+    expect(res.status).toBe(404);
+    expect(await res.clone().json()).toEqual({ error: "not found" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  test("flag off (portraitUploads: false) 404s", async () => {
+    const made = makeUploadEnv([ASK], { portraitUploads: false });
+    const res = await post(TOKEN, pngBody(PANEL_W, PANEL_H), made.env);
+    expect(res.status).toBe(404);
+    expect(await res.clone().json()).toEqual({ error: "not found" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  test("flag missing from games.json 404s", async () => {
+    const made = makeUploadEnv([ASK], {});
+    const res = await post(TOKEN, pngBody(PANEL_W, PANEL_H), made.env);
+    expect(res.status).toBe(404);
+    expect(await res.clone().json()).toEqual({ error: "not found" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  // The flag read fails CLOSED: an ASSETS fetch that throws must read as
+  // "uploads are off", never as an unhandled error that might leak a 500 with
+  // a stack trace (self-upload spec s8).
+  test("an ASSETS read failure 404s (fails closed)", async () => {
+    const made = makeUploadEnv([ASK], "throw");
+    const res = await post(TOKEN, pngBody(PANEL_W, PANEL_H), made.env);
+    expect(res.status).toBe(404);
+    expect(await res.clone().json()).toEqual({ error: "not found" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  test("a body over 262144 bytes 400s", async () => {
+    const made = makeUploadEnv([ASK]);
+    const big = new Uint8Array(262144 + 1);
+    const res = await post(TOKEN, big, made.env);
+    expect(res.status).toBe(400);
+    expect(await res.clone().json()).toEqual({ error: "too large" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  test("an empty body 400s", async () => {
+    const made = makeUploadEnv([ASK]);
+    const res = await post(TOKEN, new Uint8Array(0), made.env);
+    expect(res.status).toBe(400);
+    expect(await res.clone().json()).toEqual({ error: "bad body" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  test("non-PNG bytes 400s as a bad image", async () => {
+    const made = makeUploadEnv([ASK]);
+    const junk = new Uint8Array(200).fill(7);
+    const res = await post(TOKEN, junk, made.env);
+    expect(res.status).toBe(400);
+    expect(await res.clone().json()).toEqual({ error: "bad image" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  test("a PNG with the wrong width 400s as a bad image", async () => {
+    const made = makeUploadEnv([ASK]);
+    const res = await post(TOKEN, pngBody(619, PANEL_H), made.env);
+    expect(res.status).toBe(400);
+    expect(await res.clone().json()).toEqual({ error: "bad image" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  test("a PNG with the wrong height 400s as a bad image", async () => {
+    const made = makeUploadEnv([ASK]);
+    const res = await post(TOKEN, pngBody(PANEL_W, 235), made.env);
+    expect(res.status).toBe(400);
+    expect(await res.clone().json()).toEqual({ error: "bad image" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  // Halt, never guess: same posture as the other two portrait handlers. A
+  // malformed variants column must stop the request before the R2 put or
+  // either write, never be silently repaired.
+  test("a malformed variants column 404s and records nothing", async () => {
+    const made = makeUploadEnv([{ ...ASK, variants: "not json" }]);
+    const res = await post(TOKEN, pngBody(PANEL_W, PANEL_H), made.env);
+    expect(res.status).toBe(404);
+    expect(await res.clone().json()).toEqual({ error: "not found" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  test("the happy path stores the panel, updates variants, and appends approved/self", async () => {
+    const made = makeUploadEnv([ASK]);
+    const body = pngBody(PANEL_W, PANEL_H);
+    const res = await post(TOKEN, body, made.env);
+    expect(res.status).toBe(200);
+    expect(await res.clone().json()).toEqual({ ok: true, answer: "approved", variant: "self" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expect(made.puts).toEqual([{ key: "asks/2026-08/genet/self.png", size: body.byteLength }]);
+    expect(made.updates).toEqual([{ variants: '["a","b","self"]', token: TOKEN }]);
+    expect(made.answers.length).toBe(1);
+    expect(made.answers[0].token).toBe(TOKEN);
+    expect(made.answers[0].answer).toBe("approved");
+    expect(made.answers[0].variant).toBe("self");
+    expect(made.answers[0].answered_at).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+  });
+
+  // A player is free to re-upload (a better lighting take, a retake). Each
+  // upload is its own approval event in the ledger, but the variants column
+  // - a set, not a log - never grows a duplicate "self" entry.
+  test("re-uploading records a second put and a second answer row, variants stay deduped", async () => {
+    const made = makeUploadEnv([ASK]);
+    const body = pngBody(PANEL_W, PANEL_H);
+    await post(TOKEN, body, made.env);
+    const res = await post(TOKEN, body, made.env);
+    expect(res.status).toBe(200);
+    expect(made.puts.length).toBe(2);
+    expect(made.updates.length).toBe(2);
+    expect(made.updates[1]).toEqual({ variants: '["a","b","self"]', token: TOKEN });
+    expect(made.answers.length).toBe(2);
+    expect(made.answers[1].answer).toBe("approved");
+    expect(made.answers[1].variant).toBe("self");
+  });
+});
