@@ -88,8 +88,10 @@ shows their actual card. Charlie stages the images; the tool does the rest.
 
 ### One-time setup (first set only)
 
-Before the first set ever ships, run these two commands from this repo's
-root:
+Before the first set ever ships, run these commands from this repo's
+root. The migration bullet below is the exception to "first set only": run
+it against an already-deployed database too, since a database whose first
+set shipped before this feature does not retroactively gain the column.
 
 - Create the private bucket: `npx wrangler r2 bucket create poker-portraits`
   (running this again just reports the bucket already exists; harmless, but
@@ -138,11 +140,7 @@ root:
    `bun tools/portrait-asks.ts --revoke <handle> --set YYYY-MM`
    That appends a declined row. It never deletes history: the ledger keeps
    the fact that consent was once given, and the latest row wins.
-6. Asks die on their own 60 days after staging (the link 404s). After a set
-   is settled, `bun tools/portrait-asks.ts --prune` deletes the now
-   unreachable candidate PNGs of expired asks from the bucket, so faces
-   without a yes do not sit in storage forever.
-7. Before rendering any card whose status reads `approved (self)`, pull that
+6. Before rendering any card whose status reads `approved (self)`, pull that
    player's panel down out of R2:
    `bun tools/portrait-asks.ts --pull <handle> --set YYYY-MM`
    That writes `<handle>-self.png` in the current directory (or wherever
@@ -151,6 +149,23 @@ root:
    under `candidates/`. `--pull` refuses (halts, never guesses) unless the
    latest answer for that handle/set is `approved`/`self` - nothing to fetch
    for a decline, a not-yet-answered ask, or an approved staged crop.
+   Pull runs before prune (next step) on purpose: once the print render has
+   the pixels it needs, deleting a kept panel is a choice, not an accident.
+7. Asks die on their own 60 days after staging (the link 404s). After a set
+   is settled, `bun tools/portrait-asks.ts --prune` deletes the now
+   unreachable candidate PNGs of expired asks from the bucket, so faces
+   without a yes do not sit in storage forever. It deliberately spares one
+   thing: an expired ask whose latest answer is `approved`/`self` keeps that
+   self panel instead of deleting it, because a self-upload lives nowhere
+   but R2 (a staged crop also sits on disk in `candidates/`, so losing the R2
+   copy of a crop only costs a re-upload, not the only copy of consented
+   art). Prune prints each kept panel on its own line, for example:
+   `kept: asks/2026-08/genet/self.png (approved self panel; pull it for the
+   print render, then delete it deliberately with wrangler if you are done
+   with it)`
+   If you are genuinely done with a kept panel after the print render ships,
+   delete it yourself with `npx wrangler r2 object delete
+   poker-portraits/<key>`. Prune will never do it for you.
 
 Rehearsal: add `--local` to any command to run against `wrangler pages dev`
 state instead of production. Nothing in this flow touches git: candidate
