@@ -16,9 +16,12 @@ import type { GamesData } from "./standings";
 
 // One player's staged variant set for one month's card release, after
 // validateCandidates has confirmed the manifest and the PNG directory agree.
+// `metal` is carried through from the manifest (validated: one of
+// foil/sapphire/copper/pewter) so a self-uploaded photo can later be
+// duotoned to match the rarity of the card actually being printed.
 export type CandidateSet = {
   setSlug: string;
-  players: { handle: string; variants: string[] }[];
+  players: { handle: string; variants: string[]; metal: string }[];
 };
 
 // A single upsert target the CLI passes through askUpsertSql.
@@ -27,6 +30,7 @@ type AskUpsert = {
   handle: string;
   setSlug: string;
   variants: string[];
+  metal: string;
   createdAt: string;
   expiresAt: string;
 };
@@ -45,11 +49,19 @@ type StatusRow = {
   token: string;
 };
 
-type PruneRow = { set_slug: string; handle: string; variants: string };
+// The latest answer fields ride along with every expired ask (see
+// pruneSelectSql) so pruneKeys can tell a consented self-upload apart from a
+// staged crop before deciding what is safe to delete. `null` on both when
+// the ask has no answer at all (the LEFT JOIN finds no matching row).
+type PruneRow = { set_slug: string; handle: string; variants: string; answer: string | null; variant: string | null };
 
 const SET_SLUG_RE = /^\d{4}-\d{2}$/;
 const HANDLE_RE = /^[A-Za-z0-9_.-]{1,32}$/;
 const VARIANT_RE = /^[a-z0-9]{1,8}$/;
+// The only four rarity metals a card prints on (site/portrait-dither.js
+// METALS keys, kept in sync by hand - see that file's header). Anything
+// else halts staging rather than guessing a fallback tier.
+const METAL_RE = /^(foil|sapphire|copper|pewter)$/;
 
 // Every handle this roster already recognizes: the union of each player's
 // aka list and every handle that has ever appeared in a played game's
@@ -72,6 +84,11 @@ export function knownHandles(data: GamesData): Set<string> {
 // PNG files actually present. Collects EVERY problem before throwing, so a
 // bad handoff can be fixed in one editing pass instead of one failure at a
 // time (repo halt-don't-guess posture, same as publish-game's checks).
+//
+// Each player entry also must declare a metal (one of foil, sapphire,
+// copper, pewter) - the rarity tier a self-upload gets duotoned against -
+// and a missing or unrecognized value is a problem like any other, never a
+// silently-assumed default.
 //
 // Throws Error with every problem, one per line, prefixed
 // "refusing to stage:\n  ". Never partially validates: any problem means the
@@ -98,7 +115,14 @@ export function validateCandidates(
     problems.push("players must be an array");
   }
 
-  const players: { handle: string; variants: string[] }[] = [];
+  // Carries `metal` from the start (not bolted on after `.push`): every
+  // entry pushed below includes it, and the function returns this array
+  // straight into a CandidateSet whose player shape requires `metal: string`
+  // - leaving it off this local annotation typechecked once by accident
+  // (excess properties on a literal generally error, but TS let it through
+  // here) and would fail tsc --noEmit under the repo's strict tsconfig the
+  // moment anyone touched this line again.
+  const players: { handle: string; variants: string[]; metal: string }[] = [];
   const seenHandles = new Set<string>();
   const expectedPngs = new Set<string>();
 
@@ -110,6 +134,7 @@ export function validateCandidates(
       }
       const handle = (p as Record<string, unknown>).handle;
       const variants = (p as Record<string, unknown>).variants;
+      const metal = (p as Record<string, unknown>).metal;
 
       if (typeof handle !== "string" || !HANDLE_RE.test(handle)) {
         problems.push(`invalid handle shape: ${JSON.stringify(handle)}`);
@@ -146,7 +171,18 @@ export function validateCandidates(
       }
       if (!variantsOk) continue;
 
-      players.push({ handle, variants: [...variants] as string[] });
+      // Checked last, after every other shape on this player is confirmed:
+      // that way a player with, say, both a bad variant AND a missing metal
+      // still gets flagged for the variant (an unrelated problem is never
+      // masked by this one bailing out first).
+      if (typeof metal !== "string" || !METAL_RE.test(metal)) {
+        problems.push(
+          `player "${handle}" metal must be one of foil, sapphire, copper, or pewter, got ${JSON.stringify(metal)}`
+        );
+        continue;
+      }
+
+      players.push({ handle, metal, variants: [...variants] as string[] });
       for (const v of variants as string[]) {
         expectedPngs.add(`${handle}/${v}.png`);
       }
@@ -203,12 +239,16 @@ export function sq(s: string): string {
 // a player who was already staged this month REPLACES their row and rotates
 // the token: this is deliberate (spec s9) so a previously shared link goes
 // dead the moment a new one is issued, rather than both links staying live.
+// Also writes `metal` (the rarity tier for this month's card, validated by
+// validateCandidates): the consent page reads it back to duotone a
+// self-uploaded photo to match the printed card. Re-staging updates it too,
+// same as every other column, in case a metal gets corrected between runs.
 export function askUpsertSql(a: AskUpsert): string {
   return (
-    "INSERT INTO portrait_asks (token, handle, set_slug, variants, created_at, expires_at) " +
-    `VALUES (${sq(a.token)}, ${sq(a.handle)}, ${sq(a.setSlug)}, ${sq(JSON.stringify(a.variants))}, ${sq(a.createdAt)}, ${sq(a.expiresAt)}) ` +
+    "INSERT INTO portrait_asks (token, handle, set_slug, variants, metal, created_at, expires_at) " +
+    `VALUES (${sq(a.token)}, ${sq(a.handle)}, ${sq(a.setSlug)}, ${sq(JSON.stringify(a.variants))}, ${sq(a.metal)}, ${sq(a.createdAt)}, ${sq(a.expiresAt)}) ` +
     "ON CONFLICT(handle, set_slug) DO UPDATE SET " +
-    "token = excluded.token, variants = excluded.variants, " +
+    "token = excluded.token, variants = excluded.variants, metal = excluded.metal, " +
     "created_at = excluded.created_at, expires_at = excluded.expires_at"
   );
 }
@@ -302,15 +342,52 @@ function parseVariantsForDisplay(json: string): string[] {
 // (not <) so an ask expiring in this exact second is pruned now rather than
 // on the next run - matching isExpired's not-strictly-in-the-future rule in
 // functions/api/_portrait.js.
+//
+// Also carries each ask's latest answer, via the EXACT SAME correlated-rowid
+// join shape statusSql uses (ORDER BY w2.rowid DESC, never answered_at - see
+// statusSql's own comment for why). pruneKeys needs to know whether the
+// current answer is an approved self-upload before it can decide what is
+// safe to delete: re-deriving that resolution a second, different way here
+// would risk --prune and --status disagreeing about which answer is
+// "current" for the same ask.
 export function pruneSelectSql(nowStr: string): string {
-  return `SELECT token, handle, set_slug, variants FROM portrait_asks WHERE expires_at <= ${sq(nowStr)}`;
+  return (
+    "SELECT a.token, a.handle, a.set_slug, a.variants,\n" +
+    "       w.answer, w.variant\n" +
+    "FROM portrait_asks a\n" +
+    "LEFT JOIN portrait_answers w ON w.rowid = (\n" +
+    "  SELECT w2.rowid FROM portrait_answers w2 WHERE w2.token = a.token\n" +
+    "  ORDER BY w2.rowid DESC LIMIT 1)\n" +
+    `WHERE a.expires_at <= ${sq(nowStr)}`
+  );
 }
 
-// Expands each expired ask row into the R2 keys that back it, so --prune can
-// delete the objects along with (elsewhere) the D1 rows. One row can expand
-// to multiple keys since a single ask can carry several variants.
-export function pruneKeys(rows: PruneRow[]): string[] {
-  const keys: string[] = [];
+// Expands each expired ask row into the R2 keys that back it, splitting them
+// into keys safe to delete and keys that must survive --prune, so the CLI
+// (Task 6 REDIRECT) can delete one set and report the other.
+//
+// An approved self-uploaded panel (answer === "approved" && variant ===
+// "self") is the ONE piece of art that exists nowhere but R2 - a staged crop
+// always has a second copy sitting in Charlie's candidates/ directory on
+// disk, so losing the R2 copy of a crop only costs a re-upload, but losing an
+// approved self-upload destroys the only copy of art a player explicitly
+// consented to. That is why the self key for such an ask is excluded from
+// `toDelete` and returned in `toKeep` instead: consented one-of-one art must
+// never be silently deletable by an automated sweep (Mike, 2026-08-28).
+//
+// A DECLINED self-upload has no consent behind it, so it deletes along with
+// everything else for that ask - a self panel nobody approved is just a face
+// without a yes, and should die on schedule like any other expired asset. An
+// ask with no answer at all (never approved, never declined) also deletes
+// everything: with nothing consented, there is nothing to protect.
+//
+// Only ever special-cases the literal "self" variant id within an ask whose
+// CURRENT (latest, rowid-resolved) answer is approved/self; every other
+// variant of that same ask, and every key of every other ask, deletes as
+// before.
+export function pruneKeys(rows: PruneRow[]): { toDelete: string[]; toKeep: string[] } {
+  const toDelete: string[] = [];
+  const toKeep: string[] = [];
   for (const r of rows) {
     let variants: unknown;
     try {
@@ -319,11 +396,17 @@ export function pruneKeys(rows: PruneRow[]): string[] {
       continue;
     }
     if (!Array.isArray(variants)) continue;
+    const consentedSelf = r.answer === "approved" && r.variant === "self";
     for (const v of variants) {
-      keys.push(`asks/${r.set_slug}/${r.handle}/${String(v)}.png`);
+      const key = `asks/${r.set_slug}/${r.handle}/${String(v)}.png`;
+      if (consentedSelf && String(v) === "self") {
+        toKeep.push(key);
+      } else {
+        toDelete.push(key);
+      }
     }
   }
-  return keys;
+  return { toDelete, toKeep };
 }
 
 // The consent link shown to a player, built from a freshly minted token.

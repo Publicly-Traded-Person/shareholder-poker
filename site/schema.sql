@@ -30,6 +30,14 @@ CREATE TABLE IF NOT EXISTS portrait_asks (
                                    -- would be a second door through the boundary.
   set_slug   TEXT NOT NULL,        -- 'YYYY-MM', matches site/cards/<set_slug>/
   variants   TEXT NOT NULL,        -- JSON array of variant ids; array order IS display order
+  metal      TEXT,                 -- rarity metal for this set's card: foil |
+                                   -- sapphire | copper | pewter. Read by the
+                                   -- consent page to duotone a self-uploaded
+                                   -- panel; written by portrait-asks.ts, never
+                                   -- by hand. Nullable because asks staged
+                                   -- before 2026-08-27 predate it; the runbook
+                                   -- carries the one-time ALTER for deployed
+                                   -- databases (IF NOT EXISTS cannot add it).
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   expires_at TEXT NOT NULL,        -- 60 days out; an expired ask 404s, same as unknown
   UNIQUE(handle, set_slug)         -- re-staging a player replaces their ask (new token,

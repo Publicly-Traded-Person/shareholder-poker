@@ -7,6 +7,7 @@ import { describe, expect, test } from "bun:test";
 import {
   randomToken, isValidToken, toSqlUtc, isExpired,
   latestAnswer, parseVariants, escapeHtml, ordinal, monthName,
+  pngDims, addVariant, PANEL_W, PANEL_H,
 } from "../functions/api/_portrait.js";
 
 describe("randomToken", () => {
@@ -154,8 +155,12 @@ describe("escapeHtml / ordinal / monthName", () => {
 // describe blocks below this line; the factory and constants are theirs to
 // use and NOT to rename). The asks rows carry an email field that the real
 // schema does not even have: any handler that echoed a row through would leak.
+// `metal` is optional because the column is nullable and because asks staged
+// before the ALTER TABLE migration simply do not have one; the page treats a
+// missing or unrecognized metal as "no upload block" rather than guessing a
+// palette (halt, never guess).
 export type AskRow = { token: string; handle: string; set_slug: string; variants: string;
-                       expires_at: string; email?: string };
+                       expires_at: string; email?: string; metal?: string };
 export type AnswerRow = { token: string; answer: string; variant: string | null; answered_at: string };
 
 export function makePortraitEnv(asks: AskRow[], objects: Record<string, string> = {}) {
@@ -197,6 +202,56 @@ export const FUTURE = "2099-01-01 00:00:00";
 export const PAST = "2000-01-01 00:00:00";
 export const ASK: AskRow = { token: TOKEN, handle: "genet", set_slug: "2026-08",
   variants: '["a","b"]', expires_at: FUTURE, email: "leak@example.com" };
+
+// Minimal real PNG header: 8-byte signature, IHDR length + type, then
+// big-endian width and height. 620 = 0x026C, 236 = 0xEC. Shared by the
+// helper tests below and the upload endpoint tests.
+export const pngHeader = (w: number, h: number) => {
+  const b = new Uint8Array(24);
+  b.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d, 0x49, 0x48, 0x44, 0x52]);
+  new DataView(b.buffer).setUint32(16, w);
+  new DataView(b.buffer).setUint32(20, h);
+  return b;
+};
+
+// True once Task 1's dither module lands in the integrated tree. Guards the
+// cross-module constants-sync test below so this task's own tests are green
+// standalone in this worktree (site/portrait-dither.js does not exist here
+// yet) and the sync check arms itself automatically once both tasks merge.
+const ditherModuleExists = await Bun.file(
+  new URL("../site/portrait-dither.js", import.meta.url),
+).exists();
+
+describe("pngDims / addVariant / panel constants", () => {
+  test("panel constants are the fixed art-panel size", () => {
+    expect(PANEL_W).toBe(620);
+    expect(PANEL_H).toBe(236);
+  });
+  test.if(ditherModuleExists)("panel constants match the dither module's", async () => {
+    // @ts-ignore - browser-shared module
+    const dither = await import("../site/portrait-dither.js");
+    expect(PANEL_W).toBe(dither.PANEL_W);
+    expect(PANEL_H).toBe(dither.PANEL_H);
+  });
+  test("reads dimensions from a real header", () => {
+    expect(pngDims(pngHeader(620, 236))).toEqual({ w: 620, h: 236 });
+    expect(pngDims(pngHeader(10, 10))).toEqual({ w: 10, h: 10 });
+  });
+  test("rejects junk without throwing", () => {
+    expect(pngDims(new Uint8Array(0))).toBe(null);
+    expect(pngDims(new Uint8Array(23))).toBe(null);
+    const notPng = pngHeader(620, 236); notPng[0] = 0x00;
+    expect(pngDims(notPng)).toBe(null);
+    const notIhdr = pngHeader(620, 236); notIhdr[12] = 0x4a;
+    expect(pngDims(notIhdr)).toBe(null);
+  });
+  test("addVariant appends once and never mangles", () => {
+    expect(addVariant('["a","b"]', "self")).toBe('["a","b","self"]');
+    expect(addVariant('["a","b","self"]', "self")).toBe('["a","b","self"]');
+    expect(addVariant("not json", "self")).toBe(null);
+    expect(addVariant("[]", "self")).toBe(null);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Task 6: GET /portrait/<token>, the server-rendered consent page.
@@ -649,5 +704,468 @@ describe("POST /api/portrait/<token>", () => {
     await expectNoEmail(res);
     expect(answers.length).toBe(1);
     expect(answers[0].variant).toBe(null);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 4: POST /api/portrait/<token>/upload, the self-serve upload endpoint.
+// Uploading a browser-composited panel IS approving (self-upload spec s4):
+// the R2 put, the variants column update, and the approved/self ledger row
+// all happen inside one handler, because a stored-but-unconsented state must
+// never exist. Appended below Task 5's block; import declarations are
+// hoisted, so this one sits with its block rather than at the top of the file.
+// @ts-ignore - plain JS Pages Function, Cloudflare parameter filename
+import { onRequestPost as uploadOnRequestPost } from "../functions/api/portrait/[token]/upload.js";
+
+describe("POST /api/portrait/<token>/upload", () => {
+  // A richer stub than makePortraitEnv on purpose: the upload handler needs an
+  // UPDATE recorder (for the variants column), an R2 put recorder, and an
+  // ASSETS flag read, which the shared factory deliberately lacks. Do NOT
+  // fold this into makePortraitEnv - Task 5's block above depends on that
+  // factory staying exactly as it is.
+  function makeUploadEnv(asks: AskRow[], flag: unknown = { portraitUploads: true }) {
+    const answers: AnswerRow[] = [];
+    const updates: { variants: string; token: string }[] = [];
+    const puts: { key: string; size: number }[] = [];
+    const db = {
+      prepare(sql: string) {
+        let args: any[] = [];
+        const stmt = {
+          bind(...a: any[]) { args = a; return stmt; },
+          async first() {
+            if (!sql.includes("FROM portrait_asks")) throw new Error(`unexpected first(): ${sql}`);
+            return asks.find((r) => r.token === args[0]) ?? null;
+          },
+          async run() {
+            if (sql.includes("UPDATE portrait_asks SET variants")) {
+              updates.push({ variants: args[0], token: args[1] });
+              return { success: true };
+            }
+            if (sql.includes("INSERT INTO portrait_answers")) {
+              answers.push({ token: args[0], answer: "approved", variant: "self", answered_at: args[1] });
+              return { success: true };
+            }
+            throw new Error(`unexpected run(): ${sql}`);
+          },
+          async all() { throw new Error(`unexpected all(): ${sql}`); },
+        };
+        return stmt;
+      },
+    };
+    const bucket = { async put(key: string, bytes: Uint8Array) { puts.push({ key, size: bytes.byteLength }); } };
+    const assets = {
+      async fetch() {
+        if (flag === "throw") throw new Error("assets down");
+        return new Response(JSON.stringify(flag));
+      },
+    };
+    return { env: { POKER_RSVP_DB: db, POKER_PORTRAITS: bucket, ASSETS: assets }, answers, updates, puts };
+  }
+  const pngBody = (w: number, h: number, pad = 100) => {
+    const head = pngHeader(w, h); // file-scope fixture, Task 3's describe block
+    const b = new Uint8Array(head.length + pad);
+    b.set(head);
+    return b;
+  };
+  const uploadReq = (body: Uint8Array | string) =>
+    new Request(`https://poker.example/api/portrait/${TOKEN}/upload`, {
+      method: "POST", headers: { "Content-Type": "image/png" }, body,
+    });
+
+  // JSON-response privacy headers, distinct from GET /portrait's HTML-page
+  // check above (no Content-Type: text/html assertion here).
+  const expectPrivateHeaders = (res: Response) => {
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(res.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+  };
+
+  const expectNoSideEffects = (made: ReturnType<typeof makeUploadEnv>) => {
+    expect(made.puts.length).toBe(0);
+    expect(made.updates.length).toBe(0);
+    expect(made.answers.length).toBe(0);
+  };
+
+  const post = (token: string, body: Uint8Array | string, env: any) =>
+    uploadOnRequestPost({ request: uploadReq(body), params: { token }, env } as any);
+
+  test("invalid token shape 404s", async () => {
+    const made = makeUploadEnv([ASK]);
+    const res = await post("not-a-token", pngBody(PANEL_W, PANEL_H), made.env);
+    expect(res.status).toBe(404);
+    expect(await res.clone().json()).toEqual({ error: "not found" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  test("unknown token 404s", async () => {
+    const made = makeUploadEnv([ASK]);
+    const res = await post("f".repeat(32), pngBody(PANEL_W, PANEL_H), made.env);
+    expect(res.status).toBe(404);
+    expect(await res.clone().json()).toEqual({ error: "not found" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  test("expired ask 404s", async () => {
+    const made = makeUploadEnv([{ ...ASK, expires_at: PAST }]);
+    const res = await post(TOKEN, pngBody(PANEL_W, PANEL_H), made.env);
+    expect(res.status).toBe(404);
+    expect(await res.clone().json()).toEqual({ error: "not found" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  test("flag off (portraitUploads: false) 404s", async () => {
+    const made = makeUploadEnv([ASK], { portraitUploads: false });
+    const res = await post(TOKEN, pngBody(PANEL_W, PANEL_H), made.env);
+    expect(res.status).toBe(404);
+    expect(await res.clone().json()).toEqual({ error: "not found" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  test("flag missing from games.json 404s", async () => {
+    const made = makeUploadEnv([ASK], {});
+    const res = await post(TOKEN, pngBody(PANEL_W, PANEL_H), made.env);
+    expect(res.status).toBe(404);
+    expect(await res.clone().json()).toEqual({ error: "not found" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  // The flag read fails CLOSED: an ASSETS fetch that throws must read as
+  // "uploads are off", never as an unhandled error that might leak a 500 with
+  // a stack trace (self-upload spec s8).
+  test("an ASSETS read failure 404s (fails closed)", async () => {
+    const made = makeUploadEnv([ASK], "throw");
+    const res = await post(TOKEN, pngBody(PANEL_W, PANEL_H), made.env);
+    expect(res.status).toBe(404);
+    expect(await res.clone().json()).toEqual({ error: "not found" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  test("a body over 262144 bytes 400s", async () => {
+    const made = makeUploadEnv([ASK]);
+    const big = new Uint8Array(262144 + 1);
+    const res = await post(TOKEN, big, made.env);
+    expect(res.status).toBe(400);
+    expect(await res.clone().json()).toEqual({ error: "too large" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  test("an empty body 400s", async () => {
+    const made = makeUploadEnv([ASK]);
+    const res = await post(TOKEN, new Uint8Array(0), made.env);
+    expect(res.status).toBe(400);
+    expect(await res.clone().json()).toEqual({ error: "bad body" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  test("non-PNG bytes 400s as a bad image", async () => {
+    const made = makeUploadEnv([ASK]);
+    const junk = new Uint8Array(200).fill(7);
+    const res = await post(TOKEN, junk, made.env);
+    expect(res.status).toBe(400);
+    expect(await res.clone().json()).toEqual({ error: "bad image" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  test("a PNG with the wrong width 400s as a bad image", async () => {
+    const made = makeUploadEnv([ASK]);
+    const res = await post(TOKEN, pngBody(619, PANEL_H), made.env);
+    expect(res.status).toBe(400);
+    expect(await res.clone().json()).toEqual({ error: "bad image" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  test("a PNG with the wrong height 400s as a bad image", async () => {
+    const made = makeUploadEnv([ASK]);
+    const res = await post(TOKEN, pngBody(PANEL_W, 235), made.env);
+    expect(res.status).toBe(400);
+    expect(await res.clone().json()).toEqual({ error: "bad image" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  // Halt, never guess: same posture as the other two portrait handlers. A
+  // malformed variants column must stop the request before the R2 put or
+  // either write, never be silently repaired.
+  test("a malformed variants column 404s and records nothing", async () => {
+    const made = makeUploadEnv([{ ...ASK, variants: "not json" }]);
+    const res = await post(TOKEN, pngBody(PANEL_W, PANEL_H), made.env);
+    expect(res.status).toBe(404);
+    expect(await res.clone().json()).toEqual({ error: "not found" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expectNoSideEffects(made);
+  });
+
+  test("the happy path stores the panel, updates variants, and appends approved/self", async () => {
+    const made = makeUploadEnv([ASK]);
+    const body = pngBody(PANEL_W, PANEL_H);
+    const res = await post(TOKEN, body, made.env);
+    expect(res.status).toBe(200);
+    expect(await res.clone().json()).toEqual({ ok: true, answer: "approved", variant: "self" });
+    expectPrivateHeaders(res);
+    await expectNoEmail(res);
+    expect(made.puts).toEqual([{ key: "asks/2026-08/genet/self.png", size: body.byteLength }]);
+    expect(made.updates).toEqual([{ variants: '["a","b","self"]', token: TOKEN }]);
+    expect(made.answers.length).toBe(1);
+    expect(made.answers[0].token).toBe(TOKEN);
+    expect(made.answers[0].answer).toBe("approved");
+    expect(made.answers[0].variant).toBe("self");
+    expect(made.answers[0].answered_at).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+  });
+
+  // A player is free to re-upload (a better lighting take, a retake). Each
+  // upload is its own approval event in the ledger, but the variants column
+  // - a set, not a log - never grows a duplicate "self" entry.
+  test("re-uploading records a second put and a second answer row, variants stay deduped", async () => {
+    const made = makeUploadEnv([ASK]);
+    const body = pngBody(PANEL_W, PANEL_H);
+    await post(TOKEN, body, made.env);
+    const res = await post(TOKEN, body, made.env);
+    expect(res.status).toBe(200);
+    expect(made.puts.length).toBe(2);
+    expect(made.updates.length).toBe(2);
+    expect(made.updates[1]).toEqual({ variants: '["a","b","self"]', token: TOKEN });
+    expect(made.answers.length).toBe(2);
+    expect(made.answers[1].answer).toBe("approved");
+    expect(made.answers[1].variant).toBe("self");
+  });
+});
+
+// Task 5: the self-upload block on GET /portrait/<token>. Appended below the
+// blocks above; nothing above this line is touched except the shared AskRow
+// type, which gained an optional `metal` field. The page module is already
+// imported as `portraitPage` with its own block and import declarations are
+// hoisted, so this block reuses that binding rather than importing twice.
+//
+// What is under test is a three-way AND: the block renders only when the
+// games.json flag is on, the ask carries one of the four real rarity metals,
+// and the ask is live. Each leg gets its own case, because any leg failing
+// OPEN would put an upload surface on a page that was never configured for
+// one.
+describe("GET /portrait/<token> upload block", () => {
+  // Same SYNTHETIC roster as the page block above (no real player ever appears
+  // in a committed fixture, repo privacy rule), plus the one root flag the
+  // page reads out of site/data/games.json.
+  const FIXTURE_DATA = {
+    portraitUploads: true,
+    players: [{ slug: "gene-t", name: "Gene T.", aka: ["genet"] }],
+    games: [{
+      date: "2026-08-11",
+      hands: 100,
+      entries: 3,
+      cardSet: "2026-08",
+      results: [
+        { slug: "gene-t", handle: "genet", finish: 2, payout: 0, rebuys: 0, trophies: [] },
+        { slug: "rosa-p", handle: "rosap", finish: 1, payout: 10, rebuys: 0, trophies: [] },
+      ],
+    }],
+  };
+
+  // Every string the upload block is responsible for putting on the page: the
+  // offer, the file input, the approve button, the dither module URL, and the
+  // promise about where the pixels go. Asserted as a set so a case that turns
+  // the block OFF has to lose all six, not just the one a test happened to
+  // name.
+  const UPLOAD_MARKERS = [
+    "Or use a different photo",
+    'id="photo-in"',
+    'accept="image/*"',
+    'id="use-photo"',
+    "/portrait-dither.js",
+    "It never leaves your device",
+  ];
+
+  const PANEL_CAPTION = "Your art panel; the printed card carries it in the art slot.";
+  const EM_DASH = "—";
+
+  // Wraps makePortraitEnv the same way the page block above does: the shared
+  // factory has no ASSETS binding, and this surface needs one.
+  function uploadEnv(asks: AskRow[], data: unknown = FIXTURE_DATA) {
+    const made = makePortraitEnv(asks);
+    (made.env as any).ASSETS = { fetch: async () => new Response(JSON.stringify(data)) };
+    return made;
+  }
+
+  const pageRequest = () => new Request(`https://poker.kmikeym.com/portrait/${TOKEN}`);
+
+  async function renderWith(env: any) {
+    const res = await portraitPage({ request: pageRequest(), params: { token: TOKEN }, env });
+    return { res, html: await res.text() };
+  }
+
+  async function render(asks: AskRow[], data: unknown = FIXTURE_DATA) {
+    return renderWith(uploadEnv(asks, data).env);
+  }
+
+  const expectBlockAbsent = (html: string) => {
+    for (const marker of UPLOAD_MARKERS) expect(html).not.toContain(marker);
+  };
+
+  const COPPER_ASK: AskRow = { ...ASK, metal: "copper" };
+  const SELF_ASK: AskRow = { ...COPPER_ASK, variants: '["a","b","self"]' };
+
+  test("flag on, a real metal and a live ask render the whole block", async () => {
+    const { res, html } = await render([COPPER_ASK]);
+    expect(res.status).toBe(200);
+    for (const marker of UPLOAD_MARKERS) expect(html).toContain(marker);
+  });
+
+  // The block cannot render without a metal: composePanel throws on an unknown
+  // ramp, and guessing one would put a palette the card does not use in front
+  // of the person being asked to consent to it.
+  test("an ask with no metal renders the page without the block", async () => {
+    const { res, html } = await render([ASK]);
+    expect(res.status).toBe(200);
+    expectBlockAbsent(html);
+    // The staged-crop flow is complete on its own; only the block is gone.
+    expect(html).toContain("Use this one");
+    expect(html).toContain("None of these");
+    expect(html).toContain(`src="/api/portrait/${TOKEN}/img/a"`);
+  });
+
+  test("an ask with a metal outside the four ramps renders no block", async () => {
+    const { res, html } = await render([{ ...ASK, metal: "chrome" }]);
+    expect(res.status).toBe(200);
+    expectBlockAbsent(html);
+    expect(html).toContain("Use this one");
+  });
+
+  test("the flag off renders no block even with a real metal", async () => {
+    const { res, html } = await render([COPPER_ASK], { ...FIXTURE_DATA, portraitUploads: false });
+    expect(res.status).toBe(200);
+    expectBlockAbsent(html);
+    expect(html).toContain("Use this one");
+  });
+
+  // Fail CLOSED (spec s8): if the flag cannot be read, uploads are off. The
+  // page still renders, because the consent ask is the point and a dead asset
+  // fetch must not take it down with it.
+  test("a games.json read failure leaves uploads off and still renders the page", async () => {
+    const { env } = makePortraitEnv([COPPER_ASK]);
+    (env as any).ASSETS = { fetch: async () => { throw new Error("asset store unreachable"); } };
+    const { res, html } = await renderWith(env);
+    expect(res.status).toBe(200);
+    expectBlockAbsent(html);
+    expect(html).toContain("Use this one");
+    expect(html).toContain("None of these");
+  });
+
+  // `self` is an ordinary variant everywhere downstream, but it is a person's
+  // own photo, not a crop someone staged for them, so the picker says so.
+  test("a self variant reads as Your photo in the picker, never Crop SELF", async () => {
+    const { html } = await render([SELF_ASK]);
+    expect(html).toContain("Your photo");
+    expect(html).not.toContain("Crop SELF");
+    expect(html).toContain("Crop A");
+    expect(html).toContain("Crop B");
+  });
+
+  // Display rule (spec s4): staged variants are whole cards, `self` is an art
+  // panel. The page shows the panel at panel proportions and says so, rather
+  // than faking a full-card composite it cannot make truthfully.
+  test("self selected shows the panel figure with its caption visible", async () => {
+    const { env, answers } = uploadEnv([SELF_ASK]);
+    answers.push({ token: TOKEN, answer: "approved", variant: "self",
+                   answered_at: "2026-09-01 10:00:00" });
+    const { res, html } = await renderWith(env);
+    expect(res.status).toBe(200);
+    expect(html).toContain('<figure class="card-shot card-shot--panel">');
+    expect(html).toContain(`<figcaption id="panel-note" class="fine">${PANEL_CAPTION}</figcaption>`);
+  });
+
+  test("a staged crop selected keeps the card figure and hides the caption", async () => {
+    const { env, answers } = uploadEnv([SELF_ASK]);
+    answers.push({ token: TOKEN, answer: "approved", variant: "b",
+                   answered_at: "2026-09-01 10:00:00" });
+    const { res, html } = await renderWith(env);
+    expect(res.status).toBe(200);
+    expect(html).toContain('<figure class="card-shot">');
+    expect(html).not.toContain("card-shot--panel\">");
+    expect(html).toContain(
+      `<figcaption id="panel-note" class="fine" hidden>${PANEL_CAPTION}</figcaption>`);
+  });
+
+  // The block adds copy and a second script to a page whose copy rules are
+  // load-bearing, so they are re-asserted with the block ON. ASK carries a
+  // fake email precisely so an "@" anywhere in the output fails loudly.
+  test("copy, privacy and brand rules hold with the block rendered", async () => {
+    const { html } = await render([SELF_ASK]);
+    expect(html).not.toContain(EM_DASH);
+    expect(/experiment/i.test(html)).toBe(false);
+    expect(html).not.toContain("btn-primary");
+    expect(html).not.toContain("@");
+    expect(/<a href="\//.test(html)).toBe(false);
+  });
+
+  // The runbook promises that flipping portraitUploads off only stops NEW
+  // uploads: a panel a player already approved keeps serving and keeps
+  // printing (consent given does not evaporate). No prior test pairs the
+  // flag being off with an ask that already has an approved self answer, so
+  // this pins that exact combination: flag off, real metal, self approved.
+  test("the flag off still serves an already-approved self answer", async () => {
+    const { env, answers } = uploadEnv([SELF_ASK], { ...FIXTURE_DATA, portraitUploads: false });
+    answers.push({ token: TOKEN, answer: "approved", variant: "self",
+                   answered_at: "2026-09-01 10:00:00" });
+    const { res, html } = await renderWith(env);
+    expect(res.status).toBe(200);
+    expect(html).toContain(`src="/api/portrait/${TOKEN}/img/self"`);
+    expect(html).toContain("Your photo");
+    // Self-aware wording (redirect, 2026-08-28): a self-upload is the
+    // player's own photo, not a crop, so the approval line says "photo".
+    expect(html).toContain("You approved your photo on 2026-09-01");
+    // Consent already on record is not a reason to offer a NEW upload: the
+    // flag is off, so the whole block (input, button, dither script, copy)
+    // must be gone, same bar as every other block-absent case above.
+    expectBlockAbsent(html);
+  });
+
+  // Twin of the case above, isolating the wording itself (flag ON this time)
+  // rather than the flag-off pairing: the state line must say "approved your
+  // photo" and must not carry the word "crop" before it, the way the old
+  // "approved crop SELF" wording did.
+  test("an approved self answer states it in photo terms, not crop terms", async () => {
+    const { env, answers } = uploadEnv([SELF_ASK]);
+    answers.push({ token: TOKEN, answer: "approved", variant: "self",
+                   answered_at: "2026-09-01 10:00:00" });
+    const { res, html } = await renderWith(env);
+    expect(res.status).toBe(200);
+    // Scoped to the state paragraph itself, not the whole page: the picker
+    // still renders "Crop A" / "Crop B" for the staged variants on this ask,
+    // and a page-wide "not crop" check would fail on those for no reason.
+    const stateMatch = html.match(/<p class="state" id="state">([^<]*)<\/p>/);
+    expect(stateMatch?.[1]).toContain("approved your photo");
+    expect(stateMatch?.[1]).not.toContain("crop");
+  });
+
+  // The client-side approve button's success text mirrors the server-side
+  // split so a self-upload confirms as "photo" without waiting on the page
+  // reload to say it correctly. Asserted on the inline script's own source,
+  // since this text is computed in the browser, not by the server.
+  test("the client-side approve success text branches on self vs crop", async () => {
+    const { html } = await render([SELF_ASK]);
+    expect(html).toContain(
+      '"Approved, your photo. You can change this any time before the set prints."');
+    expect(html).toContain(
+      '"Approved, crop " + selected.toUpperCase() + ". You can change this any time before the set prints."');
   });
 });

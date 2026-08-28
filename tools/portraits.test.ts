@@ -23,7 +23,7 @@ const DATA = {
 
 const MANIFEST = {
   set_slug: "2026-08",
-  players: [{ handle: "genet", variants: ["a", "b"] }],
+  players: [{ handle: "genet", variants: ["a", "b"], metal: "copper" }],
 };
 const PNGS = ["genet/a.png", "genet/b.png"];
 
@@ -42,7 +42,7 @@ describe("validateCandidates", () => {
   test("accepts a matching manifest and directory", () => {
     expect(validateCandidates(MANIFEST, PNGS, known)).toEqual({
       setSlug: "2026-08",
-      players: [{ handle: "genet", variants: ["a", "b"] }],
+      players: [{ handle: "genet", variants: ["a", "b"], metal: "copper" }],
     });
   });
   test("halts on an unknown handle", () => {
@@ -80,11 +80,37 @@ describe("validateCandidates", () => {
   test("halts on a non-object manifest", () => {
     expect(() => validateCandidates(null, [], known)).toThrow(/manifest/);
   });
+  test("halts on a player entry missing metal", () => {
+    const m = { set_slug: "2026-08", players: [{ handle: "genet", variants: ["a"] }] };
+    expect(() => validateCandidates(m, ["genet/a.png"], known)).toThrow(/metal/);
+  });
+  test("halts on an invalid metal value", () => {
+    const m = { set_slug: "2026-08", players: [{ handle: "genet", variants: ["a"], metal: "chrome" }] };
+    expect(() => validateCandidates(m, ["genet/a.png"], known)).toThrow(/metal/);
+  });
+  test("returns players carrying their metal", () => {
+    const m = {
+      set_slug: "2026-08",
+      players: [
+        { handle: "genet", variants: ["a"], metal: "foil" },
+        { handle: "rosap", variants: ["a"], metal: "pewter" },
+      ],
+    };
+    expect(validateCandidates(m, ["genet/a.png", "rosap/a.png"], known)).toEqual({
+      setSlug: "2026-08",
+      players: [
+        { handle: "genet", variants: ["a"], metal: "foil" },
+        { handle: "rosap", variants: ["a"], metal: "pewter" },
+      ],
+    });
+  });
 });
 
 describe("uploadPlan / linkFor", () => {
   test("maps local files to bucket keys", () => {
-    expect(uploadPlan({ setSlug: "2026-08", players: [{ handle: "genet", variants: ["a", "b"] }] }))
+    expect(
+      uploadPlan({ setSlug: "2026-08", players: [{ handle: "genet", variants: ["a", "b"], metal: "foil" }] })
+    )
       .toEqual([
         { local: "genet/a.png", key: "asks/2026-08/genet/a.png" },
         { local: "genet/b.png", key: "asks/2026-08/genet/b.png" },
@@ -99,9 +125,9 @@ describe("SQL builders", () => {
   test("sq doubles single quotes", () => {
     expect(sq("o'brien")).toBe("'o''brien'");
   });
-  test("ask upsert replaces on (handle, set_slug) and rotates the token", () => {
+  test("ask upsert replaces on (handle, set_slug), rotates the token, and carries metal", () => {
     const sql = askUpsertSql({
-      token: "a".repeat(32), handle: "genet", setSlug: "2026-08",
+      token: "a".repeat(32), handle: "genet", setSlug: "2026-08", metal: "copper",
       variants: ["a", "b"], createdAt: "2026-08-27 10:00:00", expiresAt: "2026-10-26 10:00:00",
     });
     expect(sql).toContain("INSERT INTO portrait_asks");
@@ -109,6 +135,9 @@ describe("SQL builders", () => {
     expect(sql).toContain(`'${"a".repeat(32)}'`);
     expect(sql).toContain(`'["a","b"]'`);
     expect(sql).toContain("'2026-10-26 10:00:00'");
+    expect(sql).toMatch(/\bmetal\b/);
+    expect(sql).toContain("'copper'");
+    expect(sql).toContain("metal = excluded.metal");
   });
   test("revoke appends a declined row via the ask lookup, never invents a token", () => {
     const sql = revokeInsertSql("genet", "2026-08", "2026-09-01 10:00:00");
@@ -129,10 +158,64 @@ describe("SQL builders", () => {
     expect(sql).toContain("a.set_slug = '2026-08'");
     expect(statusSql()).not.toContain("WHERE a.set_slug");
   });
-  test("prune selects only expired asks and maps their keys", () => {
-    expect(pruneSelectSql("2026-09-01 10:00:00")).toContain("expires_at <= '2026-09-01 10:00:00'");
-    expect(pruneKeys([{ set_slug: "2026-08", handle: "genet", variants: '["a","b"]' }]))
-      .toEqual(["asks/2026-08/genet/a.png", "asks/2026-08/genet/b.png"]);
+  test("prune selects only expired asks, resolving the latest answer by rowid (never answered_at)", () => {
+    const sql = pruneSelectSql("2026-09-01 10:00:00");
+    expect(sql).toContain("expires_at <= '2026-09-01 10:00:00'");
+    // Same append-order rule as statusSql, on purpose (see pruneSelectSql's
+    // own comment): --prune and --status must never disagree about which
+    // answer is current for a given ask.
+    expect(sql).toContain("ORDER BY w2.rowid DESC");
+    expect(sql).not.toContain("answered_at DESC");
+    // Pins the columns pruneKeys' consented-art guarantee depends on: without
+    // w.answer / w.variant in the SELECT, pruneKeys can never tell an
+    // approved self-upload apart from a staged crop, and the guard that keeps
+    // consented one-of-one art from being silently deleted goes dark with no
+    // test noticing. If someone trims this SELECT down to the columns
+    // pruneKeys "looked like" it needed, this is the line that catches it.
+    expect(sql).toContain("w.answer");
+    expect(sql).toContain("w.variant");
+  });
+
+  test("pruneKeys with no answer on the ask deletes every variant (nothing to protect)", () => {
+    expect(
+      pruneKeys([{ set_slug: "2026-08", handle: "genet", variants: '["a","b"]', answer: null, variant: null }])
+    ).toEqual({
+      toDelete: ["asks/2026-08/genet/a.png", "asks/2026-08/genet/b.png"],
+      toKeep: [],
+    });
+  });
+
+  test("pruneKeys keeps exactly the self key when the latest answer is approved/self, deleting the rest", () => {
+    expect(
+      pruneKeys([
+        { set_slug: "2026-08", handle: "genet", variants: '["a","self"]', answer: "approved", variant: "self" },
+      ])
+    ).toEqual({
+      toDelete: ["asks/2026-08/genet/a.png"],
+      toKeep: ["asks/2026-08/genet/self.png"],
+    });
+  });
+
+  test("pruneKeys deletes the self key too when the latest answer is declined (no consent behind it)", () => {
+    expect(
+      pruneKeys([
+        { set_slug: "2026-08", handle: "genet", variants: '["a","self"]', answer: "declined", variant: null },
+      ])
+    ).toEqual({
+      toDelete: ["asks/2026-08/genet/a.png", "asks/2026-08/genet/self.png"],
+      toKeep: [],
+    });
+  });
+
+  test("pruneKeys deletes the self key when approved but the approved variant is a staged crop, not self", () => {
+    expect(
+      pruneKeys([
+        { set_slug: "2026-08", handle: "genet", variants: '["a","self"]', answer: "approved", variant: "a" },
+      ])
+    ).toEqual({
+      toDelete: ["asks/2026-08/genet/a.png", "asks/2026-08/genet/self.png"],
+      toKeep: [],
+    });
   });
 });
 

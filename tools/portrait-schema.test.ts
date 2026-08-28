@@ -22,4 +22,19 @@ describe("portrait consent schema", () => {
     const portraitPart = schema.slice(schema.indexOf("portrait_asks"));
     expect(/\n\s+email\s/.test(portraitPart)).toBe(false);
   });
+  test("portrait_asks carries the nullable metal column", () => {
+    expect(/\n\s+metal\s+TEXT/.test(schema)).toBe(true);
+  });
+});
+
+// File-scope read: top-level await is fine in a bun test module, and an
+// await inside a describe callback is not.
+const gamesRaw = await Bun.file(new URL("../site/data/games.json", import.meta.url)).text();
+
+describe("uploads flag", () => {
+  test("games.json carries portraitUploads and stays canonical", () => {
+    const data = JSON.parse(gamesRaw);
+    expect(typeof data.portraitUploads).toBe("boolean");
+    expect(gamesRaw).toBe(JSON.stringify(data, null, 2) + "\n");
+  });
 });
