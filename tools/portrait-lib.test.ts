@@ -1116,4 +1116,24 @@ describe("GET /portrait/<token> upload block", () => {
     expect(html).not.toContain("@");
     expect(/<a href="\//.test(html)).toBe(false);
   });
+
+  // The runbook promises that flipping portraitUploads off only stops NEW
+  // uploads: a panel a player already approved keeps serving and keeps
+  // printing (consent given does not evaporate). No prior test pairs the
+  // flag being off with an ask that already has an approved self answer, so
+  // this pins that exact combination: flag off, real metal, self approved.
+  test("the flag off still serves an already-approved self answer", async () => {
+    const { env, answers } = uploadEnv([SELF_ASK], { ...FIXTURE_DATA, portraitUploads: false });
+    answers.push({ token: TOKEN, answer: "approved", variant: "self",
+                   answered_at: "2026-09-01 10:00:00" });
+    const { res, html } = await renderWith(env);
+    expect(res.status).toBe(200);
+    expect(html).toContain(`src="/api/portrait/${TOKEN}/img/self"`);
+    expect(html).toContain("Your photo");
+    expect(html).toContain("You approved crop SELF on 2026-09-01");
+    // Consent already on record is not a reason to offer a NEW upload: the
+    // flag is off, so the whole block (input, button, dither script, copy)
+    // must be gone, same bar as every other block-absent case above.
+    expectBlockAbsent(html);
+  });
 });
