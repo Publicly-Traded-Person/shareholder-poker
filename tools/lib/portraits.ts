@@ -115,7 +115,14 @@ export function validateCandidates(
     problems.push("players must be an array");
   }
 
-  const players: { handle: string; variants: string[] }[] = [];
+  // Carries `metal` from the start (not bolted on after `.push`): every
+  // entry pushed below includes it, and the function returns this array
+  // straight into a CandidateSet whose player shape requires `metal: string`
+  // - leaving it off this local annotation typechecked once by accident
+  // (excess properties on a literal generally error, but TS let it through
+  // here) and would fail tsc --noEmit under the repo's strict tsconfig the
+  // moment anyone touched this line again.
+  const players: { handle: string; variants: string[]; metal: string }[] = [];
   const seenHandles = new Set<string>();
   const expectedPngs = new Set<string>();
 

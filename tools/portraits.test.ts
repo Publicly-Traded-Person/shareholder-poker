@@ -166,6 +166,14 @@ describe("SQL builders", () => {
     // answer is current for a given ask.
     expect(sql).toContain("ORDER BY w2.rowid DESC");
     expect(sql).not.toContain("answered_at DESC");
+    // Pins the columns pruneKeys' consented-art guarantee depends on: without
+    // w.answer / w.variant in the SELECT, pruneKeys can never tell an
+    // approved self-upload apart from a staged crop, and the guard that keeps
+    // consented one-of-one art from being silently deleted goes dark with no
+    // test noticing. If someone trims this SELECT down to the columns
+    // pruneKeys "looked like" it needed, this is the line that catches it.
+    expect(sql).toContain("w.answer");
+    expect(sql).toContain("w.variant");
   });
 
   test("pruneKeys with no answer on the ask deletes every variant (nothing to protect)", () => {
