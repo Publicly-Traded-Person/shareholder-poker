@@ -175,6 +175,18 @@ Rehearsal: add `--local` to any command to run against `wrangler pages dev`
 state instead of production. Nothing in this flow touches git: candidate
 images live only in R2, answers live only in D1.
 
+### Standing portraits
+
+kmikeym's card art is his approved self-upload panel, permanently: he
+approved it on his own consent page (`approved (self)`, 2026-08-29, copper
+duotone) and directed on 2026-09-01 that it be used on Set 1, Set 2, and
+every future set. The panel lives in munger at `ccg/portraits-approved/`
+(and stays in R2; prune spares approved self panels on its own). At render
+time, attach it to his card the same way a staged crop is attached; his
+rarity metal is copper in both existing sets, so the tint already matches.
+No new ask is ever staged for him. If his rarity metal changes in a future
+set, re-tint before rendering rather than shipping a mismatched panel.
+
 ### Turning uploads off
 
 Self-upload is a standing feature, not a per-set toggle, but Mike can shut it
