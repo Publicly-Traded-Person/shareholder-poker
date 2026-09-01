@@ -198,6 +198,29 @@ exactly as before. The flip only stops new uploads - the upload block simply
 stops rendering on every consent page from the next deploy on, flag-off and
 no-ask/expired render the identical 404 on the endpoint itself.
 
+## RSVP preflight + who has not RSVP'd (emails, Tier 2)
+
+The roster table is seeded by hand from a gitignored file (emails never
+enter git), so nothing in the repo can see whether the seed ever ran. It
+sat empty for the site's first two weeks with every page rendering fine
+(issue #26). The preflight makes that state loud:
+
+```bash
+bun tools/rsvp-status.ts             # roster rows + RSVP count for nextGame
+bun tools/rsvp-status.ts --missing   # who on the roster has not RSVP'd yet
+```
+
+Run the counts line at the start of RSVP week (T-7) and before the
+individual-outreach pass (T-4). `roster: 0 rows` means STOP and seed first;
+the player list and seed procedure live in `K5M/Charlie/Poker/Poker
+Roster.md`. `--missing` refuses to answer while the roster is empty, on
+purpose: an empty result from an empty roster would be indistinguishable
+from "everyone has RSVP'd."
+
+Both verbs print to stdout only. `--missing` prints emails; that is the
+allowed direction (stdout, never a file in this repo), but clear your
+scrollback if you are screen-sharing.
+
 ## Reminder export (emails, Tier 2)
 
 `wrangler d1 execute poker-rsvp-db --command "SELECT email FROM rsvps WHERE game='YYYY-MM-DD'"`
