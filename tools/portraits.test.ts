@@ -236,3 +236,49 @@ describe("formatStatusRows", () => {
     expect(out).not.toContain("d".repeat(32));
   });
 });
+
+// ---------------------------------------------------------------------------
+// Upload-only staging (2026-09-01): asks minted with NO candidate crops, from
+// explicit handle=metal pairs, for players nobody has a photo of. The player's
+// own upload is the only path to a portrait.
+import { parseUploadOnlyRoster } from "./lib/portraits";
+
+describe("parseUploadOnlyRoster", () => {
+  const known = knownHandles(DATA);
+  test("parses handle=metal pairs in order", () => {
+    expect(parseUploadOnlyRoster("genet=copper,ROSA99=foil", known)).toEqual([
+      { handle: "genet", metal: "copper" },
+      { handle: "ROSA99", metal: "foil" },
+    ]);
+  });
+  test("halts on an unknown handle", () => {
+    expect(() => parseUploadOnlyRoster("stranger=copper", known))
+      .toThrow(/unknown handle "stranger"/);
+  });
+  test("halts on a metal outside the four names", () => {
+    expect(() => parseUploadOnlyRoster("genet=gold", known)).toThrow(/metal/);
+  });
+  test("halts on a duplicate handle and a malformed pair, all problems in one error", () => {
+    const err = (() => { try { parseUploadOnlyRoster("genet=copper,genet=foil,justahandle", known); return null; }
+                         catch (e) { return e as Error; } })();
+    expect(err).not.toBe(null);
+    expect(err!.message).toMatch(/refusing to stage/);
+    expect(err!.message).toMatch(/duplicate handle/);
+    expect(err!.message).toMatch(/justahandle/);
+  });
+  test("halts on an empty argument", () => {
+    expect(() => parseUploadOnlyRoster("", known)).toThrow(/no players/);
+  });
+});
+
+describe("askUpsertSql with no variants", () => {
+  test("stores a literal [] variants list", () => {
+    const sql = askUpsertSql({
+      token: "a".repeat(32), handle: "genet", setSlug: "2026-08",
+      variants: [], metal: "copper",
+      createdAt: "2026-09-01 00:00:00", expiresAt: "2026-10-31 00:00:00",
+    });
+    expect(sql).toContain("'[]'");
+    expect(sql).toContain("'copper'");
+  });
+});

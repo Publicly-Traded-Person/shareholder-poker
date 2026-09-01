@@ -12,6 +12,7 @@
 // Usage:
 //   bun tools/portrait-asks.ts <candidates-dir> [--local]
 //   bun tools/portrait-asks.ts --status [--set YYYY-MM] [--local]
+//   bun tools/portrait-asks.ts --stage-upload-only handle=metal[,...] --set YYYY-MM [--local]
 //   bun tools/portrait-asks.ts --revoke <handle> --set YYYY-MM [--local]
 //   bun tools/portrait-asks.ts --prune [--local]
 //   bun tools/portrait-asks.ts --pull <handle> --set YYYY-MM [--out <path>] [--local]
@@ -33,6 +34,7 @@ import {
   pruneSelectSql,
   pruneKeys,
   linkFor,
+  parseUploadOnlyRoster,
   type CandidateSet,
 } from "./lib/portraits";
 import type { GamesData } from "./lib/standings";
@@ -294,18 +296,52 @@ function realDeps(local: boolean): PortraitDeps {
   };
 }
 
+// Mints upload-only asks: one ask per handle=metal pair with an EMPTY
+// variants list, for players nobody has a photo of. The consent page then
+// renders the self-upload block as the only path to a portrait (the empty
+// list means there is nothing to approve until the player's own upload
+// appends "self"). Takes the set slug (YYYY-MM), the raw pairs argument, and
+// deps; prints one "handle  link" line per player. Halts before ANY side
+// effect on a malformed set slug or any bad pair (unknown handle, bad metal,
+// duplicate): fix the input, never the check. Touches R2 not at all; there
+// are no candidate images to upload. Re-staging a handle replaces its ask
+// (new token, the old link goes dead), same as the crops path.
+export async function stageUploadOnly(
+  set: string,
+  pairsArg: string,
+  deps: PortraitDeps
+): Promise<void> {
+  if (!/^\d{4}-\d{2}$/.test(set)) {
+    throw new Error(`bad set slug "${set}" (expected YYYY-MM)`);
+  }
+  const known = knownHandles(deps.readGames());
+  const players = parseUploadOnlyRoster(pairsArg, known);
+
+  const createdAt = toSqlUtc(deps.now());
+  const expiresAt = toSqlUtc(new Date(deps.now().getTime() + SIXTY_DAYS_MS));
+  for (const p of players) {
+    const token = randomToken();
+    await deps.d1(askUpsertSql({
+      token, handle: p.handle, setSlug: set,
+      variants: [], metal: p.metal, createdAt, expiresAt,
+    }));
+    deps.print(`${p.handle}  ${linkFor(token)}`);
+  }
+}
+
 const USAGE = [
   "usage:",
   "  bun tools/portrait-asks.ts <candidates-dir> [--local]",
   "  bun tools/portrait-asks.ts --status [--set YYYY-MM] [--local]",
+  "  bun tools/portrait-asks.ts --stage-upload-only handle=metal[,handle=metal...] --set YYYY-MM [--local]",
   "  bun tools/portrait-asks.ts --revoke <handle> --set YYYY-MM [--local]",
   "  bun tools/portrait-asks.ts --prune [--local]",
   "  bun tools/portrait-asks.ts --pull <handle> --set YYYY-MM [--out <path>] [--local]",
 ].join("\n");
 
-const KNOWN_FLAGS = new Set(["--local", "--status", "--set", "--revoke", "--prune", "--pull", "--out"]);
+const KNOWN_FLAGS = new Set(["--local", "--status", "--set", "--revoke", "--prune", "--pull", "--out", "--stage-upload-only"]);
 
-// CLI entry point: parses argv into one of the five verbs above and runs it
+// CLI entry point: parses argv into one of the six verbs above and runs it
 // against real (wrangler-backed) deps. An unknown flag or a missing required
 // argument prints usage and exits 1 without attempting any wrangler call;
 // a verb that throws (validation failure, revoke-with-no-ask, pull-with-
@@ -337,6 +373,15 @@ export async function main(argv: string[]): Promise<void> {
         return;
       }
       await revoke(handle, set, deps);
+    } else if (argv.includes("--stage-upload-only")) {
+      const set = flagValue("--set");
+      const pairs = flagValue("--stage-upload-only");
+      if (!set || !pairs || pairs.startsWith("--")) {
+        console.error(USAGE);
+        process.exit(1);
+        return;
+      }
+      await stageUploadOnly(set, pairs, deps);
     } else if (argv.includes("--prune")) {
       await prune(deps);
     } else if (argv.includes("--pull")) {

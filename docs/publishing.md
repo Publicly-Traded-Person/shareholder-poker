@@ -133,6 +133,18 @@ set shipped before this feature does not retroactively gain the column.
    card art panel on their own device, and only that finished panel - never
    the original photo - is sent back to us. Using the picture on the page
    IS the approval; there is no separate confirm step for a self-upload.
+3b. UPLOAD-ONLY ASKS, for a player nobody has a photo of (added 2026-09-01):
+   `bun tools/portrait-asks.ts --stage-upload-only handle=metal[,handle=metal...] --set YYYY-MM`
+   mints an ask with NO staged crops. The player's consent page then offers
+   only the self-upload path: their own photo, dithered in their own browser,
+   upload is approval, same as any self-upload. Metals are the four rarity
+   names (foil, sapphire, copper, pewter), matching that player's card on the
+   published set page; the page needs the metal to duotone the panel. Unknown
+   handles halt, same as everywhere. Nothing goes to R2 at staging time.
+   These asks age, answer, revoke, pull, and prune exactly like crop asks.
+   Note that while uploads are flagged off, an unanswered upload-only page
+   has nothing actionable on it (it says so neutrally); flip the flag before
+   sending these links.
 4. Check answers any time: `bun tools/portrait-asks.ts --status --set YYYY-MM`.
    No admin page exists on purpose. A self-upload shows the same as any other
    approval, as `approved (self)`.

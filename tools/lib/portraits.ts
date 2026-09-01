@@ -415,3 +415,36 @@ export function pruneKeys(rows: PruneRow[]): { toDelete: string[]; toKeep: strin
 export function linkFor(token: string): string {
   return `https://poker.kmikeym.com/portrait/${token}`;
 }
+
+// Parses the --stage-upload-only argument: comma-separated handle=metal
+// pairs, e.g. "genet=copper,rosap=foil". Takes the raw argument and the
+// known-handle set from games.json; returns the pairs in order. Throws one
+// Error carrying EVERY problem found ("refusing to stage:\n  ..."), same
+// posture as validateCandidates: halt before any side effect, fix the input,
+// never the check. Unknown handles halt (never invent a player), metals are
+// the four rarity names METAL_RE knows, and a handle may appear only once
+// (UNIQUE(handle, set_slug) would make the second row silently replace the
+// first ask, killing a link that may already have been sent).
+export function parseUploadOnlyRoster(
+  arg: string,
+  known: Set<string>
+): { handle: string; metal: string }[] {
+  const problems: string[] = [];
+  const pairs: { handle: string; metal: string }[] = [];
+  const seen = new Set<string>();
+  const parts = String(arg || "").split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+  if (parts.length === 0) problems.push("no players given (expected handle=metal[,handle=metal...])");
+  for (const part of parts) {
+    const m = /^([^=]+)=([^=]+)$/.exec(part);
+    if (!m) { problems.push(`malformed pair "${part}" (expected handle=metal)`); continue; }
+    const handle = m[1].trim();
+    const metal = m[2].trim();
+    if (!known.has(handle)) problems.push(`unknown handle "${handle}" (add to aka in games.json, never guess)`);
+    if (!METAL_RE.test(metal)) problems.push(`bad metal "${metal}" for ${handle} (foil, sapphire, copper, or pewter)`);
+    if (seen.has(handle)) problems.push(`duplicate handle "${handle}"`);
+    seen.add(handle);
+    pairs.push({ handle, metal });
+  }
+  if (problems.length > 0) throw new Error(`refusing to stage:\n  ${problems.join("\n  ")}`);
+  return pairs;
+}

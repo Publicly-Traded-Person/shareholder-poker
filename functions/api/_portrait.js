@@ -61,10 +61,14 @@ export function latestAnswer(rows) {
 // Parses the portrait_asks.variants column. Returns the id array, or null on
 // any deviation so the caller can 404 rather than guess: a malformed ask must
 // never serve an image (halt-don't-guess, same posture as publish-game).
+// An EMPTY array is valid, not malformed: it is the stored state of an
+// upload-only ask (staged with no candidate crops, the player's own photo is
+// the only path to a portrait). Callers already do the right thing with []:
+// nothing to approve, nothing to serve, until an upload appends "self".
 export function parseVariants(json) {
   let v;
   try { v = JSON.parse(json); } catch { return null; }
-  if (!Array.isArray(v) || v.length === 0) return null;
+  if (!Array.isArray(v)) return null;
   if (!v.every((x) => typeof x === "string" && /^[a-z0-9]{1,8}$/.test(x))) return null;
   return v;
 }

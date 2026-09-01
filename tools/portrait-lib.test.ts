@@ -122,7 +122,6 @@ describe("parseVariants", () => {
   });
   test("returns null on anything else (caller 404s, never guesses)", () => {
     expect(parseVariants("not json")).toBe(null);
-    expect(parseVariants("[]")).toBe(null);
     expect(parseVariants('["A"]')).toBe(null);          // uppercase id
     expect(parseVariants('["toolongid1"]')).toBe(null); // > 8 chars
     expect(parseVariants('[1,2]')).toBe(null);
@@ -249,7 +248,6 @@ describe("pngDims / addVariant / panel constants", () => {
     expect(addVariant('["a","b"]', "self")).toBe('["a","b","self"]');
     expect(addVariant('["a","b","self"]', "self")).toBe('["a","b","self"]');
     expect(addVariant("not json", "self")).toBe(null);
-    expect(addVariant("[]", "self")).toBe(null);
   });
 });
 
@@ -1167,5 +1165,102 @@ describe("GET /portrait/<token> upload block", () => {
       '"Approved, your photo. You can change this any time before the set prints."');
     expect(html).toContain(
       '"Approved, crop " + selected.toUpperCase() + ". You can change this any time before the set prints."');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Upload-only asks (2026-09-01): an ask staged with NO candidate crops, where
+// the player's own photo is the only path to a portrait. `variants: []` is a
+// legitimate stored state from here on, not a malformed row. These tests pin
+// the new boundary on every surface that reads the column.
+import { onRequestGet as pageGet2 } from "../functions/portrait/[token].js";
+
+describe("upload-only asks: variants []", () => {
+  const EMPTY_ASK: AskRow = { token: TOKEN, handle: "genet", set_slug: "2026-08",
+    variants: "[]", expires_at: FUTURE, metal: "copper" };
+  const UPLOADS_ON = {
+    portraitUploads: true,
+    players: [{ slug: "gene-t", name: "Gene T.", aka: ["genet"] }],
+    games: [{ date: "2026-08-11", hands: 100, entries: 3, cardSet: "2026-08",
+      results: [{ slug: "gene-t", handle: "genet", finish: 2, payout: 0, rebuys: 0, trophies: [] }] }],
+  };
+  const UPLOADS_OFF = { ...UPLOADS_ON, portraitUploads: false };
+
+  function pageEnv2(asks: AskRow[], data: unknown) {
+    const made = makePortraitEnv(asks);
+    (made.env as any).ASSETS = { fetch: async () => new Response(JSON.stringify(data)) };
+    return made;
+  }
+  async function render2(asks: AskRow[], data: unknown) {
+    const { env } = pageEnv2(asks, data);
+    const res = await pageGet2({
+      request: new Request(`https://poker.kmikeym.com/portrait/${TOKEN}`),
+      params: { token: TOKEN }, env,
+    });
+    return { res, html: await res.text() };
+  }
+
+  test("parseVariants accepts [] as a valid empty list", () => {
+    expect(parseVariants("[]")).toEqual([]);
+  });
+  test("parseVariants still nulls malformed input", () => {
+    expect(parseVariants("{}")).toBe(null);
+    expect(parseVariants("nope")).toBe(null);
+    expect(parseVariants('["UPPER"]')).toBe(null);
+  });
+  test("addVariant appends self to an empty list", () => {
+    expect(addVariant("[]", "self")).toBe('["self"]');
+  });
+
+  test("page renders the upload block with no approve button, no figure, no picker", async () => {
+    const { res, html } = await render2([EMPTY_ASK], UPLOADS_ON);
+    expect(res.status).toBe(200);
+    expect(html).toContain('<div class="upload-block">');
+    expect(html).not.toContain('id="approve"');
+    expect(html).not.toContain("<figure");
+    expect(html).not.toContain("img/undefined");
+    expect(html).not.toContain('aria-label="Crop options"');
+    expect(html).toContain('id="decline"');
+    expect(html).not.toContain("—"); // copy rule: no em dashes
+  });
+
+  test("page with uploads off says nothing is staged, renders no upload block", async () => {
+    const { res, html } = await render2([EMPTY_ASK], UPLOADS_OFF);
+    expect(res.status).toBe(200);
+    expect(html).not.toContain('<div class="upload-block">');
+    expect(html).toContain("Nothing is staged");
+    expect(html).toContain('id="decline"');
+  });
+
+  test("an expired upload-only ask still 404s", async () => {
+    const { res } = await render2([{ ...EMPTY_ASK, expires_at: PAST }], UPLOADS_ON);
+    expect(res.status).toBe(404);
+  });
+
+  test("POST answer: approve is rejected (nothing staged), decline records", async () => {
+    const { env, answers } = makePortraitEnv([EMPTY_ASK]);
+    const post = (body: unknown) => answerOnRequestPost({
+      request: new Request(`https://poker.kmikeym.com/api/portrait/${TOKEN}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+      params: { token: TOKEN }, env,
+    });
+    const approve = await post({ answer: "approved", variant: "a" });
+    expect(approve.status).toBe(400);
+    expect(answers.length).toBe(0);
+    const decline = await post({ answer: "declined" });
+    expect(decline.status).toBe(200);
+    expect(answers.length).toBe(1);
+    expect(answers[0].answer).toBe("declined");
+  });
+
+  test("img endpoint serves nothing for an empty variant list", async () => {
+    const { env } = makePortraitEnv([EMPTY_ASK], { "asks/2026-08/genet/a.png": "png-bytes" });
+    const res = await imgOnRequestGet({
+      request: new Request(`https://poker.kmikeym.com/api/portrait/${TOKEN}/img/a`),
+      params: { token: TOKEN, variant: "a" }, env,
+    });
+    expect(res.status).toBe(404);
   });
 });
