@@ -114,9 +114,17 @@ export async function onRequestGet({ request, params, env }) {
 
   const name = escapeHtml(stats ? stats.name : ask.handle);
   const setName = escapeHtml(monthName(ask.set_slug));
-  const selected =
-    current && current.answer === "approved" && variants.includes(current.variant)
-      ? current.variant : variants[0];
+
+  // An upload-only ask (variants []) has no staged art to show or approve:
+  // the page leads with the upload block instead, and the card figure plus
+  // the approve button render only once something exists to approve. After
+  // an upload the reload comes back through the hasArt path with `self` in
+  // the list, so this branch is only ever the BEFORE state.
+  const hasArt = variants.length > 0;
+  const selected = hasArt
+    ? (current && current.answer === "approved" && variants.includes(current.variant)
+        ? current.variant : variants[0])
+    : null;
   const img = (v) => `/api/portrait/${token}/img/${v}`;
 
   // Display rule (spec s4): the staged crops are whole cards, `self` is the
@@ -245,6 +253,30 @@ export async function onRequestGet({ request, params, env }) {
   });
 </script>`;
 
+  // Three intros for three states. The upload-only page never pretends art
+  // exists, and when uploads are off it says something neutral rather than
+  // rendering a dead end; "nothing is staged" is true in every configuration
+  // that reaches it, so the line narrates the ask, not the config (spec s4).
+  const intro = hasArt
+    ? `<p>Your table card for the ${setName} set is below, exactly as it would print,
+  with your photo on it. Pick the crop you like best, or turn the photo down.
+  Nothing ships until you say so.</p>`
+    : canUpload
+      ? `<p>Your table card for the ${setName} set currently carries your monogram.
+  Add your own photo below and the card prints with your face on it, or leave
+  it exactly as it is. Nothing ships until you say so.</p>`
+      : `<p>Your table card for the ${setName} set currently carries your monogram.
+  Nothing is staged for you to approve right now. If you were expecting to add
+  a photo here, tell Mike.</p>`;
+
+  const figureBlock = !hasArt ? "" : `<figure class="card-shot${isPanel ? " card-shot--panel" : ""}"><img id="card-img" src="${img(selected)}" alt="Your ${setName} player card"><figcaption id="panel-note" class="fine"${isPanel ? "" : " hidden"}>Your art panel; the printed card carries it in the art slot.</figcaption></figure>`;
+
+  // No approve button without art: approving nothing is not a thing, and the
+  // POST endpoint would reject it anyway (variant must be in the list).
+  const approveButton = !hasArt ? "" : `<button type="button" id="approve" class="btn-secondary">Use this one</button>
+    `;
+  const declineLabel = hasArt ? "None of these" : "Keep the monogram";
+
   const html = `<!doctype html>
 <html lang="en">
 <head>
@@ -279,15 +311,12 @@ export async function onRequestGet({ request, params, env }) {
 <main class="band-light portrait-page">
   <p class="stat">K5M Shareholder Poker, the ${setName} set</p>
   <h1>Your card, ${name}</h1>
-  <p>Your table card for the ${setName} set is below, exactly as it would print,
-  with your photo on it. Pick the crop you like best, or turn the photo down.
-  Nothing ships until you say so.</p>
-  <figure class="card-shot${isPanel ? " card-shot--panel" : ""}"><img id="card-img" src="${img(selected)}" alt="Your ${setName} player card"><figcaption id="panel-note" class="fine"${isPanel ? "" : " hidden"}>Your art panel; the printed card carries it in the art slot.</figcaption></figure>
+  ${intro}
+  ${figureBlock}
   ${pickerRow}
   ${statsLine}
   <div class="actions">
-    <button type="button" id="approve" class="btn-secondary">Use this one</button>
-    <button type="button" id="decline" class="btn-secondary">None of these</button>
+    ${approveButton}<button type="button" id="decline" class="btn-secondary">${declineLabel}</button>
   </div>
   <p class="state" id="state">${stateLine}</p>
   <p class="fine">Turning it down keeps the monogram card you already have. The photo stays out and the card stays yours.</p>
@@ -318,7 +347,10 @@ export async function onRequestGet({ request, params, env }) {
       state.textContent = "That did not go through. Try again, or just tell Mike.";
     });
   }
-  document.getElementById("approve").addEventListener("click", function () {
+  // Null-guarded: an upload-only ask renders no approve button at all
+  // (nothing is staged to approve until an upload appends "self").
+  var approveBtn = document.getElementById("approve");
+  if (approveBtn) approveBtn.addEventListener("click", function () {
     // Same self-vs-crop wording split as the server-rendered state line:
     // a self-upload confirms as a photo, never a crop, without waiting on
     // the page reload to say so correctly.

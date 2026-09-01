@@ -324,3 +324,44 @@ describe("pull", () => {
     expect(calls.d1[0]).toContain("a.set_slug = '2026-08'");
   });
 });
+
+// ---------------------------------------------------------------------------
+// stage-upload-only (2026-09-01): mints asks with variants [] from explicit
+// handle=metal pairs. No candidates directory, no R2 traffic at all.
+import { stageUploadOnly } from "./portrait-asks";
+
+describe("stageUploadOnly", () => {
+  test("upserts one [] ask per pair, prints one link per player, touches no R2", async () => {
+    const { deps, calls } = makeDeps();
+    await stageUploadOnly("2026-08", "genet=copper,rosap=foil", deps);
+    expect(calls.d1.length).toBe(2);
+    expect(calls.d1[0]).toContain("'genet'");
+    expect(calls.d1[0]).toContain("'[]'");
+    expect(calls.d1[0]).toContain("'copper'");
+    expect(calls.d1[1]).toContain("'rosap'");
+    expect(calls.d1[1]).toContain("'foil'");
+    expect(calls.r2put.length).toBe(0);
+    expect(calls.printed.length).toBe(2);
+    expect(calls.printed[0]).toMatch(/genet\s+https:\/\/poker\.kmikeym\.com\/portrait\/[0-9a-f]{32}/);
+  });
+
+  test("halts before any side effect on an unknown handle in the pairs", async () => {
+    const { deps, calls } = makeDeps();
+    await expect(stageUploadOnly("2026-08", "genet=copper,stranger=foil", deps))
+      .rejects.toThrow(/unknown handle "stranger"/);
+    expect(calls.d1.length).toBe(0);
+    expect(calls.printed.length).toBe(0);
+  });
+
+  test("halts on a malformed set slug before any side effect", async () => {
+    const { deps, calls } = makeDeps();
+    await expect(stageUploadOnly("aug-2026", "genet=copper", deps)).rejects.toThrow(/set/);
+    expect(calls.d1.length).toBe(0);
+  });
+
+  test("expiry is 60 days from deps.now, same as staged asks", async () => {
+    const { deps, calls } = makeDeps();
+    await stageUploadOnly("2026-08", "genet=copper", deps);
+    expect(calls.d1[0]).toContain(toSqlUtc(new Date(NOW.getTime() + 60 * 24 * 60 * 60 * 1000)));
+  });
+});
