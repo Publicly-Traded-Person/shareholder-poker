@@ -477,3 +477,93 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
 .mark--skull { fill: var(--pewter-deep); }
 .mark--skull .socket { fill: var(--paper); }
 .mark--skull-empty { fill: none; stroke: var(--pewter); stroke-width: 1.1; }
+
+/* Trophy shapes (player pages, spec 2026-09-02 §4.3): "a new mark shape is
+   one SVG constant [in tools/render.ts] and one CSS class [here]". Shield
+   and ribbon carry shape only, no fill or stroke of their own: a trophy's
+   colour comes from a metal class on the same element (mark mark--shield
+   mark--sapphire), and its locked state is the shared .mark--empty outline
+   above, so baking a fill in here would fight one of those two classes on
+   every trophy tile depending on which was written later in the cascade.
+   Pinned to the same 12x12 box every other mark uses (skull, coin, the
+   empty diamond) even though neither shield nor ribbon is round, so the
+   tight gap in .shelf and the icon column in .trophy don't have to special-
+   case one shape; the SVG constants that draw them need no width/height
+   of their own, the same way .chip-race svg already lets CSS size an <svg>
+   instead of its markup. */
+.mark--shield { width: 12px; height: 12px; }
+.mark--ribbon { width: 12px; height: 12px; }
+
+/* Trophy case (/player/<slug>/, spec §5.1 step 3): a denser .tiles grid --
+   trophy tiles hold one mark plus two short lines, not a stat block, so
+   three fit per row on desktop where standings tiles fit two (the
+   .tiles--3 grammar above, just under a different name because these tiles
+   are never mixed into a plain .tiles grid). 900px stays the only
+   breakpoint, per the .cols rule elsewhere in this file. */
+.trophy-case { display: grid; grid-template-columns: 1fr; gap: 1rem; margin: 1.25em 0; }
+@media (min-width: 900px) { .trophy-case { grid-template-columns: 1fr 1fr 1fr; } }
+.trophy {
+  display: flex; align-items: flex-start; gap: .7rem;
+  background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
+  padding: .8rem 1rem; box-shadow: 0 1px 3px rgba(26, 28, 32, .06);
+}
+.trophy .mark { flex: none; margin-top: .2em; }
+.trophy h3, .trophy p { margin: 0; }
+.trophy h3 { font-size: .95em; font-weight: 700; }
+.trophy p { font-size: .85em; color: var(--muted-ink); }
+/* Locked reads as the unopened pack, the same quiet parchment
+   .season-card--upcoming already uses for "not yet" states. The mark itself
+   goes grey via .mark--empty on the SVG element, never here: this rule must
+   not carry its own fill or stroke, or the two greys could drift apart the
+   day only one of them gets edited. */
+.trophy--locked { background: var(--parchment); box-shadow: none; }
+.trophy--locked p { color: var(--pewter-deep); }
+
+/* Standings Trophies column (spec §5.3): a dense run of earned marks in one
+   table cell, capped at six with a "+N" overflow so one player's trophy
+   count never wraps the whole row taller. */
+.shelf { display: inline-flex; align-items: center; gap: .2em; vertical-align: -1px; }
+.shelf-more {
+  margin-left: .35em;
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: .78em; color: var(--muted-ink);
+}
+
+/* Card gallery (/player/<slug>/, spec §5.1 step 2): one figure per set a
+   player was carded in. A fixed basis, not .card-grid's auto-fill/minmax
+   grid, because a player owns at most a handful of cards; auto-fill reserves
+   phantom empty tracks up to the container width, which would strand a
+   lone card in a narrow column with dead space beside it instead of letting
+   it sit at a natural size. Figure margin reset for the same reason
+   .card-grid resets it: browser default figure margins (1em 40px) squeeze
+   the frame inside itself and push the caption past the edge. */
+.card-gallery { display: flex; flex-wrap: wrap; gap: 1.5rem; margin: 1.25em 0; }
+.card-gallery figure { margin: 0; width: min(240px, 40vw); }
+.card-gallery img { width: 100%; }
+
+/* The Hope Coin's route (/hope-coin/, spec §5.2): a vertical line with each
+   holder's stop hanging off it, oldest at the top. A plain hairline
+   (--line), not a rarity metal, because this line is structure, not a
+   rarity signal (the "gold means something" rule above the rarity accents
+   applies here too). */
+.route { position: relative; list-style: none; margin: 1.5em 0; padding: 0; }
+.route::before {
+  content: ""; position: absolute; top: .3em; bottom: .3em; left: 5px;
+  width: 2px; background: var(--line);
+}
+.route-stop { position: relative; margin: 0 0 1.5rem; padding-left: 2rem; }
+.route-stop:last-child { margin-bottom: 0; }
+/* The bead on the line: paper-filled so the hairline shows through an
+   unfilled ring, the same "hollow means not-here" reading .mark--empty
+   already uses for a locked mark. */
+.route-stop::before {
+  content: "";
+  position: absolute; left: 0; top: .3em; width: 12px; height: 12px;
+  border-radius: 50%; background: var(--paper); border: 2px solid var(--pewter-deep);
+}
+/* The present holder: filled foil bead, bold text. Foil, not sapphire, on
+   purpose -- the coin itself is drawn in foil (.coin-ring/.coin-core above)
+   and the current stop should read as the same metal as the trophy it
+   marks. */
+.route-stop--current { font-weight: 800; }
+.route-stop--current::before { background: var(--foil-deep); border-color: var(--foil-deep); }
