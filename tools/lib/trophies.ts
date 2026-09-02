@@ -49,12 +49,14 @@ export type DerivedRule = (data: GamesData, slug: string) => Earned | null;
 
 // One row of the trophy case. `kind: "judged"` trophies are the ones a
 // human records on a result at publish time (results.json carries the id
-// verbatim, and publish-game.ts halts on an id that is not one of these —
-// see that file's unknown-id check); `kind: "derived"` trophies carry a
-// `rule` instead and are computed fresh from the record every time
-// trophyCase runs. A judged entry never carries a rule (there is nothing to
-// derive) and a derived entry always does (there is nothing else that could
-// tell trophyCase when it is earned).
+// verbatim). Task 4 of this plan adds the publish-game.ts halt on an id
+// that is not one of these six — that check does not exist yet, so as of
+// this file nothing stops a typo'd id from reaching results.json; do not
+// read this comment as a present-tense guarantee. `kind: "derived"`
+// trophies carry a `rule` instead and are computed fresh from the record
+// every time trophyCase runs. A judged entry never carries a rule (there is
+// nothing to derive) and a derived entry always does (there is nothing else
+// that could tell trophyCase when it is earned).
 export type Trophy = {
   id: string; // kebab-case; the literal string results.json carries for judged ids
   name: string;
@@ -91,9 +93,15 @@ function gather(
 // means "one or more of the player's results matched" and "count" means
 // "how many did". Takes the trophy's own id (so the returned Earned is
 // self-labelled) and the per-result predicate; returns null when nothing
-// matched, because an Earned with an empty dates list would be a trophy
-// case tile with a count of 0, which is a contradiction the render layer
-// should never have to guard against.
+// matched. The real invariant this protects is narrower than "dates is
+// never empty": count is never 0. Every trophy built here always has at
+// least one match backing its count, so dates (each match's own date) is
+// never empty either. The Hope Coin is the one trophy in this file that is
+// NOT built with fromResults and can be earned with an empty dates list —
+// a holder whose only stop predates anyone recording a `from` still has
+// count 1 — so a render layer reading Earned must not assume dates.length
+// tracks count; it must read count for "how many" and dates only for
+// "which ones are dated".
 function fromResults(id: string, pred: (result: GameResult, game: Game) => boolean): DerivedRule {
   return (data, slug) => {
     const { dates, count } = gather(data, slug, pred);
@@ -169,8 +177,19 @@ const foundersTableRule: DerivedRule = fromResults(
 // `entries` counts every buy-in including rebuys and would put the bubble
 // in the wrong place on a night with rebuys. Takes the data and slug;
 // returns null when the slug never finished one-out on any game.
+//
+// A game with zero paid spots (paidSpots === 0) must never award this: the
+// guard below is not defensive filler, it is load-bearing. Without it,
+// `finish === paidSpots + 1` matches finish 1 — the outright winner — on
+// any game where nobody was recorded as paid. That is a real path, not a
+// hypothetical: the 2020 season is a live backfill item (see
+// backfillPending in games.json) and README.md notes its buy-ins and
+// winnings are not shown, so a backfilled 2020 game could legitimately
+// carry payout: 0 on every result. Awarding The Bubble to that game's
+// champion would be inventing an award nobody earned.
 const theBubbleRule: DerivedRule = fromResults("the-bubble", (result, game) => {
   const paidSpots = game.results.filter((r) => r.payout > 0).length;
+  if (paidSpots === 0) return false; // no paid spots: there is no bubble to be on
   return result.finish === paidSpots + 1;
 });
 
@@ -188,9 +207,11 @@ const theBubbleRule: DerivedRule = fromResults("the-bubble", (result, game) => {
 // a derived one) before it can reach a page.
 export const TROPHIES: Trophy[] = [
   // Judged: a human records these ids on a result in results.json at
-  // publish time (docs/publishing.md). publish-game.ts halts on any id
-  // that is not one of these six, the same way it halts on an unknown
-  // handle — never guess an id into existence there or here.
+  // publish time (docs/publishing.md). Task 4 of this plan is what makes
+  // publish-game.ts halt on an id that is not one of these six, the same
+  // way it already halts on an unknown handle — that halt is not built yet,
+  // so today nothing but this comment stops a bad id from reaching
+  // results.json. Never guess an id into existence there or here.
   {
     id: "hope-slayer",
     name: "Hope Slayer",
@@ -222,14 +243,14 @@ export const TROPHIES: Trophy[] = [
   {
     id: "abel-stands",
     name: "Abel Stands",
-    earn: "Win the tournament as Gene, without ever being knocked out.",
+    earn: "Win the tournament as Gene, never knocked out, not even during the rebuy window.",
     kind: "judged",
     look: { shape: "shield", metal: "sapphire" },
   },
   {
     id: "kevin-deuce",
     name: "Kevin Deuce",
-    earn: "Win a showdown holding unsuited king-two.",
+    earn: "Be first to win an announced showdown holding unsuited king-two.",
     kind: "judged",
     look: { shape: "shield", metal: "sapphire" },
   },

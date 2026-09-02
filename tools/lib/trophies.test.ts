@@ -301,6 +301,24 @@ describe("trophyCase: the-bubble", () => {
     expect(trophyCase(threeSpot, "second").earned.some((e) => e.id === "the-bubble")).toBe(false);
     expect(trophyCase(threeSpot, "third").earned.some((e) => e.id === "the-bubble")).toBe(false);
   });
+
+  test("nobody is awarded it on a night with zero paid spots (review finding 4)", () => {
+    // Modeled on a backfilled 2020 game: buy-ins and winnings are not
+    // shown (README.md), so every result can legitimately carry
+    // payout: 0. Without the paidSpots === 0 guard, finish === paidSpots +
+    // 1 (0 + 1) matches the outright winner, which would invent an award
+    // nobody earned.
+    const zeroPaid = data([
+      game("2020-06-09", [
+        result({ slug: "winner", finish: 1, payout: 0 }),
+        result({ slug: "second", finish: 2, payout: 0 }),
+        result({ slug: "third", finish: 3, payout: 0 }),
+      ]),
+    ]);
+    expect(trophyCase(zeroPaid, "winner").earned.some((e) => e.id === "the-bubble")).toBe(false);
+    expect(trophyCase(zeroPaid, "second").earned.some((e) => e.id === "the-bubble")).toBe(false);
+    expect(trophyCase(zeroPaid, "third").earned.some((e) => e.id === "the-bubble")).toBe(false);
+  });
 });
 
 // --- M4: earned/locked partition and display order -----------------------
