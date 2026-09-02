@@ -136,10 +136,17 @@ describe("the eleven fixed classes are real, non-empty rules (#27 task 2, M1)", 
   }
 
   // Leg (b): a class named only inside a comment must not satisfy the
-  // matcher above. Proven directly against the matcher, not the real file.
+  // matcher above. The fixture is brace-delimited on purpose (unlike a bare
+  // "/* .trophy-case */") and runs through the SAME unmodified
+  // stripComments -> blocksFor pipeline the real file goes through, rather
+  // than being pre-stripped by the test itself: without comment-stripping,
+  // rules() would see ".trophy-case { color: red; }" sitting inside the
+  // comment as a real, matchable rule (the fix-report for this task shows
+  // that failure observed directly), so this is an actual test of stripping,
+  // not a test that a braceless string yields no rules.
   test("a class named only in a comment does not satisfy the matcher", () => {
-    const commentOnly = stripComments("/* .trophy-case */");
-    expect(blocksFor(commentOnly, "trophy-case")).toEqual([]);
+    const commentedOut = "/* .trophy-case { color: red; } */";
+    expect(blocksFor(stripComments(commentedOut), "trophy-case")).toEqual([]);
   });
 });
 
