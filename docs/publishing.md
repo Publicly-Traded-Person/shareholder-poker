@@ -55,9 +55,11 @@ removes a named manual step; see the plan and spec section 6.
 
 When the Coin changes hands at a game, append one stop to `hopeCoin.history`
 (top of `site/data/games.json`) in the same commit as that game's own
-publish. A handoff touches four things, and the suite checks all four
-together, so a half-done edit fails the suite rather than shipping a Coin
-page that disagrees with itself:
+publish. A handoff touches four things. Task 6 of this plan is what adds a
+chain validator that will catch a half-done handoff (a stop with no `to`
+that is not actually the last one, a summary that disagrees with the last
+stop); that validator does not exist yet, so nothing enforces this today.
+Do all four by hand:
 
 - Append a new stop to `hopeCoin.history` with the new stop's `holder` (the
   slug it moved to), the new stop's `from` (the date it moved, YYYY-MM-DD),
@@ -70,10 +72,11 @@ page that disagrees with itself:
   new last stop: `hopeCoin.holder` becomes the new stop's `holder`, and
   `hopeCoin.since` becomes the new stop's `from`.
 
-Do all three in the same edit. The suite checks the chain end to end (the
-summary agrees with the last stop, every earlier stop's `to` is filled), so
-leaving one piece out fails the suite instead of quietly shipping a Coin
-page that tells two different stories.
+Do all three in the same edit regardless of Task 6's status: until it
+ships, nothing checks the chain end to end (that the summary agrees with
+the last stop, that every earlier stop's `to` is filled), and leaving one
+piece out will publish a Coin page that quietly tells two different
+stories.
 
 ## Cards (per set, still manual by design)
 
@@ -120,9 +123,11 @@ set page itself. Do these in the same commit as the set page:
 
 - The game itself gets `cardSetName`: the set's own display name, exactly
   as it reads on the set page, for example "The Founder's Table". Add it
-  beside `cardSet` (same game object). A game carrying `cardSet` with no
-  `cardSetName` fails the suite; there is no such thing as a set with only
-  half its name recorded.
+  beside `cardSet` (same game object). Task 5 of this plan is what adds
+  the site test that cross-checks the pair (a game carrying `cardSet` with
+  no `cardSetName` fails it); that test does not exist yet, so nothing
+  enforces this today. Fill in `cardSetName` anyway, in the same commit as
+  `cardSet`.
 - Every result in that game gets a `card` block with three fields: `metal`
   (one of `foil`, `sapphire`, `copper`, `pewter`, which the pages name
   Foil, Rare, Uncommon, Common), `file` (the filename under
@@ -131,9 +136,11 @@ set page itself. Do these in the same commit as the set page:
   paraphrase).
 
 A set that ships with some results carrying a `card` block and others
-missing it is the same kind of half-done state the rest of this runbook
-exists to catch; finish all of them before the commit that ships the set
-page.
+missing it is a half-done state. Task 5 of this plan is what adds the
+cross-check that would catch it (an asset under `assets/` that no
+result's `card.file` claims); that check does not exist yet, so nothing
+enforces this today. Finish all of them yourself, before the commit that
+ships the set page.
 
 ## Player bio (optional, one paragraph)
 
