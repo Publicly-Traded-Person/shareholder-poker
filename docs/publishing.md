@@ -124,11 +124,10 @@ set page itself. Do these in the same commit as the set page:
 
 - The game itself gets `cardSetName`: the set's own display name, exactly
   as it reads on the set page, for example "The Founder's Table". Add it
-  beside `cardSet` (same game object). Task 5 of this plan is what adds
-  the site test that cross-checks the pair (a game carrying `cardSet` with
-  no `cardSetName` fails it); that test does not exist yet, so nothing
-  enforces this today. Fill in `cardSetName` anyway, in the same commit as
-  `cardSet`.
+  beside `cardSet` (same game object). The "card cross-check" describe
+  block in `tools/site.test.ts` (Task 5) checks the pair over every game in
+  the real data: a game carrying `cardSet` with no `cardSetName` now fails
+  the suite, so a skipped `cardSetName` is caught before it merges.
 - Every result in that game gets a `card` block with three fields: `metal`
   (one of `foil`, `sapphire`, `copper`, `pewter`, which the pages name
   Foil, Rare, Uncommon, Common), `file` (the filename under
@@ -137,11 +136,10 @@ set page itself. Do these in the same commit as the set page:
   paraphrase).
 
 A set that ships with some results carrying a `card` block and others
-missing it is a half-done state. Task 5 of this plan is what adds the
-cross-check that would catch it (an asset under `assets/` that no
-result's `card.file` claims); that check does not exist yet, so nothing
-enforces this today. Finish all of them yourself, before the commit that
-ships the set page.
+missing it is a half-done state. The same card cross-check (Task 5) catches
+it: it fails whenever an asset under `assets/` is claimed by no result, or
+by more than one, so an incomplete fill is caught before it merges. Finish
+all of them yourself, before the commit that ships the set page.
 
 ## Player bio (optional, one paragraph)
 

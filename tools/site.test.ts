@@ -6,7 +6,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import type { GamesData } from "./lib/standings";
+import type { CardRef, GamesData } from "./lib/standings";
 
 // Recursively lists every committed .html file under site/.
 export function siteHtmlFiles(
@@ -320,5 +320,178 @@ describe("styles.css keeps its own contrast promise (#12)", () => {
   test(".mark--empty strokes with the -deep pewter, like every other mark", () => {
     const rule = css.match(/\.mark--empty\s*\{[^}]*\}/)?.[0] ?? "";
     expect(rule).toContain("var(--pewter-deep)");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 5 (#27): the card cross-check. Every card asset under a set's
+// assets/ folder must be claimed by exactly one result in games.json, and
+// every card the record claims must point at a real file with a caption
+// that actually reads that way on the set page. This is what would have
+// caught a mistyped metal or a copy-pasted title before it shipped, and
+// what will catch the next set if it's ever wrong.
+describe("card cross-check: the record and the set pages agree (#27, Task 5)", () => {
+  const data = JSON.parse(readFileSync(join(SITE, "data/games.json"), "utf8")) as GamesData;
+
+  // The only four metals styles.css draws a mark for; a fifth here would be
+  // a typo, not a new tier.
+  const METALS: CardRef["metal"][] = ["foil", "sapphire", "copper", "pewter"];
+
+  // Set-page tier labels, keyed by the metal that maps to them.
+  const TIER_OF: Record<CardRef["metal"], string> = {
+    foil: "Foil",
+    sapphire: "Rare",
+    copper: "Uncommon",
+    pewter: "Common",
+  };
+
+  const nameOf = new Map(data.players.map((p) => [p.slug, p.name]));
+
+  // Every game that has minted a set, narrowed so `cardSet` reads as a
+  // plain string for the rest of this block instead of `string | undefined`.
+  const cardGames = data.games.filter(
+    (g): g is typeof g & { cardSet: string } => !!g.cardSet
+  );
+
+  // Composes the caption text exactly as a set page renders it (the SVG
+  // mark is not part of this string; M3 only checks the text that follows
+  // it): "<Tier> · <Name> · <Title>" with a middle dot and one space on
+  // each side. Built from the data, never read off the page, so a wrong
+  // metal or title in the record produces a string the page cannot
+  // contain, rather than the other way round.
+  function caption(card: CardRef, name: string): string {
+    return `${TIER_OF[card.metal]} · ${name} · ${card.title}`;
+  }
+
+  // True only when the sorted asset filenames match the sorted card.file
+  // values exactly: same count, same names in the same order once sorted.
+  // Shared by leg (a), which runs it against the real data, and leg (b),
+  // which runs it against a deliberately broken copy — the same function
+  // has to say "match" for one and "no match" for the other, or neither
+  // result means anything.
+  function assetsMatchRecord(assetFiles: string[], cardFiles: string[]): boolean {
+    const a = [...assetFiles].sort();
+    const b = [...cardFiles].sort();
+    return a.length === b.length && a.every((f, i) => f === b[i]);
+  }
+
+  for (const game of cardGames) {
+    const assetsDir = join(SITE, "cards", game.cardSet, "assets");
+    const assetFiles = readdirSync(assetsDir);
+    const cardFiles = game.results.filter((r) => r.card).map((r) => r.card!.file);
+
+    // [M1] (a): an asset claimed by no result, or claimed twice, breaks
+    // this equality either way (extra file on one side, or a duplicate
+    // collapsing the count on the other).
+    test(`cards/${game.cardSet} assets/ matches games.json card.file exactly`, () => {
+      expect(assetsMatchRecord(assetFiles, cardFiles)).toBe(true);
+    });
+
+    // [M1] (b): proves (a) isn't vacuously true. Delete one result's
+    // `card` from a copy of this game and rerun the identical comparison;
+    // the asset that card claimed is now unclaimed, so it must fail.
+    // Never edit the real data here — only a structuredClone of it.
+    test(`cards/${game.cardSet} comparison would catch an unclaimed asset`, () => {
+      const broken = structuredClone(game);
+      delete broken.results[0].card;
+      const brokenCardFiles = broken.results.filter((r) => r.card).map((r) => r.card!.file);
+      expect(assetsMatchRecord(assetFiles, brokenCardFiles)).toBe(false);
+    });
+  }
+
+  // Every result that carries a card, across both sets, generated from the
+  // parsed data rather than typed into this file — a card added next month
+  // is covered automatically, with no test to remember to add.
+  const cardedResults = cardGames.flatMap((game) =>
+    game.results
+      .filter((r): r is typeof r & { card: CardRef } => !!r.card)
+      .map((result) => ({ game, result }))
+  );
+
+  for (const { game, result } of cardedResults) {
+    const card = result.card;
+
+    // [M2] (c): the file the record claims must exist under this set's own
+    // assets folder (a card pointed at another set's file, or a typo,
+    // fails here), and the metal must be one of the four the site knows
+    // how to render.
+    test(`${game.date} ${result.slug}: card.file exists and card.metal is valid`, () => {
+      const filePath = join(SITE, "cards", game.cardSet, "assets", card.file);
+      expect(() => statSync(filePath), `${result.slug}: ${card.file} does not exist`).not.toThrow();
+      expect(METALS, `${result.slug}: metal "${card.metal}" is not one of foil/sapphire/copper/pewter`).toContain(
+        card.metal
+      );
+    });
+
+    // [M3] (d): the caption composed from this result's own data must
+    // appear verbatim on its set's page. A wrong metal or title in the
+    // record composes a string the page does not contain, and fails here
+    // by slug and set rather than silently rendering something else.
+    test(`${game.date} ${result.slug}: caption appears on cards/${game.cardSet}`, () => {
+      const html = readPage(join(SITE, "cards", game.cardSet, "index.html"));
+      const name = nameOf.get(result.slug);
+      expect(name, `no players[] entry named for slug ${result.slug}`).toBeDefined();
+      expect(html).toContain(caption(card, name!));
+    });
+  }
+
+  // [M3] (e): the July champion's card, mutated one field at a time, to
+  // prove leg (d) is actually reading the metal and the title rather than
+  // matching on the name alone (which appears in every one of that
+  // player's captions across every set).
+  describe("the caption check reads the metal and the title, not just the name", () => {
+    const julyGame = cardGames.find((g) => g.date === "2026-07-14")!;
+    const julyHtml = readPage(join(SITE, "cards", julyGame.cardSet, "index.html"));
+    const champion = julyGame.results.find((r) => r.slug === "chris-g")!;
+    const championName = nameOf.get(champion.slug)!;
+
+    test("wrong metal (Foil swapped for Common) is absent from the page", () => {
+      const wrongMetal: CardRef = { ...champion.card!, metal: "pewter" };
+      expect(julyHtml).not.toContain(caption(wrongMetal, championName));
+    });
+
+    test("wrong title (Champion swapped out) is absent from the page", () => {
+      const wrongTitle: CardRef = { ...champion.card!, title: "Runner-up" };
+      expect(julyHtml).not.toContain(caption(wrongTitle, championName));
+    });
+  });
+
+  // [M3] (e2): the number of captions actually printed on a set page must
+  // equal the number of carded results for that set's game — otherwise a
+  // caption on the page could belong to nobody the record claims.
+  for (const game of cardGames) {
+    test(`cards/${game.cardSet} has exactly one card-caption per carded result`, () => {
+      const html = readPage(join(SITE, "cards", game.cardSet, "index.html"));
+      const captionCount = (html.match(/class="card-caption"/g) ?? []).length;
+      const cardedCount = game.results.filter((r) => r.card).length;
+      expect(captionCount).toBe(cardedCount);
+    });
+  }
+
+  // [M4] (f): shared by the real-data pass below and the broken-copy test,
+  // so the same rule is proven to both hold today and to be capable of
+  // failing.
+  function cardSetNameOk(game: { cardSet?: string; cardSetName?: string }): boolean {
+    return !game.cardSet || (!!game.cardSetName && game.cardSetName.length > 0);
+  }
+
+  for (const game of data.games) {
+    test(`${game.date}: cardSet implies cardSetName`, () => {
+      expect(cardSetNameOk(game), `${game.date} has cardSet but no cardSetName`).toBe(true);
+    });
+  }
+
+  test("a copy of a game with cardSetName deleted fails the same check", () => {
+    const broken = { ...cardGames[0], cardSetName: undefined };
+    expect(cardSetNameOk(broken)).toBe(false);
+  });
+
+  // [M4] (g): the two set names as they were read off the pages, verbatim.
+  test('2026-07-14 cardSetName is "The Founder\'s Table"', () => {
+    expect(data.games.find((g) => g.date === "2026-07-14")?.cardSetName).toBe("The Founder's Table");
+  });
+
+  test('2026-08-11 cardSetName is "Wire to Wire"', () => {
+    expect(data.games.find((g) => g.date === "2026-08-11")?.cardSetName).toBe("Wire to Wire");
   });
 });

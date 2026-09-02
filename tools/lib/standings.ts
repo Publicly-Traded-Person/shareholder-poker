@@ -62,9 +62,10 @@ export type Game = {
   cardSet?: string;
   // The set's display name ("The Founder's Table"), for player pages to
   // name the set a card came from. A game with cardSet must have this too;
-  // Task 5 of this plan is what adds the site test that cross-checks the
-  // pair, and that test does not exist yet, so nothing enforces this rule
-  // today. Optional here only so a game without a set yet still typechecks.
+  // the "card cross-check" describe block in tools/site.test.ts (Task 5)
+  // enforces the pair over every game in the real data, so a cardSet added
+  // without a cardSetName now fails the suite. Optional here only so a
+  // game without a set yet still typechecks.
   cardSetName?: string;
   results: GameResult[];
 };
