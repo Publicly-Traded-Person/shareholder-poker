@@ -146,6 +146,7 @@ set shipped before this feature does not retroactively gain the column.
    has nothing actionable on it (it says so neutrally); flip the flag before
    sending these links.
 4. Check answers any time: `bun tools/portrait-asks.ts --status --set YYYY-MM`.
+   (If it prints `retrying once`, see "When a wrangler call fails" below.)
    No admin page exists on purpose. A self-upload shows the same as any other
    approval, as `approved (self)`.
 5. If a player asks in person to take their photo down:
@@ -232,6 +233,26 @@ from "everyone has RSVP'd."
 Both verbs print to stdout only. `--missing` prints emails; that is the
 allowed direction (stdout, never a file in this repo), but clear your
 scrollback if you are screen-sharing.
+
+## When a wrangler call fails
+
+Both `portrait-asks.ts` and `rsvp-status.ts` talk to D1 and R2 through one
+shared wrapper (`tools/lib/wrangler.ts`, issue #34). It applies two rules,
+so you can read a failure without guessing:
+
+- **wrangler printed an error**: the tool stops on the first try and shows
+  wrangler's own message. That is a real problem (bad SQL, expired login,
+  wrong binding). Fix it; do not just rerun.
+- **wrangler exited nonzero with nothing on stderr**: this was seen three
+  times on 2026-09-01 and 02 and cleared on rerun every time. The wrapper
+  now retries that one call once by itself, printing
+  `wrangler exited N with no output; retrying once` on stderr. You do not
+  need to rerun by hand. If the retry also fails, the message says
+  `failed twice` and shows both attempts' exit codes and output tails; that
+  is worth debugging.
+
+The retry wraps a single wrangler call, never a whole verb, so a staging
+batch is never replayed (a replay could mint duplicate tokens).
 
 ## Reminder export (emails, Tier 2)
 
