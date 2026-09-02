@@ -8,6 +8,10 @@
 **Prior specs:** `2026-08-17-poker-quarterly-systems-design.md` (the site spec,
 especially §3 privacy boundary and §5 RSVP, which this extends rather than
 replaces)
+**Superseded in part (2026-08-27):** uploads, scoped out in §1 and §12 below,
+were added the next day by `2026-08-27-portrait-self-upload-design.md` at
+Mike's direction, as a temporary surface. Everything else here shipped as
+written (PR #19) and is live.
 
 ## 1. What this is
 
@@ -27,6 +31,11 @@ call (Mike, 2026-08-26): it handles most "I hate that photo" cases with no
 upload machinery, no file validation, and no path by which an unreviewed image
 reaches a render. A player who dislikes every crop declines, and Mike handles a
 genuinely new photo out of band.
+
+*Superseded 2026-08-27:* the same page now also offers a player their own
+photo, dithered in the browser and approved as a `self` variant, per
+`2026-08-27-portrait-self-upload-design.md`. Staged crops remain the default
+swap; the upload is a temporary surface that comes down on Mike's signal.
 
 **Nothing here is a card economy feature and nothing here is public.** These
 pages exist to collect an answer and then stop mattering.
@@ -251,7 +260,7 @@ Per repo convention, TDD on the pure core, `bun test tools` green before commit.
 
 ## 12. Out of scope
 
-- Uploads of any kind.
+- Uploads of any kind. *Superseded 2026-08-27 by the self-upload spec.*
 - Authentication, accounts, sessions.
 - Any automatic notification to Mike when an answer lands. `--status` is enough.
 - Player pages. Still reserved, still deferred, and a `/portrait/<token>` page
@@ -277,3 +286,8 @@ has exactly one stateful corner, the fallback is base64 blobs in D1 (§2), which
 is worse but not disqualifying at this scale: roughly seven players times two
 variants times about 120KB. Charlie's recommendation stands at R2. Nova has the
 better view of what this repo should carry and can overrule it.
+
+**Resolved during the build (Nova, 2026-08-27): R2, as recommended.** Real
+candidate files measured 152 to 549KB, up to 4.6 times the estimate above, and
+base64 in D1 would have hidden that state inside the one human-legible database
+rather than removing it.
