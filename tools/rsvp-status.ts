@@ -25,6 +25,7 @@ import {
   type CountsRow,
   type MissingRow,
 } from "./lib/rsvp-status";
+import { runWrangler, realWranglerDeps } from "./lib/wrangler";
 
 // Anchored to this file's module URL, not the process cwd, so the tool works
 // from any working directory - same pattern as tools/portrait-asks.ts.
@@ -68,19 +69,18 @@ export async function run(argv: string[], deps: RsvpStatusDeps): Promise<void> {
 }
 
 // Real deps: every d1 call shells out to wrangler against poker-rsvp-db
-// (--remote by default; --local for rehearsal, matching portrait-asks).
-// Kept out of run() so the tests above the seam never spawn a process.
+// (--remote by default; --local for rehearsal, matching portrait-asks)
+// through the shared tools/lib/wrangler.ts wrapper, which retries a silent
+// wrangler failure once and otherwise throws wrangler's own stderr (issue
+// #34). Kept out of run() so the tests above the seam never spawn a process.
 function realDeps(local: boolean): RsvpStatusDeps {
+  const wrangler = realWranglerDeps();
   return {
     d1: async (sql: string) => {
-      const args = [
-        "wrangler", "d1", "execute", "poker-rsvp-db",
-        local ? "--local" : "--remote",
-        "--json", "--command", sql,
-      ];
-      const proc = Bun.spawn(["npx", ...args], { stdout: "pipe", stderr: "inherit" });
-      const out = await new Response(proc.stdout).text();
-      if ((await proc.exited) !== 0) throw new Error("wrangler d1 execute failed");
+      const out = runWrangler(
+        ["d1", "execute", "poker-rsvp-db", local ? "--local" : "--remote", "--json", "--command", sql],
+        wrangler
+      );
       // wrangler --json prints an array of result objects, one per statement.
       const parsed = JSON.parse(out);
       return { results: parsed[0]?.results ?? [] };

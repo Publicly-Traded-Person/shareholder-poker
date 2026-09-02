@@ -38,6 +38,7 @@ import {
   type CandidateSet,
 } from "./lib/portraits";
 import type { GamesData } from "./lib/standings";
+import { runWrangler, realWranglerDeps } from "./lib/wrangler";
 
 const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
 
@@ -239,20 +240,16 @@ export async function pull(
 }
 
 // Builds the real (non-test) deps: every D1/R2 call shells out to wrangler
-// with Bun.spawnSync, scoped to --local or --remote by the CLI's --local
-// flag. A nonzero wrangler exit throws with wrangler's own stderr verbatim,
-// on purpose: Charlie debugs a failed stage from that text, and inventing a
-// friendlier message here would just hide the actual wrangler error.
+// through the shared tools/lib/wrangler.ts wrapper, scoped to --local or
+// --remote by the CLI's --local flag. That wrapper owns the two rules that
+// used to live here: a real wrangler error (stderr non-empty) is thrown
+// verbatim so Charlie debugs from wrangler's own words, and a silent
+// failure (nonzero exit, empty stderr) is retried exactly once, with a line
+// on stderr saying so (issue #34).
 function realDeps(local: boolean): PortraitDeps {
   const scope = local ? "--local" : "--remote";
-
-  const run = (args: string[]): string => {
-    const proc = Bun.spawnSync(["npx", "wrangler", ...args]);
-    if (proc.exitCode !== 0) {
-      throw new Error(new TextDecoder().decode(proc.stderr) || `wrangler ${args.join(" ")} failed`);
-    }
-    return new TextDecoder().decode(proc.stdout);
-  };
+  const wrangler = realWranglerDeps();
+  const run = (args: string[]): string => runWrangler(args, wrangler);
 
   return {
     d1(sql: string) {
