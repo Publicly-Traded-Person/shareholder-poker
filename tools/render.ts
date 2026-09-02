@@ -11,12 +11,36 @@ import { deriveStandings, type GamesData } from "./lib/standings";
 export const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-// The generated record starts with July 2026, the first game on the games.json
-// data spine. Earlier seasons (2020, and April and June 2026) are real games,
-// documented in README.md, that predate the spine and are being backfilled.
-// Standings and the games index must say so, not read as an all-time claim.
-const RECORD_QUALIFIER =
-  "This record starts with July 2026. Earlier seasons (2020, and April and June 2026) predate the data spine and are being backfilled.";
+// The record's span, derived rather than typed (issue #3). Takes the games
+// data; returns one sentence naming the month the spine starts with (its
+// earliest game, whatever order games.json lists them in) and, while
+// data.backfillPending names seasons still missing, a second sentence listing
+// them. Throws when there are no games: a standings page with no record is a
+// data error, not a copy problem. Standings and the games index both print
+// this so neither reads as an all-time claim.
+//
+// Why derived: this used to be a hardcoded "starts with July 2026" string,
+// which a backfill of the 2020 season would have left on the page while
+// displaying 2020 games. The earliest game cannot be wrong about itself, and
+// backfillPending is the one place that knows a season is still missing;
+// Charlie removes an entry in the same commit as the game it names.
+export function recordQualifier(data: GamesData): string {
+  const earliest = data.games.map(g => g.date).sort()[0];
+  if (!earliest) throw new Error("recordQualifier: games.json has no games on the spine");
+  const [y, m] = earliest.split("-").map(Number);
+  const start = `This record starts with ${MONTHS[m - 1]} ${y}.`;
+  const pending = (data.backfillPending ?? []).map(esc);
+  if (pending.length === 0) return start;
+  return `${start} Earlier seasons (${listWithAnd(pending)}) predate the data spine and are being backfilled.`;
+}
+
+// "a", "a and b", "a, b, and c" (Oxford comma, house style). Takes the
+// items; returns the joined phrase; an empty list returns an empty string.
+function listWithAnd(items: string[]): string {
+  if (items.length <= 1) return items.join("");
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+}
 
 // Inline SVG marks: rarity gems and the Hope Coin. Chrome is drawn, never
 // emoji (design spec 2026-08-26 §7.3). Class names are the contract with
@@ -111,7 +135,7 @@ export function renderStandings(data: GamesData): string {
 <section class="band-light">
   <div class="band-inner band-inner--wide">
     <h1 class="display">Standings</h1>
-    <p class="stat">${RECORD_QUALIFIER}</p>
+    <p class="stat">${recordQualifier(data)}</p>
     <div class="tiles">
       <div class="tile tile--foil">
         <h3>The Foil</h3>
@@ -204,7 +228,7 @@ ${podium}
   <div class="band-inner band-inner--wide">
     <h1 class="display">Games</h1>
     <p>Second Tuesday of every month, 7pm PT. One game, one set of cards, one line in the record.</p>
-    <p class="stat">${RECORD_QUALIFIER}</p>
+    <p class="stat">${recordQualifier(data)}</p>
     <ol class="season">
 ${played}
     <li class="season-card season-card--next">
