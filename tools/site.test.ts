@@ -6,6 +6,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import type { GamesData } from "./lib/standings";
 
 // Recursively lists every committed .html file under site/.
 export function siteHtmlFiles(
@@ -209,10 +210,10 @@ describe("cards index gallery", () => {
 // notes-table variant, favicon) so docs/publishing.md can tell Charlie to
 // copy the newest game page and get all of it for free.
 describe("game page shells", () => {
-  for (const rel of [
-    "../site/games/2026-07-14/index.html",
-    "../site/games/2026-08-11/index.html",
-  ]) {
+  // Enumerated from the directory, not a list: the September page must get
+  // every one of these checks the day it lands, without anyone editing here.
+  for (const date of gameDates()) {
+    const rel = `../site/games/${date}/index.html`;
     const html = readPage(new URL(rel, import.meta.url).pathname);
     test(`${rel} has the lens pills`, () =>
       expect(html).toContain('class="pills"'));
@@ -235,4 +236,89 @@ describe("game page shells", () => {
       expect(html).not.toContain('href="chip-race.html"');
     });
   }
+});
+
+// ---------------------------------------------------------------------------
+// Issue #12: the unfurl tags are hand-written chrome that references things
+// which ship LATER (a card set is minted after the game page it belongs to),
+// so nothing at write time can point at them and nothing at ship time looks.
+// The August 2026 page went out with July's foil as its share image and the
+// suite passed, because it only checked that an og:image tag existed. These
+// blocks make each tag answer for its own page.
+
+const SITE = new URL("../site/", import.meta.url).pathname;
+const ORIGIN = "https://poker.kmikeym.com";
+
+// Every game page directory under site/games/, by date. Shared by the shell
+// block above and the unfurl block below.
+function gameDates(): string[] {
+  return readdirSync(join(SITE, "games")).filter((n) => /^\d{4}-\d{2}-\d{2}$/.test(n)).sort();
+}
+
+// The content of one <meta property="..."> tag, or null when absent.
+function metaProp(html: string, prop: string): string | null {
+  const m = html.match(new RegExp(`<meta property="${prop}" content="([^"]*)"`));
+  return m ? m[1] : null;
+}
+
+describe("link-unfurl tags answer for their own page (#12)", () => {
+  const data = JSON.parse(readFileSync(join(SITE, "data/games.json"), "utf8")) as GamesData;
+
+  // og:url is per page. When Charlie copies the newest game page for a new
+  // month (the runbook's instruction), a stale og:url would otherwise pass.
+  for (const file of siteHtmlFiles()) {
+    const html = readPage(file);
+    if (!html.includes('property="og:url"')) continue;
+    const rel = file.slice(SITE.length);
+    const expected = `${ORIGIN}/${rel.replace(/index\.html$/, "")}`;
+    test(`${rel} og:url is its own address`, () =>
+      expect(metaProp(html, "og:url")).toBe(expected));
+  }
+
+  // A game page with a cardSet shares that set's art and links that set. The
+  // og:image check is the one that fired for real; the pill check is the
+  // same cause one step over (August shipped with no "The cards" pill, so
+  // the set was unreachable from the game it was minted from).
+  for (const date of gameDates()) {
+    const cardSet = data.games.find((g) => g.date === date)?.cardSet;
+    if (!cardSet) continue;
+    const html = readPage(join(SITE, "games", date, "index.html"));
+    test(`games/${date} shares its own set's card, never an older set's`, () =>
+      expect(metaProp(html, "og:image")).toStartWith(`${ORIGIN}/cards/${cardSet}/`));
+    test(`games/${date} links its own card set from the lens pills`, () =>
+      expect(html).toContain(`href="/cards/${cardSet}/"`));
+  }
+
+  // The generated pages come from tools/render.ts page(); every hand-written
+  // page carries og:type, so the generated ones should for symmetry.
+  for (const rel of ["standings/index.html", "games/index.html"]) {
+    test(`generated ${rel} carries og:type like the hand-written pages`, () =>
+      expect(metaProp(readPage(join(SITE, rel)), "og:type")).toBe("website"));
+  }
+});
+
+// The holo glare and rainbow layers (styles.css "Holo effect") cover the
+// whole .card-frame--holo box. A figcaption inside that box would be washed
+// out by both, so captions live outside the frame (the unboxed card-caption
+// lines). Pinned so a captioned figure never quietly picks up the class.
+describe("holo frames hold only the image (#12)", () => {
+  for (const file of siteHtmlFiles()) {
+    const html = readPage(file);
+    const frames = [...html.matchAll(/<(figure|div) class="card-frame card-frame--holo[^"]*"[^>]*>([\s\S]*?)<\/\1>/g)];
+    if (frames.length === 0) continue;
+    test(`${file.slice(SITE.length)} holo frames contain no figcaption`, () => {
+      for (const f of frames) expect(f[2]).not.toContain("<figcaption");
+    });
+  }
+});
+
+// The drawn-marks section of styles.css promises the -deep metal variants on
+// light bands (3:1 floor for graphical objects). The empty gem's stroke was
+// the one mark still on plain pewter, at about 2.95:1 on parchment.
+describe("styles.css keeps its own contrast promise (#12)", () => {
+  const css = readFileSync(join(SITE, "styles.css"), "utf8");
+  test(".mark--empty strokes with the -deep pewter, like every other mark", () => {
+    const rule = css.match(/\.mark--empty\s*\{[^}]*\}/)?.[0] ?? "";
+    expect(rule).toContain("var(--pewter-deep)");
+  });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { renderStandings, renderGamesIndex, renderNextGameIcs, secondTuesday } from "./render";
+import { esc, renderStandings, renderGamesIndex, renderNextGameIcs, secondTuesday } from "./render";
 import type { GamesData } from "./lib/standings";
 
 const data: GamesData = {
@@ -142,5 +142,15 @@ describe("renderNextGameIcs", () => {
     expect(ics).toContain("UID:poker-kmikeym-2026-09-08");
     expect(ics).toContain("DTSTAMP:20260908T000000Z");
     expect(ics).toContain("URL:https://poker.kmikeym.com/");
+  });
+});
+
+// Issue #12: esc() feeds double-quoted attributes (description, og:title) in
+// page(), so a double quote in a value must come out as &quot; or it would
+// end the attribute early. Every current caller passes a literal, which is
+// why nothing broke; this makes the function safe for the first non-literal.
+describe("esc", () => {
+  test("escapes the double quote along with the three angle-bracket characters", () => {
+    expect(esc('Dee "Ace" O\'B & <co>')).toBe("Dee &quot;Ace&quot; O'B &amp; &lt;co&gt;");
   });
 });
