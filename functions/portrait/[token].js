@@ -121,6 +121,14 @@ export async function onRequestGet({ request, params, env }) {
   // an upload the reload comes back through the hasArt path with `self` in
   // the list, so this branch is only ever the BEFORE state.
   const hasArt = variants.length > 0;
+  // With one crop there is nothing to pick: the intro asks for approval
+  // instead, and no confirmation names a crop letter the player was never
+  // shown (Charlie's copy pass, PR #21). `self` counts toward the total: a
+  // staged crop plus the player's own photo is a real choice.
+  const manyCrops = variants.length > 1;
+  const chooseLine = manyCrops
+    ? "Pick the crop you like best, or turn the photo down."
+    : "Approve it, or turn the photo down.";
   const selected = hasArt
     ? (current && current.answer === "approved" && variants.includes(current.variant)
         ? current.variant : variants[0])
@@ -155,7 +163,9 @@ export async function onRequestGet({ request, params, env }) {
       : current.answer === "approved"
         ? current.variant === "self"
           ? `You approved your photo on ${escapeHtml(current.answeredAt.slice(0, 10))}. You can change this any time before the set prints.`
-          : `You approved crop ${escapeHtml(String(current.variant).toUpperCase())} on ${escapeHtml(current.answeredAt.slice(0, 10))}. You can change this any time before the set prints.`
+          : manyCrops
+            ? `You approved crop ${escapeHtml(String(current.variant).toUpperCase())} on ${escapeHtml(current.answeredAt.slice(0, 10))}. You can change this any time before the set prints.`
+            : `You approved the photo on ${escapeHtml(current.answeredAt.slice(0, 10))}. You can change this any time before the set prints.`
         : `You turned the photo down on ${escapeHtml(current.answeredAt.slice(0, 10))}. You can change this any time before the set prints.`;
 
   // Renders nothing at all when uploads are not configured for this ask. The
@@ -259,7 +269,7 @@ export async function onRequestGet({ request, params, env }) {
   // that reaches it, so the line narrates the ask, not the config (spec s4).
   const intro = hasArt
     ? `<p>Your table card for the ${setName} set is below, exactly as it would print,
-  with your photo on it. Pick the crop you like best, or turn the photo down.
+  with your photo on it. ${chooseLine}
   Nothing ships until you say so.</p>`
     : canUpload
       ? `<p>Your table card for the ${setName} set currently carries your monogram.
@@ -356,7 +366,9 @@ export async function onRequestGet({ request, params, env }) {
     // the page reload to say so correctly.
     var doneText = selected === "self"
       ? "Approved, your photo. You can change this any time before the set prints."
-      : "Approved, crop " + selected.toUpperCase() + ". You can change this any time before the set prints.";
+      : ${manyCrops
+        ? `"Approved, crop " + selected.toUpperCase() + ". You can change this any time before the set prints."`
+        : `"Approved. You can change this any time before the set prints."`};
     send({ answer: "approved", variant: selected }, doneText);
   });
   document.getElementById("decline").addEventListener("click", function () {
