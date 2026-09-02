@@ -51,6 +51,30 @@ removes a named manual step; see the plan and spec section 6.
 7. Board: comment results on the month's game issue, close it, open next
    month's issue, add to project #1.
 
+## Hope Coin handoff (same commit as the game that moved it)
+
+When the Coin changes hands at a game, append one stop to `hopeCoin.history`
+(top of `site/data/games.json`) in the same commit as that game's own
+publish. A handoff touches four things, and the suite checks all four
+together, so a half-done edit fails the suite rather than shipping a Coin
+page that disagrees with itself:
+
+- Append a new stop to `hopeCoin.history` with the new stop's `holder` (the
+  slug it moved to), the new stop's `from` (the date it moved, YYYY-MM-DD),
+  the new stop's `how` (one plain sentence: what happened, nothing more),
+  and, when it is known, the new stop's `place`.
+- Set the previous stop's `to` to that same date. The previous stop is
+  whichever stop was last in `hopeCoin.history` before this one; it is the
+  only field on it that still needed closing.
+- Update the two summary fields at the very top of the file to match the
+  new last stop: `hopeCoin.holder` becomes the new stop's `holder`, and
+  `hopeCoin.since` becomes the new stop's `from`.
+
+Do all three in the same edit. The suite checks the chain end to end (the
+summary agrees with the last stop, every earlier stop's `to` is filled), so
+leaving one piece out fails the suite instead of quietly shipping a Coin
+page that tells two different stories.
+
 ## Cards (per set, still manual by design)
 
 Card copy is judgment; it does not automate. Render per
@@ -87,6 +111,55 @@ change, refresh the home page's "The cards" tile (`site/index.html`) so it
 names the set that just shipped instead of the one still in production; it
 is hand-typed copy, not runtime-filled, so nothing else will catch it going
 stale.
+
+### Card fields on every result
+
+Minting a set also touches two things on the `games.json` side that the
+steps above do not cover, because they live on the game's data, not on the
+set page itself. Do these in the same commit as the set page:
+
+- The game itself gets `cardSetName`: the set's own display name, exactly
+  as it reads on the set page, for example "The Founder's Table". Add it
+  beside `cardSet` (same game object). A game carrying `cardSet` with no
+  `cardSetName` fails the suite; there is no such thing as a set with only
+  half its name recorded.
+- Every result in that game gets a `card` block with three fields: `metal`
+  (one of `foil`, `sapphire`, `copper`, `pewter`, which the pages name
+  Foil, Rare, Uncommon, Common), `file` (the filename under
+  `site/cards/<cardSet>/assets/`, nothing more), and `title` (the caption
+  title exactly as it reads under that card on the set page, never a
+  paraphrase).
+
+A set that ships with some results carrying a `card` block and others
+missing it is the same kind of half-done state the rest of this runbook
+exists to catch; finish all of them before the commit that ships the set
+page.
+
+## Player bio (optional, one paragraph)
+
+A player's `bio` (their entry in the `players` array, top of `games.json`)
+is one paragraph in Charlie's own words, written for the public to read on
+that player's page. It follows the same dignity rule as everything else in
+`site/`, and it is never lifted from the vault's private notes; write it
+fresh for this page, even if a private note already says something similar.
+
+Leave `bio` absent when there is nothing ready to publish yet. The page
+simply renders with no analysis block in that case; an absent `bio` is a
+complete, valid state, not a placeholder waiting to be filled.
+
+## Adding a trophy
+
+A new trophy is one entry in `tools/lib/trophies.ts`: an id, a name, an
+earn line, a look, and, for anything derived from the record rather than
+judged by a human at the table, a rule. That file is the single place a
+trophy gets added; read its own header comment before adding one. Do not
+copy its list of ids into this runbook: a copied list is a second list that
+goes stale the moment the real one changes, and Charlie should always be
+reading the one true list, not a snapshot of it.
+
+After adding an entry, run the suite (`bun test tools`). It rejects a
+malformed entry, such as a missing field or a rule left off a trophy that
+needs one, before it can reach a page.
 
 ## Portrait consent (per set, Tier 2b)
 

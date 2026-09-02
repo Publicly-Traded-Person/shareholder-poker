@@ -93,5 +93,3 @@ narrative page → update `nextGame` in `games.json` → review the whole diff �
   and the games index derives from the earliest game plus that list, so a
   backfilled season is removed from the list in the same commit as its game
   (docs/publishing.md step 5). Nothing about the record's span is typed.
-- Spec gaps parked at ship: trophies + rarity ladder on `/standings/`
-  (spec §4); rarity accent classes defined but barely used (§7).
