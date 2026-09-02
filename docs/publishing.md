@@ -8,8 +8,9 @@ removes a named manual step; see the plan and spec section 6.
 1. Export the PokerNow log CSV. It is PRIVATE; it never enters this repo.
 2. Write `results.json` (the judged part): `[{handle, finish, payout, rebuys, trophies}]`.
 3. Run: `bun tools/publish-game.ts <log.csv> --date YYYY-MM-DD --results results.json`
-   - Halts on chip-conservation mismatch or an unknown handle. Fix the input,
-     never the check.
+   - Halts on chip-conservation mismatch, an unknown handle, or a trophy id
+     in `results.json` that is not one of the ids in `tools/lib/trophies.ts`.
+     Fix the input, never the check.
 4. Write the narrative page `site/games/<date>/index.html` (copy an existing
    game page shell). Dignity rule; no em dashes; no collections/owed content.
    Then inject the chip race into it (the shell carries CHIP-RACE markers;

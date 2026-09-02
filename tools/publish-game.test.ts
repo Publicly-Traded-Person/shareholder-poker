@@ -66,4 +66,29 @@ describe("prepareGame", () => {
     ];
     expect(() => prepareGame(csv, wrongPayout, data, { date: "2026-01-01", buyIn: 50 })).toThrow(/payout/i);
   });
+  test("halts on a trophy id the registry does not know", () => {
+    const typo = [
+      { handle: "alice", finish: 1, payout: 105, rebuys: 0, trophies: ["hope-slyer"] },
+      { handle: "bob", finish: 2, payout: 45, rebuys: 0, trophies: [] },
+      { handle: "carol", finish: 3, payout: 0, rebuys: 0, trophies: [] },
+    ];
+    expect(() => prepareGame(csv, typo, data, { date: "2026-01-01", buyIn: 50 })).toThrow(
+      /hope-slyer.*trophies\.ts/s
+    );
+  });
+  test("accepts trophy ids the registry knows, unchanged", () => {
+    const withTrophies = [
+      { handle: "alice", finish: 1, payout: 105, rebuys: 0, trophies: ["hope-slayer", "cain-and-abel"] },
+      { handle: "bob", finish: 2, payout: 45, rebuys: 0, trophies: [] },
+      { handle: "carol", finish: 3, payout: 0, rebuys: 0, trophies: [] },
+    ];
+    const g = prepareGame(csv, withTrophies, data, { date: "2026-01-01", buyIn: 50 });
+    expect(g.results.find(r => r.slug === "alice")!.trophies).toEqual(["hope-slayer", "cain-and-abel"]);
+  });
+  test("accepts a game where every result's trophies is empty (the happy path, unchanged by the new check)", () => {
+    const g = prepareGame(csv, results, data, { date: "2026-01-01", buyIn: 50 });
+    expect(g.entries).toBe(3);
+    expect(g.pot).toBe(150);
+    expect(g.results.map(r => r.finish)).toEqual([1, 2, 3]);
+  });
 });

@@ -49,10 +49,10 @@ export type DerivedRule = (data: GamesData, slug: string) => Earned | null;
 
 // One row of the trophy case. `kind: "judged"` trophies are the ones a
 // human records on a result at publish time (results.json carries the id
-// verbatim). Task 4 of this plan adds the publish-game.ts halt on an id
-// that is not one of these six — that check does not exist yet, so as of
-// this file nothing stops a typo'd id from reaching results.json; do not
-// read this comment as a present-tense guarantee. `kind: "derived"`
+// verbatim). tools/publish-game.ts's prepareGame halts on an id that is not
+// one of these six, built from this very array (Task 4 of this plan) so a
+// typo'd id stops the publish instead of quietly reaching results.json and
+// awarding nothing. `kind: "derived"`
 // trophies carry a `rule` instead and are computed fresh from the record
 // every time trophyCase runs. A judged entry never carries a rule (there is
 // nothing to derive) and a derived entry always does (there is nothing else
@@ -207,11 +207,10 @@ const theBubbleRule: DerivedRule = fromResults("the-bubble", (result, game) => {
 // a derived one) before it can reach a page.
 export const TROPHIES: Trophy[] = [
   // Judged: a human records these ids on a result in results.json at
-  // publish time (docs/publishing.md). Task 4 of this plan is what makes
-  // publish-game.ts halt on an id that is not one of these six, the same
-  // way it already halts on an unknown handle — that halt is not built yet,
-  // so today nothing but this comment stops a bad id from reaching
-  // results.json. Never guess an id into existence there or here.
+  // publish time (docs/publishing.md). publish-game.ts's prepareGame halts
+  // on an id that is not one of these six, the same way it already halts on
+  // an unknown handle (Task 4 of this plan). Never guess an id into
+  // existence there or here.
   {
     id: "hope-slayer",
     name: "Hope Slayer",

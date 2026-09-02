@@ -5,6 +5,7 @@
 import { parseRows, stackSnapshots, handCount, entryCount } from "./lib/pokernow";
 import { resolveSlug } from "./lib/slugs";
 import { renderStandings, renderGamesIndex } from "./render";
+import { TROPHIES } from "./lib/trophies";
 import type { Game, GamesData } from "./lib/standings";
 
 export type ResultInput = { handle: string; finish: number; payout: number; rebuys: number; trophies: string[] };
@@ -58,6 +59,26 @@ export function prepareGame(
       `payout mismatch: results.json payouts sum to ${totalPayout} but the pot is ${pot} ` +
       `(${entries} entries x $${opts.buyIn}). Fix results.json; do not publish.`
     );
+  }
+
+  // Every judged trophy id in results.json must be one tools/lib/trophies.ts
+  // actually defines. Without this, a typo'd id (e.g. "hope-slyer" for
+  // "hope-slayer") would not error anywhere: trophyCase() simply finds no
+  // registry entry matching it and awards nothing, so the player at the
+  // table quietly loses a trophy they were given and nobody notices until
+  // someone asks where it went. The lookup is built from TROPHIES itself,
+  // never a second list of ids typed out here, because a second list is
+  // exactly the kind of thing this registry exists to make unnecessary.
+  const knownTrophyIds = new Set(TROPHIES.map(t => t.id));
+  for (const r of results) {
+    for (const id of r.trophies) {
+      if (!knownTrophyIds.has(id)) {
+        throw new Error(
+          `unknown trophy id "${id}" on ${r.handle}'s result: tools/lib/trophies.ts has no entry ` +
+          `for it. Fix results.json (or add the trophy to trophies.ts if it is genuinely new); do not publish.`
+        );
+      }
+    }
   }
 
   return {
