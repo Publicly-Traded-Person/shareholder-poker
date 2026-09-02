@@ -2,7 +2,14 @@
 // Run: bun tools/render.ts   (reads site/data/games.json, writes site/*/index.html)
 import { deriveStandings, type GamesData } from "./lib/standings";
 
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// HTML-escapes a string for use in text content OR inside a double-quoted
+// attribute. Takes any string; returns it with & < > and " replaced by their
+// entities; throws nothing. The double quote matters because page() feeds
+// this into content="..." attributes (description, og:title): every caller
+// today passes a literal, but the first non-literal must not be able to end
+// the attribute early (issue #12). Exported for its unit test only.
+export const esc = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 // The generated record starts with July 2026, the first game on the games.json
 // data spine. Earlier seasons (2020, and April and June 2026) are real games,
@@ -61,6 +68,7 @@ function page(
 <meta property="og:title" content="${esc(title)} | K5M Shareholder Poker">
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:url" content="https://poker.kmikeym.com${current}">
+<meta property="og:type" content="website">
 <meta property="og:image" content="https://poker.kmikeym.com/cards/2026-07/assets/card-1-lewd.png">
 <meta name="twitter:card" content="summary">
 <link rel="stylesheet" href="/styles.css">

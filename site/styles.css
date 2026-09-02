@@ -218,10 +218,12 @@ h2.display { font-size: clamp(1.4rem, 4vw, 2rem); margin: 0 0 .6em; }
   text-decoration: none; color: var(--ink);
 }
 .pills a:hover { border-color: var(--sapphire); color: var(--sapphire); }
-/* Scoped the same way as the .band-cta a rule above: a bare .pills a
-   (specificity 0,1,1) loses to the pre-existing .band-dark a rule (0,2,1)
-   when a pill sits in a parchment band, so pills silently rendered
-   sapphire there instead of ink. Repeat the color pair per band tone. */
+/* Scoped per band tone as reorder-proofing. A bare .pills a (0,1,1) TIES
+   with the .band-dark a rule above (also 0,1,1) and wins only because it
+   comes later in this file; move either rule and pills in a parchment band
+   silently go sapphire instead of ink. The scoped pair below wins on
+   specificity (0,2,1) regardless of order, so the outcome no longer depends
+   on where anyone puts a rule. */
 .band-light .pills a, .band-dark .pills a { color: var(--ink); }
 .band-light .pills a:hover, .band-dark .pills a:hover { border-color: var(--sapphire); color: var(--sapphire); }
 
@@ -311,7 +313,7 @@ h2.display { font-size: clamp(1.4rem, 4vw, 2rem); margin: 0 0 .6em; }
 .mark--sapphire { fill: var(--sapphire); }
 .mark--copper { fill: var(--copper-deep); }
 .mark--pewter { fill: var(--pewter-deep); }
-.mark--empty { fill: none; stroke: var(--pewter); stroke-width: 1.2; }
+.mark--empty { fill: none; stroke: var(--pewter-deep); stroke-width: 1.2; }
 .coin-ring { fill: none; stroke: var(--foil-deep); stroke-width: 1.5; }
 .coin-core { fill: var(--foil-deep); }
 
@@ -333,6 +335,11 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
       rotateY(calc((var(--hx) - .5) * 16deg))
       rotateX(calc((.5 - var(--hy)) * 16deg));
   }
+  /* Both overlay layers below (::before glare, ::after rainbow) cover the
+     whole frame box, so a .card-frame--holo must hold only the <img>: any
+     figcaption inside the frame would sit under both washes. Captions
+     belong outside the frame (the unboxed card-caption lines), and
+     tools/site.test.ts pins that. */
   .card-frame--holo::before {
     content: ""; position: absolute; inset: 0; z-index: 1;
     pointer-events: none; opacity: 0;

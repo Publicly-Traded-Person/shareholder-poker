@@ -13,14 +13,21 @@
   if (reduced.matches || !finePointer.matches) return;
   document.querySelectorAll(".card-frame--holo").forEach(function (card) {
     var raf = 0;
+    var box = null;
     card.addEventListener("pointerenter", function () {
       card.classList.add("is-holo");
+      /* Measured once per hover, right after .is-holo lands while --hx/--hy
+         are still .5 (an identity transform), so this is the untilted box.
+         Reading it inside the rAF below saw the already-rotated box and
+         skewed the pointer mapping by a few percent toward the edges. Goes
+         stale if the page scrolls mid-hover; the next pointerenter refreshes. */
+      box = card.getBoundingClientRect();
     });
     card.addEventListener("pointermove", function (e) {
       if (raf) return; /* one write per frame, not per event */
       raf = requestAnimationFrame(function () {
         raf = 0;
-        var r = card.getBoundingClientRect();
+        var r = box || card.getBoundingClientRect();
         card.style.setProperty("--hx", (e.clientX - r.left) / r.width);
         card.style.setProperty("--hy", (e.clientY - r.top) / r.height);
       });
@@ -29,6 +36,7 @@
       /* A pointermove rAF scheduled just before pointerleave fires afterwards
          and overwrites the .5 reset with stale coordinates; cancel it. */
       if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      box = null;
       card.classList.remove("is-holo");
       card.style.setProperty("--hx", 0.5);
       card.style.setProperty("--hy", 0.5);
