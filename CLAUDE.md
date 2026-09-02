@@ -88,8 +88,10 @@ narrative page → update `nextGame` in `games.json` → review the whole diff �
 ## Known open items (as of 2026-08-18)
 
 - April + June 2026 and the 2020 season are not yet in `games.json` (needs
-  Mike's payout/rebuy records). The standings page says the record starts
-  July 2026; that qualifier is hardcoded in `tools/render.ts` and must be
-  updated (or derived from data) when backfilling.
+  Mike's payout/rebuy records). They are listed in `backfillPending` at the
+  top of `games.json`; the "This record starts with ..." line on standings
+  and the games index derives from the earliest game plus that list, so a
+  backfilled season is removed from the list in the same commit as its game
+  (docs/publishing.md step 5). Nothing about the record's span is typed.
 - Spec gaps parked at ship: trophies + rarity ladder on `/standings/`
   (spec §4); rarity accent classes defined but barely used (§7).

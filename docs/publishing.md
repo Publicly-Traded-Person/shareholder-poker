@@ -40,6 +40,13 @@ removes a named manual step; see the plan and spec section 6.
    `bun tools/render.ts`: the season page's next-game card, its upcoming
    projections, and `site/next-game.ics` all derive from `nextGame`, and the
    pre-merge drift check fails if the regeneration is skipped.
+
+   Backfilling an old season instead of publishing a new game? Delete that
+   season from `backfillPending` (top of `games.json`) in the same commit.
+   The "This record starts with ..." line on standings and the games index
+   derives from the earliest game on the spine plus that list; the list is
+   the only thing that knows a season is still missing, so an entry left
+   behind would keep announcing a backfill that already happened.
 6. Review the full diff. Get Mike's explicit go. Push. Cloudflare deploys.
 7. Board: comment results on the month's game issue, close it, open next
    month's issue, add to project #1.

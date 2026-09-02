@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { esc, renderStandings, renderGamesIndex, renderNextGameIcs, secondTuesday } from "./render";
+import { esc, recordQualifier, renderStandings, renderGamesIndex, renderNextGameIcs, secondTuesday } from "./render";
 import type { GamesData } from "./lib/standings";
 
 const data: GamesData = {
   nextGame: { date: "2026-09-08", time: "7:00pm PT" },
+  backfillPending: ["2020", "April 2026", "June 2026"],
   hopeCoin: { holder: "nick-m", since: "2026-04-14" },
   players: [
     { slug: "nick-m", name: "Nick M.", aka: ["nickmershon"] },
@@ -31,10 +32,9 @@ describe("renderStandings", () => {
     expect(html).toContain("Hope Coin");
     expect(html).toContain("1 of 3");
   });
-  test("states the record starts with July 2026 and earlier seasons are being backfilled", () => {
-    expect(html).toContain("This record starts with July 2026");
-    expect(html).toContain("2020, and April and June 2026");
-    expect(html).toContain("backfilled");
+  test("states the record starts with its earliest game and names the seasons still pending", () => {
+    expect(html).toContain("This record starts with July 2026.");
+    expect(html).toContain("Earlier seasons (2020, April 2026, and June 2026) predate the data spine and are being backfilled.");
   });
   test("contains no em dash", () => {
     expect(html).not.toContain("—");
@@ -69,10 +69,9 @@ describe("renderGamesIndex", () => {
   test("names the winner", () => {
     expect(html).toContain("Chris G.");
   });
-  test("states the record starts with July 2026 and earlier seasons are being backfilled", () => {
-    expect(html).toContain("This record starts with July 2026");
-    expect(html).toContain("2020, and April and June 2026");
-    expect(html).toContain("backfilled");
+  test("states the record starts with its earliest game and names the seasons still pending", () => {
+    expect(html).toContain("This record starts with July 2026.");
+    expect(html).toContain("Earlier seasons (2020, April 2026, and June 2026) predate the data spine and are being backfilled.");
   });
   test("contains no em dash", () => {
     expect(html).not.toContain("—");
@@ -152,5 +151,44 @@ describe("renderNextGameIcs", () => {
 describe("esc", () => {
   test("escapes the double quote along with the three angle-bracket characters", () => {
     expect(esc('Dee "Ace" O\'B & <co>')).toBe("Dee &quot;Ace&quot; O'B &amp; &lt;co&gt;");
+  });
+});
+
+// Issue #3: the "record starts with" line used to be a hardcoded string, so a
+// backfill that added 2020 games would have left the standings page claiming
+// the record starts in July 2026 while displaying 2020. Both halves now come
+// from games.json: the month from the earliest game on the spine, the
+// pending list from backfillPending, which Charlie trims in the same commit
+// as each backfilled game.
+describe("recordQualifier", () => {
+  const april: GamesData = {
+    ...data,
+    games: [
+      ...data.games,
+      { date: "2026-04-14", hands: 150, startingStack: 5000, buyIn: 50, entries: 2, pot: 100,
+        results: [
+          { slug: "nick-m", handle: "nickmershon", finish: 1, payout: 100, rebuys: 0, trophies: [] },
+          { slug: "chris-g", handle: "LEWD", finish: 2, payout: 0, rebuys: 0, trophies: [] },
+        ] },
+    ],
+    backfillPending: ["2020", "June 2026"],
+  };
+  test("takes the start month from the earliest game, whatever order games.json lists them in", () => {
+    expect(recordQualifier(april)).toStartWith("This record starts with April 2026.");
+  });
+  test("lists the pending seasons with an Oxford comma", () => {
+    expect(recordQualifier(april)).toContain("Earlier seasons (2020 and June 2026) predate the data spine and are being backfilled.");
+    expect(recordQualifier(data)).toContain("(2020, April 2026, and June 2026)");
+  });
+  test("a single pending season reads as one, not a list", () => {
+    expect(recordQualifier({ ...data, backfillPending: ["2020"] }))
+      .toContain("Earlier seasons (2020) predate the data spine and are being backfilled.");
+  });
+  test("drops the backfill sentence entirely once nothing is pending", () => {
+    for (const pending of [[], undefined]) {
+      const q = recordQualifier({ ...data, backfillPending: pending });
+      expect(q).toBe("This record starts with July 2026.");
+      expect(q).not.toContain("backfilled");
+    }
   });
 });

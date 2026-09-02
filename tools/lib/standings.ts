@@ -22,6 +22,12 @@ export type Game = {
 
 export type GamesData = {
   nextGame: { date: string; time: string };
+  // Seasons that are real games but not yet on this spine, as they should
+  // read on the page ("2020", "April 2026"). Drives the "being backfilled"
+  // sentence in tools/render.ts recordQualifier(); remove an entry in the
+  // same commit as the game it names. Absent or empty once nothing is
+  // missing, and the sentence disappears with it.
+  backfillPending?: string[];
   hopeCoin: { holder: string; since: string };
   players: { slug: string; name: string; aka: string[] }[];
   games: Game[];

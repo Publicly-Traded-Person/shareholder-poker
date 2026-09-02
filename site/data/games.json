@@ -3,6 +3,11 @@
     "date": "2026-09-08",
     "time": "7:00pm PT"
   },
+  "backfillPending": [
+    "2020",
+    "April 2026",
+    "June 2026"
+  ],
   "portraitUploads": true,
   "hopeCoin": {
     "holder": "nick-m",
