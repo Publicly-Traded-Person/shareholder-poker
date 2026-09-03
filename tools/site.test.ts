@@ -656,7 +656,6 @@ describe("running the real renderer leaves the generated paths clean (#27, Task 
   test("git status --porcelain reports no change under the five generated paths", () => {
     const repoRoot = join(SITE, "..");
     const renderTs = join(repoRoot, "tools", "render.ts");
-    execFileSync(process.execPath, [renderTs], { cwd: repoRoot, stdio: "pipe" });
     const watched = [
       "site/standings/index.html",
       "site/games/index.html",
@@ -664,6 +663,41 @@ describe("running the real renderer leaves the generated paths clean (#27, Task 
       "site/player/",
       "site/hope-coin/",
     ];
+
+    // GUARD - DO NOT REMOVE (round 1 review, coordinator ruling: silent data
+    // loss reported as success is not shippable). Everything below this
+    // comment and above the `execFileSync(process.execPath, ...)` render
+    // call runs BEFORE the renderer touches disk, on purpose.
+    //
+    // This test's whole point is to run `bun tools/render.ts` for real, in
+    // place, over the actual committed site/ tree - that is what lets it
+    // prove the committed bytes agree with the generator (M2). But
+    // `Bun.write` has no concept of "something was already sitting here
+    // that I should not clobber": it just overwrites. If Charlie has an
+    // UNCOMMITTED hand-edit to any of the five watched paths when he runs
+    // `bun test tools` - for some completely unrelated reason, a month from
+    // now, at night, having not written this file - this test would
+    // silently regenerate over that edit, destroy it, and then report
+    // "clean" as if nothing happened. Silent data loss reported as success
+    // is exactly what this check exists to prevent, not cause. So: check
+    // for a dirty tree on these paths BEFORE rendering, and refuse loudly
+    // instead of running the renderer over anything that is not already
+    // clean. A future edit that deletes this pre-check to "simplify" the
+    // test would silently reintroduce the data-loss bug this guard was
+    // written to close - don't.
+    const preStatus = execFileSync("git", ["status", "--porcelain", "--", ...watched], {
+      cwd: repoRoot,
+    }).toString();
+    expect(
+      preStatus,
+      "bun test tools is about to run `bun tools/render.ts` for real and " +
+      "overwrite the generated pages in site/ - but the working copy of a " +
+      "generated file already has an uncommitted change, which this would " +
+      "destroy:\n" + preStatus +
+      "\nCommit or stash the change to the dirty path(s) above, then re-run `bun test tools`."
+    ).toBe("");
+
+    execFileSync(process.execPath, [renderTs], { cwd: repoRoot, stdio: "pipe" });
     const status = execFileSync("git", ["status", "--porcelain", "--", ...watched], {
       cwd: repoRoot,
     }).toString();

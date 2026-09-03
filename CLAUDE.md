@@ -45,7 +45,7 @@ D1 `poker-rsvp-db`). Spec: `docs/superpowers/specs/2026-08-17-poker-quarterly-sy
 ## Commands
 
 ```bash
-bun test tools          # the suite (58 tests at ship). Green before any commit.
+bun test tools          # the suite (564 tests as of the player-pages/trophies/Hope-Coin ship). Green before any commit.
 bun tools/render.ts     # regenerate site/standings/, site/games/, site/next-game.ics, one site/player/<slug>/ per player on the spine, and site/hope-coin/ from games.json
 bun tools/publish-game.ts <log.csv> --date YYYY-MM-DD --results results.json
 bun tools/chip-race.ts <log.csv> --date YYYY-MM-DD --start 5000 --inject site/games/<date>/index.html

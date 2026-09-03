@@ -3,6 +3,17 @@
 Ratchet status: pass 1 (one command + narrative + Mike's go). Each pass
 removes a named manual step; see the plan and spec section 6.
 
+**Running the suite writes to `site/`.** `bun test tools` is not read-only:
+one of its checks (`tools/site.test.ts`, "the generated paths clean") re-runs
+`bun tools/render.ts` for real, in place, to prove the committed standings
+page, games index, calendar file, player pages, and Hope Coin page are
+exactly what the generator produces. If you have an uncommitted hand-edit
+sitting on any of those five paths when you run the suite, that check
+refuses instead of silently overwriting it - it names the dirty path in its
+failure message and tells you to commit or stash it before re-running. If
+you hit that refusal, that is what it means: finish or set aside your
+in-progress edit first, then run `bun test tools` again on a clean tree.
+
 ## Game night + day after
 
 1. Export the PokerNow log CSV. It is PRIVATE; it never enters this repo.
