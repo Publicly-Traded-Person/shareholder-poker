@@ -520,6 +520,41 @@ describe("renderHopeCoin", () => {
     expect(blocks[2]).toContain("since April 2026"); // nick-m: from 2026-04-14, current
   });
 
+  // Round 1 review: this branch is not hypothetical. validateCoinHistory
+  // (tools/lib/hope-coin.ts, rule 4) explicitly permits a history whose
+  // only stop is simultaneously first and last with no `from` at all
+  // ("nobody remembers when this reign began, and there is no later stop
+  // to compare `since` against either"). It is exactly the shape the first
+  // remembered-from-memory stop will arrive in once Mike appends one whose
+  // start date he cannot pin down - the explicit next step for this page.
+  // "Never invent a date" is the whole point of this task, so the one
+  // branch that guards the least-constrained case (no `from`, and no next
+  // stop to borrow one from either) gets its own fixture rather than
+  // riding along on hcData, where every stop already has a real date.
+  test("M4: a solo stop with no from and no next stop to borrow from renders no date phrase at all", () => {
+    const soloData: GamesData = {
+      nextGame: { date: "2026-10-13", time: "7:00pm PT" },
+      hopeCoin: {
+        holder: "nick-m",
+        since: "2026-04-14",
+        history: [
+          { holder: "nick-m", how: "Held it since before anyone kept records." },
+        ],
+      },
+      players: [{ slug: "nick-m", name: "Nick M.", aka: ["nickmershon"] }],
+      games: [],
+    };
+    const solo = renderHopeCoin(soloData);
+    const blocks = routeStopBlocks(solo);
+    expect(blocks.length).toBe(1);
+    // Still marked current (it is the last, and only, stop) even though it
+    // has no date phrase to show.
+    expect(blocks[0]).toContain("route-stop--current");
+    // No <span class="stat"> at all - not an empty one, not a guessed date.
+    expect(blocks[0]).not.toContain('<span class="stat">');
+    expect(blocks[0]).toContain("Held it since before anyone kept records.");
+  });
+
   test("M5: exactly one stop is marked current, and it is the last one", () => {
     expect(html.split("route-stop--current").length - 1).toBe(1);
     const blocks = routeStopBlocks(html);
