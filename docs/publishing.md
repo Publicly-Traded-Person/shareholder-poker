@@ -56,11 +56,13 @@ removes a named manual step; see the plan and spec section 6.
 
 When the Coin changes hands at a game, append one stop to `hopeCoin.history`
 (top of `site/data/games.json`) in the same commit as that game's own
-publish. A handoff touches four things. Task 6 of this plan is what adds a
-chain validator that will catch a half-done handoff (a stop with no `to`
-that is not actually the last one, a summary that disagrees with the last
-stop); that validator does not exist yet, so nothing enforces this today.
-Do all four by hand:
+publish. A handoff touches four things. `validateCoinHistory`
+(`tools/lib/hope-coin.ts`, wired into `tools/data.test.ts`) is the chain
+validator that catches a half-done handoff — a stop with no `to` that is
+not actually the last one, a summary that disagrees with the last stop,
+stops out of order, or a stop whose `to` does not match the next stop's
+`from`. It only checks; it does not write anything for you, so still do
+all four by hand and then run `bun test tools` before you commit:
 
 - Append a new stop to `hopeCoin.history` with the new stop's `holder` (the
   slug it moved to), the new stop's `from` (the date it moved, YYYY-MM-DD),
@@ -73,11 +75,13 @@ Do all four by hand:
   new last stop: `hopeCoin.holder` becomes the new stop's `holder`, and
   `hopeCoin.since` becomes the new stop's `from`.
 
-Do all three in the same edit regardless of Task 6's status: until it
-ships, nothing checks the chain end to end (that the summary agrees with
-the last stop, that every earlier stop's `to` is filled), and leaving one
-piece out will publish a Coin page that quietly tells two different
-stories.
+Do all three in the same edit. `bun test tools` now checks the chain end to
+end (that the summary agrees with the last stop, that every earlier stop's
+`to` is filled, that stops run oldest to newest with no gap between one
+stop's `to` and the next stop's `from`), so leaving a piece out fails the
+suite instead of quietly publishing a Coin page that tells two different
+stories. Read the failure message; it names the stop and the fields that
+disagree.
 
 ## Cards (per set, still manual by design)
 

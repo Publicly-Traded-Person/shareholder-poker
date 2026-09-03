@@ -11,7 +11,14 @@
   "portraitUploads": true,
   "hopeCoin": {
     "holder": "nick-m",
-    "since": "2026-04-14"
+    "since": "2026-04-14",
+    "history": [
+      {
+        "holder": "nick-m",
+        "from": "2026-04-14",
+        "how": "Third skull on Matt M."
+      }
+    ]
   },
   "players": [
     {

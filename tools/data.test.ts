@@ -9,6 +9,7 @@
 // surname (kmikeym, webvee) are fine. See docs/brand.md "Names".
 import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
+import { validateCoinHistory } from "./lib/hope-coin";
 import type { GamesData } from "./lib/standings";
 
 const data = JSON.parse(
@@ -49,6 +50,28 @@ describe("data consistency (the checks the seed validator ran, now permanent)", 
   });
   test("hopeCoin holder is a known slug", () => {
     expect(slugs.has(data.hopeCoin.holder)).toBe(true);
+  });
+});
+
+// Task 6: the Hope Coin chain validator, run against the REAL file. This is
+// what puts site/data/games.json's own hopeCoin.history under the same rule
+// Charlie's monthly append is checked against — see tools/lib/hope-coin.ts
+// and its own fixture-based tests in tools/lib/hope-coin.test.ts.
+describe("hope coin chain (Task 6)", () => {
+  test("validateCoinHistory does not throw on the committed data", () => {
+    expect(() => validateCoinHistory(data)).not.toThrow();
+  });
+  test("history carries exactly the one seeded stop: nick-m from 2026-04-14, still current", () => {
+    // Mike, 2026-09-02: ship with only the one stop the record already
+    // knows; every earlier stop is his to reconstruct from memory and
+    // arrives later as a data-only commit. Never let this test's shape grow
+    // to expect more than one stop until that commit actually lands.
+    const history = data.hopeCoin.history ?? [];
+    expect(history.length).toBe(1);
+    expect(history[0].holder).toBe("nick-m");
+    expect(history[0].from).toBe("2026-04-14");
+    expect(history[0].to).toBeUndefined();
+    expect(history[0].how.length).toBeGreaterThan(0);
   });
 });
 
