@@ -4,7 +4,7 @@ import {
   playerSlugs, renderPlayer, renderHopeCoin,
 } from "./render";
 import { deriveStandings, type GamesData } from "./lib/standings";
-import { TROPHIES } from "./lib/trophies";
+import { TROPHIES, displayOrder } from "./lib/trophies";
 
 const data: GamesData = {
   nextGame: { date: "2026-09-08", time: "7:00pm PT" },
@@ -316,6 +316,63 @@ describe("renderStandings trophy shelf (Task 9, spec §5.3)", () => {
     const shelf = bareCells(rowFor(renderStandings(coinData), "Coin H."))[1]!;
     expect(shelf).toContain('role="img" aria-label="Hope Coin" title="Hope Coin"');
     expect(shelf).not.toContain("The Hope Coin");
+  });
+});
+
+// The standings trophy legend (spec follow-up 2026-09-03, task 11): reads
+// TROPHIES directly through displayOrder(), never a second list, so a
+// sixteenth registry entry needs no edit to this file or to
+// tools/render.ts's own trophyLegend(). `data` (top of this file) is a
+// generic two-player fixture with nothing to do with trophies - deliberately
+// reused here rather than a trophy-shaped fixture like shelfData above,
+// because the legend's whole point is that it never varies with who earned
+// what; it is one fixed key for the whole registry, not a per-player view.
+describe("renderStandings trophy legend (spec follow-up 2026-09-03, task 11)", () => {
+  const html = renderStandings(data);
+  const tableEnd = html.indexOf("</table>");
+  const legendMatch = /<ul class="trophy-legend">([\s\S]*?)<\/ul>/.exec(html);
+
+  test("the legend exists, once, after the ledger table closes", () => {
+    expect(tableEnd).toBeGreaterThan(-1);
+    expect(legendMatch).not.toBeNull();
+    expect(html.indexOf('<ul class="trophy-legend">')).toBeGreaterThan(tableEnd);
+    // Exactly one legend on the page - two would mean this got called twice.
+    expect(html.match(/<ul class="trophy-legend">/g)?.length).toBe(1);
+  });
+
+  // The central rule this task exists to enforce: the count comes from the
+  // registry itself, not a number written into this test or the renderer.
+  // Changing TROPHIES.length (adding or removing a trophy) must change this
+  // test's own expectation without anyone editing the literal below.
+  test("the legend has exactly one entry per registry trophy - the count tracks TROPHIES.length, never a hardcoded number", () => {
+    const items = legendMatch![1]!.match(/<li>/g) ?? [];
+    expect(items.length).toBe(TROPHIES.length);
+    expect(TROPHIES.length).toBeGreaterThan(0); // sanity: a passing count of 0 would prove nothing
+  });
+
+  test("the legend names every trophy exactly once, in displayOrder()'s own order", () => {
+    const names = [...legendMatch![1]!.matchAll(/<span>([^<]+)<\/span>/g)].map((m) => m[1]);
+    expect(names).toEqual(displayOrder().map((t) => t.name));
+  });
+
+  // Draws with the same helper the shelf and the trophy case use (never a
+  // second SVG switch): every entry's mark is a real <svg class="mark ...">,
+  // and it is drawn EARNED (never trophyMarkLocked's grey .mark--empty
+  // outline) - the legend explains what a shape/metal means, not whether
+  // anyone in particular has earned it.
+  test("each entry pairs a real drawn mark with its name, drawn earned (not the locked/empty outline)", () => {
+    const items = [...legendMatch![1]!.matchAll(/<li>([\s\S]*?)<\/li>/g)].map((m) => m[1]!);
+    expect(items.length).toBe(TROPHIES.length);
+    for (const item of items) {
+      expect(item).toContain('<svg class="mark');
+      expect(item).not.toContain("mark--empty");
+    }
+  });
+
+  test("no em dash, no btn-primary, inside the legend", () => {
+    const body = legendMatch![1]!;
+    expect(body).not.toContain("—");
+    expect(body).not.toContain("btn-primary");
   });
 });
 
@@ -864,5 +921,57 @@ describe("renderHopeCoin", () => {
     expect(html).toContain(
       '<meta property="og:image" content="https://poker.kmikeym.com/cards/2026-07/assets/card-1-lewd.png">'
     );
+  });
+
+  // M8 (spec follow-up 2026-09-03, task 11): hopeCoin.historyPending. The
+  // real hopeCoin.history's earliest stop is the only one the record can
+  // currently date, but the Coin is older than that - Mike is reconstructing
+  // its earlier stops from memory. This flag is the ONLY thing that puts a
+  // sentence saying so on the page, mirroring recordQualifier's own
+  // backfillPending-driven sentence (top of this file) so a hardcoded line
+  // can never survive on the page after the data underneath it changes.
+  // hcData itself carries no historyPending, so `html` (already built above,
+  // from hcData) is this test's "flag absent" case; only the "flag true"
+  // case below needs its own variant.
+  const SENTENCE =
+    "The journey starts with the stop the record can date. The Coin is older than that, and its earlier stops are being reconstructed.";
+
+  test('M8: with historyPending true, the owner\'s sentence appears verbatim under "The journey" heading, above the route', () => {
+    const pendingHtml = renderHopeCoin({
+      ...hcData,
+      hopeCoin: { ...hcData.hopeCoin, historyPending: true },
+    });
+    expect(pendingHtml).toContain(SENTENCE);
+    const headingIdx = pendingHtml.indexOf('<h2 class="rule-label">The journey</h2>');
+    const sentenceIdx = pendingHtml.indexOf(SENTENCE);
+    const routeIdx = pendingHtml.indexOf('<ol class="route">');
+    expect(headingIdx).toBeGreaterThan(-1);
+    expect(sentenceIdx).toBeGreaterThan(headingIdx);
+    expect(routeIdx).toBeGreaterThan(sentenceIdx);
+  });
+
+  // The test that actually matters (task 11's own framing): a line that
+  // cannot disappear is the bug this design exists to prevent. hcData
+  // carries no historyPending at all - the state the flag is in BOTH before
+  // it is ever set and after Charlie deletes it once the history is
+  // finished - so this is the one case standing between "derived" and "a
+  // sentence someone forgot to delete."
+  test("M8: with historyPending absent, the sentence never appears at all", () => {
+    expect(html).not.toContain(SENTENCE);
+    expect(html).not.toContain("being reconstructed");
+  });
+
+  // Same absence, checked explicitly for `historyPending: false` too - the
+  // type allows it even though docs/publishing.md's own convention is
+  // "delete the field, never flip it to false" (so a reader never has to
+  // guess what a lingering `false` means); this proves the renderer treats
+  // that value the same as absent rather than only ever having been tested
+  // against `undefined`.
+  test("M8: with historyPending explicitly false, the sentence still never appears", () => {
+    const falseHtml = renderHopeCoin({
+      ...hcData,
+      hopeCoin: { ...hcData.hopeCoin, historyPending: false },
+    });
+    expect(falseHtml).not.toContain(SENTENCE);
   });
 });

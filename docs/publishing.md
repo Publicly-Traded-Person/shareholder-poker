@@ -142,6 +142,34 @@ Run `bun test tools` after a prepend the same as after an append.
 have a separate "prepend mode," it just checks the whole array's shape, so
 a broken prepend fails the exact same rules a broken append would.
 
+### The Coin's history is still being reconstructed
+
+The real `hopeCoin.history` today starts with the nick-m stop from April
+2026; the Coin is older than that, and Mike is recovering its earlier stops
+from memory, one prepend at a time, per the section just above. Until every
+stop back to the actual beginning is recovered, `hopeCoin.historyPending`
+(top of `games.json`, beside `holder` and `since`) stays `true`. While it
+is, the Hope Coin page prints one extra sentence under "The journey"
+heading, above the route, saying the journey shown is only what the record
+can currently date. `tools/render.ts`'s `renderHopeCoin` is what prints
+that sentence; it is never typed onto the page by hand, the same reason
+`recordQualifier`'s "being backfilled" line on standings and the games
+index reads `backfillPending` instead of a hardcoded string (see "Known
+open items" in `CLAUDE.md`) - a typed sentence would keep announcing an
+unfinished journey on the day it actually finishes.
+
+When a prepend finally reaches back to the Coin's true first stop - the one
+with no earlier stop still missing - remove `hopeCoin.historyPending`
+entirely in that same commit. Delete the field; do not set it to `false`.
+An absent field is the one state nothing has to guess about, the same
+reason a finished season backfill deletes its own entry from
+`backfillPending` (a few lines up) instead of leaving a `false` behind for
+someone to wonder about later. Removing it early, before the history
+actually reaches back to the beginning, would silently tell visitors the
+Coin's journey is complete when it is not; forgetting to remove it once the
+history really is finished would keep the page apologizing for a gap that
+no longer exists.
+
 ## Cards (per set, still manual by design)
 
 Card copy is judgment; it does not automate. Render per

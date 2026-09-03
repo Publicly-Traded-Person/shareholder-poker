@@ -4,7 +4,7 @@
 import {
   deriveStandings, type GamesData, type Game, type GameResult, type CardRef, type HopeCoinStop,
 } from "./lib/standings";
-import { trophyCase, TROPHIES, type Trophy, type Look, type Earned } from "./lib/trophies";
+import { trophyCase, TROPHIES, displayOrder, type Trophy, type Look, type Earned } from "./lib/trophies";
 
 // HTML-escapes a string for use in text content OR inside a double-quoted
 // attribute. Takes any string; returns it with & < > and " replaced by their
@@ -278,6 +278,34 @@ function trophyShelf(earned: Earned[]): string {
   return `<span class="shelf">${marks}${more}</span>`;
 }
 
+// The standings page's trophy legend (spec follow-up 2026-09-03): a quiet
+// key beneath the ledger pairing every registry trophy's own mark with its
+// name, in the exact order the shelf and the trophy case already draw them.
+// Takes nothing - it reads TROPHIES through displayOrder() directly, never a
+// second list of names or marks, because that is this repo's one design rule
+// for trophies (tools/lib/trophies.ts header comment: "a trophy is one
+// registry entry and nothing else"). Adding a trophy to the registry makes
+// it appear here automatically; nothing about this function names a count
+// or an id.
+//
+// Draws every mark EARNED (trophyMarkEarned, the same helper trophyShelf and
+// the player-page trophy case both call - never a second SVG switch), never
+// LOCKED: this legend explains what a shape and a metal mean, not whether
+// any one player has earned it, so there is no "locked" reading to draw.
+// Each mark stays aria-hidden (its default from trophyMarkEarned/the GEM,
+// SKULL, SHIELD, RIBBON, and COIN constants) rather than routed through
+// accessibleShelfMark like the shelf's own marks are: the trophy's name
+// already sits right next to the mark as visible text in the same <li>, the
+// identical reasoning accessibleShelfMark's own comment gives for leaving a
+// trophy-case tile's mark aria-hidden, so hiding it again here from a screen
+// reader loses nothing.
+function trophyLegend(): string {
+  const items = displayOrder()
+    .map((trophy) => `<li>${trophyMarkEarned(trophy.look)} <span>${esc(trophy.name)}</span></li>`)
+    .join("");
+  return `<ul class="trophy-legend">${items}</ul>`;
+}
+
 // Renders the standings page in full: the Foil and Hope Coin tiles, then
 // the ledger table with one row per player on `deriveStandings(data).rows`.
 // Takes the parsed games.json; returns the complete HTML document (this is
@@ -302,6 +330,14 @@ function trophyShelf(earned: Earned[]): string {
 //     so a reader scanning the table doesn't have a text column splitting
 //     them. Add a future column after Trophies, not before it, unless a
 //     later brief says otherwise.
+//
+// The trophy legend (spec follow-up 2026-09-03) sits beneath the closed
+// table, not inside it: the Trophies column shows what THIS player earned
+// (shelf, capped, dense), and the legend beneath explains what every mark
+// on the whole page MEANS (uncapped, all fifteen). Built by trophyLegend()
+// above, which reads the registry directly rather than this function
+// passing it anything - the count on the legend tracks TROPHIES.length on
+// its own, so a sixteenth trophy needs no edit here.
 export function renderStandings(data: GamesData): string {
   const s = deriveStandings(data);
   const nameOf = new Map(data.players.map(p => [p.slug, p.name]));
@@ -355,6 +391,7 @@ export function renderStandings(data: GamesData): string {
 ${rows}
       </tbody>
     </table></div>
+    ${trophyLegend()}
   </div>
 </section>`;
   return page(
@@ -837,11 +874,15 @@ function newestCardImage(data: GamesData, slug: string): string | undefined {
 // it (name, since date, skull tally - built from the same deriveStandings()
 // call so the two pages can never disagree about a count), and the journey:
 // one `.route-stop` per hopeCoin.history entry, oldest first, the last one
-// marked `.route-stop--current`. Takes the parsed games.json; returns the
-// full document. Throws nothing of its own: an absent history (the rollout
-// state before any stops existed - see the comment on
-// GamesData.hopeCoin.history) renders a journey with zero rows, and a
-// malformed chain is caught upstream by validateCoinHistory, not here.
+// marked `.route-stop--current`. While data.hopeCoin.historyPending is true,
+// one more sentence lands under "The journey" heading, above the route,
+// saying the record's earliest datable stop is not the Coin's actual first
+// stop (see journeyIncompleteHtml below); the sentence is absent entirely
+// once that flag is gone. Takes the parsed games.json; returns the full
+// document. Throws nothing of its own: an absent history (the rollout state
+// before any stops existed - see the comment on GamesData.hopeCoin.history)
+// renders a journey with zero rows, and a malformed chain is caught
+// upstream by validateCoinHistory, not here.
 export function renderHopeCoin(data: GamesData): string {
   const s = deriveStandings(data);
   const nameOf = new Map(data.players.map((p) => [p.slug, p.name]));
@@ -879,6 +920,31 @@ export function renderHopeCoin(data: GamesData): string {
       </li>`;
   }).join("\n");
 
+  // The incomplete-journey note (spec follow-up 2026-09-03). While
+  // hopeCoin.historyPending is true, the earliest stop above is only the
+  // earliest one anyone can currently date; the Coin itself is older, and
+  // Mike is reconstructing the stops before it from memory. This sentence is
+  // the ONLY thing that flag produces, and it is the whole reason the flag
+  // exists rather than a sentence typed straight into this template: a typed
+  // sentence would still be sitting here the day the history is finished,
+  // the exact failure that had already happened once (a "The journey" page
+  // showing a single stop with no hint anything was missing) and the exact
+  // failure recordQualifier() was already built to prevent for the standings
+  // "record starts with..." line via backfillPending (see that function's
+  // own comment, top of this file). Never re-word this sentence here - it is
+  // the owner's own copy, quoted verbatim - and never gate it on anything
+  // but this one flag (not history.length, not whether a stop has a `from`):
+  // the flag is Charlie's own signal that reconstruction is still in
+  // progress, not something this renderer should infer from the chain's
+  // shape. Falsy - absent (the default state, and the state once Charlie
+  // deletes the field per docs/publishing.md rather than setting it false;
+  // see the field's own comment on GamesData.hopeCoin in
+  // tools/lib/standings.ts) - renders nothing at all, not even an empty
+  // paragraph.
+  const journeyIncompleteHtml = data.hopeCoin.historyPending
+    ? `\n    <p class="stat">The journey starts with the stop the record can date. The Coin is older than that, and its earlier stops are being reconstructed.</p>`
+    : "";
+
   const body = `
 <section class="band-light">
   <div class="band-inner">
@@ -890,7 +956,7 @@ export function renderHopeCoin(data: GamesData): string {
         ${skulls}
       </ul>
     </div>
-    <h2 class="rule-label">The journey</h2>
+    <h2 class="rule-label">The journey</h2>${journeyIncompleteHtml}
     <ol class="route">
 ${stops}
     </ol>

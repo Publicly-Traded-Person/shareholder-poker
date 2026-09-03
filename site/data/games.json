@@ -12,6 +12,7 @@
   "hopeCoin": {
     "holder": "nick-m",
     "since": "2026-04-14",
+    "historyPending": true,
     "history": [
       {
         "holder": "nick-m",

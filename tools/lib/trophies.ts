@@ -336,8 +336,20 @@ export const TROPHIES: Trophy[] = [
 // entries of the same metal never swap relative to each other; that
 // stability is what makes "registry array order within a metal" true
 // without any extra bookkeeping here.
+//
+// Exported (added alongside the standings legend, spec follow-up
+// 2026-09-03) so a caller that needs every trophy's own display position -
+// not one player's earned/locked split, which is what trophyCase already
+// returns - can read it directly instead of re-deriving a second ordering.
+// The standings page's trophy legend (tools/render.ts trophyLegend) is that
+// caller: it lists all fifteen registry entries, in this exact order, next
+// to their names, which is the whole reason this file's own "one registry,
+// nothing else" rule at the top matters here - a legend that read TROPHIES
+// unsorted, or kept its own copy of this sort, would be a second place a
+// trophy's display order could drift from what the shelf and the case
+// actually draw.
 const METAL_RANK: Record<Look["metal"], number> = { foil: 0, sapphire: 1, copper: 2, pewter: 3 };
-function displayOrder(): Trophy[] {
+export function displayOrder(): Trophy[] {
   return [...TROPHIES].sort((a, b) => METAL_RANK[a.look.metal] - METAL_RANK[b.look.metal]);
 }
 

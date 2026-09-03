@@ -81,6 +81,22 @@ export type GamesData = {
   hopeCoin: {
     holder: string;
     since: string;
+    // True while the Coin's stops before the earliest one hopeCoin.history
+    // can date are still being reconstructed from memory (the Coin is older
+    // than the record; see the HopeCoinStop comment above on why the first
+    // stop may omit `from`). Mirrors backfillPending's own contract just
+    // above on this type: drives one derived sentence on the Hope Coin page
+    // (tools/render.ts renderHopeCoin) instead of anyone hand-typing it
+    // there, so the sentence cannot survive on the page after the data it
+    // describes has changed underneath it - the exact failure backfillPending
+    // was built to prevent for the standings/games-index "record starts
+    // with..." line (see recordQualifier's own comment in tools/render.ts).
+    // Remove this field entirely - never just flip it to `false` - in the
+    // same commit that appends the last recovered stop (docs/publishing.md,
+    // "Hope Coin handoff"): an absent field is the one state a reader never
+    // has to guess about, the same reason backfillPending's own entries are
+    // deleted, not toggled, once a season is no longer missing.
+    historyPending?: boolean;
     // Every handoff on record, oldest first. Optional and may be absent
     // entirely while Mike is still assembling the list (spec open question);
     // tools/lib/trophies.ts treats a missing history as an empty one rather
