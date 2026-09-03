@@ -202,6 +202,41 @@ ${body}
 `;
 }
 
+// The standings row's own trophy shelf (task 9 of the 2026-09-02
+// player-pages-trophies-hope-coin plan, spec §5.3): a dense run of the
+// player's earned marks, in trophyCase's own display order, capped at six
+// so one player's trophy count never grows a ledger row taller than its
+// neighbors. Takes the `earned` list trophyCase() already returned for this
+// slug - never recomputed here, per the one design rule at the top of
+// tools/lib/trophies.ts ("a trophy is one registry entry and nothing
+// else") - and returns the <span class="shelf"> markup for the Trophies
+// cell. A player who has earned nothing gets back "": renderStandings
+// always writes the <td> around whatever this returns, so an empty string
+// is what keeps that cell present on the row but visibly empty, rather
+// than this function inventing a "nothing yet" placeholder of its own.
+//
+// Draws marks with trophyMarkEarned, defined further down this file in the
+// player-page section Task 7 built - reused rather than a second SVG
+// switch, so a shelf mark and a trophy-case tile for the same trophy are
+// always pixel-identical.
+const SHELF_CAP = 6;
+function trophyShelf(earned: Earned[]): string {
+  if (earned.length === 0) return "";
+  const trophyById = new Map(TROPHIES.map((t) => [t.id, t]));
+  const marks = earned.slice(0, SHELF_CAP).map((e) => {
+    const trophy = trophyById.get(e.id);
+    // trophyCase() only ever returns ids from its own registry, so this can
+    // only fire if this file and lib/trophies.ts have drifted out of sync
+    // with each other - never a data problem, always a code bug, hence
+    // throw rather than silently dropping a mark off the shelf.
+    if (!trophy) throw new Error(`trophyShelf: trophyCase returned an unknown trophy id "${e.id}"`);
+    return trophyMarkEarned(trophy.look);
+  }).join("");
+  const overflow = earned.length - SHELF_CAP;
+  const more = overflow > 0 ? `<span class="shelf-more">+${overflow}</span>` : "";
+  return `<span class="shelf">${marks}${more}</span>`;
+}
+
 export function renderStandings(data: GamesData): string {
   const s = deriveStandings(data);
   const nameOf = new Map(data.players.map(p => [p.slug, p.name]));
@@ -214,15 +249,23 @@ export function renderStandings(data: GamesData): string {
     .map(([slug, n]) =>
       `<li>${esc(nameOf.get(slug) ?? slug)}: ${SKULL.repeat(n)}${SKULL_EMPTY.repeat(3 - n)} <span class="stat">${n} of 3</span> skulls</li>`)
     .join("\n          ");
-  const rows = s.rows.map((r, i) => `      <tr class="finish-${i + 1}">
-        <td>${esc(r.name)}${r.slug === champ.slug ? " " + GEM("foil") : ""}${r.slug === s.hopeCoin.holder ? " " + COIN : ""}</td>
+  // Each row's name is now the way into that player's own page (task 9,
+  // M1): the anchor wraps the name only, so the champion gem and Coin mark
+  // that already followed the name keep sitting outside the link, exactly
+  // where they were before this task touched this line.
+  const rows = s.rows.map((r, i) => {
+    const { earned } = trophyCase(data, r.slug);
+    return `      <tr class="finish-${i + 1}">
+        <td><a href="/player/${r.slug}/">${esc(r.name)}</a>${r.slug === champ.slug ? " " + GEM("foil") : ""}${r.slug === s.hopeCoin.holder ? " " + COIN : ""}</td>
         <td class="num">${r.games}</td>
         <td class="num">${r.wins}</td>
         <td class="num">${r.cashes}</td>
         <td class="num">${r.bestFinish}</td>
         <td class="num">$${r.totalPayout}</td>
         <td class="num">${r.rebuys}</td>
-      </tr>`).join("\n");
+        <td>${trophyShelf(earned)}</td>
+      </tr>`;
+  }).join("\n");
   const body = `
 <section class="band-light">
   <div class="band-inner band-inner--wide">
@@ -234,7 +277,7 @@ export function renderStandings(data: GamesData): string {
         <p><strong>${esc(champName)}</strong> ${GEM("foil")} holds the foil: won ${latest.date}.${latest.cardSet ? ` <a href="/cards/${latest.cardSet}/">The card set</a>.` : ""}</p>
       </div>
       <div class="tile">
-        <h3>The Hope Coin ${COIN}</h3>
+        <h3><a href="/hope-coin/">The Hope Coin</a> ${COIN}</h3>
         <p><strong>${esc(holderName)}</strong> holds the Coin (since ${s.hopeCoin.since}). Three kills on the holder takes it.</p>
         <ul>
           ${skulls}
@@ -242,7 +285,7 @@ export function renderStandings(data: GamesData): string {
       </div>
     </div>
     <div class="table-scroll"><table class="ledger">
-      <thead><tr><th>Player</th><th>Games</th><th>Wins</th><th>Cashes</th><th>Best</th><th>Won</th><th>Rebuys</th></tr></thead>
+      <thead><tr><th>Player</th><th>Games</th><th>Wins</th><th>Cashes</th><th>Best</th><th>Won</th><th>Rebuys</th><th>Trophies</th></tr></thead>
       <tbody>
 ${rows}
       </tbody>

@@ -24,6 +24,38 @@ const data: GamesData = {
   ],
 };
 
+// Pulls out each standings row `<tr class="finish-N">...</tr>` block whole,
+// in document order - the same non-greedy whole-block extraction pattern
+// routeStopBlocks (below, for the Hope Coin journey) uses, so a test can
+// check what lands INSIDE one row's own markup without a stray match
+// bleeding in from a neighboring row.
+function standingsRowBlocks(html: string): string[] {
+  return [...html.matchAll(/<tr class="finish-\d+">[\s\S]*?<\/tr>/g)].map((m) => m[0]);
+}
+
+// The two "bare" <td>...</td> cells in a standings row - no class attribute
+// - are the Player cell (first) and the Trophies cell (last); every other
+// cell carries class="num". Takes one row block; returns [player, trophies]
+// cell content. Reading the LAST bare cell for Trophies (rather than
+// assuming there are exactly two and indexing [1]) means a test that only
+// cares about the shelf never has to know how many bare cells came before
+// it.
+function bareCells(rowBlock: string): string[] {
+  return [...rowBlock.matchAll(/<td>([\s\S]*?)<\/td>/g)].map((m) => m[1]!);
+}
+
+// Locates one player's own row by their rendered name. The name always sits
+// immediately before the anchor's closing tag (`>${esc(name)}</a>`, see
+// renderStandings), so this is exact even when a champion gem or Coin mark
+// follows in the same cell. Throws when no row matches - a test asking for
+// a name that was never rendered is a broken fixture, not a passing
+// assertion about absence.
+function rowFor(html: string, name: string): string {
+  const row = standingsRowBlocks(html).find((r) => r.includes(`>${name}</a>`));
+  if (!row) throw new Error(`rowFor: no standings row rendered for "${name}"`);
+  return row;
+}
+
 describe("renderStandings", () => {
   const html = renderStandings(data);
   test("is a full document using the theme", () => {
@@ -62,6 +94,164 @@ describe("renderStandings", () => {
   });
   test("declares its own canonical url for link unfurls", () => {
     expect(html).toContain('<meta property="og:url" content="https://poker.kmikeym.com/standings/">');
+  });
+
+  // Task 9 (spec §5.3): every row's name is the way into that player's own
+  // page, and only that player's page.
+  test("each row's name links to that player's own page, never a neighbor's (M1)", () => {
+    const chrisRow = rowFor(html, "Chris G.");
+    const nickRow = rowFor(html, "Nick M.");
+    expect(chrisRow).toContain('<a href="/player/chris-g/">Chris G.</a>');
+    expect(chrisRow).not.toContain("/player/nick-m/");
+    expect(nickRow).toContain('<a href="/player/nick-m/">Nick M.</a>');
+    expect(nickRow).not.toContain("/player/chris-g/");
+    // The champion gem (Chris won 2026-07-14) and the Coin mark (Nick holds
+    // it) still sit outside the anchor, exactly as they did before this
+    // task - only the name itself moved inside a link.
+    expect(chrisRow).toContain('</a> <svg class="mark mark--foil"');
+    expect(nickRow).toContain('</a> <svg class="mark" viewBox="0 0 12 12" width="12" height="12" role="img" aria-label="Hope Coin">');
+  });
+
+  test("the Player cell is never a bare name with no enclosing anchor (M1)", () => {
+    const rows = standingsRowBlocks(html);
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      const [playerCell] = bareCells(row);
+      expect(playerCell).toStartWith('<a href="/player/');
+    }
+  });
+
+  test("the header carries a Trophies column, and every row carries exactly one Trophies cell (M2)", () => {
+    expect(html).toContain("<th>Trophies</th>");
+    const rows = standingsRowBlocks(html);
+    for (const row of rows) {
+      // Exactly two bare (unclassed) <td> cells per row: Player, then
+      // Trophies. A row that dropped the Trophies cell would have only one
+      // and silently shift every later column left - this catches that.
+      expect(bareCells(row).length).toBe(2);
+    }
+  });
+
+  test("the Hope Coin tile's heading links to /hope-coin/, and the Foil tile's champion sentence is byte-identical to what it rendered before this task (M4)", () => {
+    expect(html).toContain('<h3><a href="/hope-coin/">The Hope Coin</a>');
+    // Pinned literal: this is the exact paragraph renderStandings produced
+    // for the Foil tile before Task 9 touched this file, reproduced here
+    // (GEM("foil")'s own markup, inlined, since GEM is not exported) so a
+    // later edit to the shelf or the Hope Coin link cannot also quietly
+    // reword or re-mark the champion sentence.
+    expect(html).toContain(
+      '<p><strong>Chris G.</strong> <svg class="mark mark--foil" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M6 0 12 6 6 12 0 6Z"/></svg> holds the foil: won 2026-07-14. <a href="/cards/2026-07/">The card set</a>.</p>'
+    );
+  });
+});
+
+// Task 9 (spec §5.3): the standings shelf itself - one mark per earned
+// trophy in trophyCase's own display order, capped at six with a "+N"
+// overflow marker. A fixture of its own because the shelf needs players
+// spanning the exact boundary (six vs seven) and the two extremes (zero,
+// eight) the main `data` fixture above was never built to reach.
+//
+// Every result below carries payout: 0 so no result accidentally earns
+// cashed/clean-night/comeback (all three require payout > 0) - the point of
+// each row is to earn EXACTLY the trophies this comment says it earns, not
+// whatever a more realistic-looking game would also throw in.
+const SIX_JUDGED_IDS = [
+  "hope-slayer", "two-seven-showdown", "final-countdown", "cain-and-abel", "abel-stands", "kevin-deuce",
+];
+const shelfData: GamesData = {
+  nextGame: { date: "2026-09-08", time: "7:00pm PT" },
+  hopeCoin: { holder: "shelf-zero", since: "2026-06-01" },
+  players: [
+    { slug: "shelf-zero", name: "Zero Z.", aka: ["zero"] },
+    { slug: "shelf-three", name: "Three T.", aka: ["three"] },
+    { slug: "shelf-six", name: "Six S.", aka: ["six"] },
+    { slug: "shelf-seven", name: "Seven S.", aka: ["seven"] },
+    { slug: "shelf-eight", name: "Eight E.", aka: ["eight"] },
+  ],
+  games: [
+    // Founder's Table date: shelf-three and shelf-seven both get
+    // founders-table from being here, on top of whatever judged ids their
+    // own result carries.
+    { date: "2026-07-14", hands: 100, startingStack: 5000, buyIn: 50, entries: 2, pot: 100,
+      results: [
+        // 2 judged ids + founders-table (game date) = 3 earned.
+        { slug: "shelf-three", handle: "three", finish: 4, payout: 0, rebuys: 0,
+          trophies: ["hope-slayer", "two-seven-showdown"] },
+        // 6 judged ids + founders-table (game date) = 7 earned.
+        { slug: "shelf-seven", handle: "seven", finish: 5, payout: 0, rebuys: 0, trophies: SIX_JUDGED_IDS },
+      ] },
+    // shelf-zero: no judged ids, finish outside the podium/champion/bubble
+    // thresholds, no rebuy, no payout - earns nothing at all.
+    { date: "2026-07-21", hands: 100, startingStack: 5000, buyIn: 50, entries: 1, pot: 0,
+      results: [
+        { slug: "shelf-zero", handle: "zero", finish: 4, payout: 0, rebuys: 0, trophies: [] },
+      ] },
+    // 6 judged ids, no founders-table (wrong date), no champion/podium
+    // (finish 5) = exactly 6 earned - the cap's own boundary from below.
+    { date: "2026-07-28", hands: 100, startingStack: 5000, buyIn: 50, entries: 1, pot: 0,
+      results: [
+        { slug: "shelf-six", handle: "six", finish: 5, payout: 0, rebuys: 0, trophies: SIX_JUDGED_IDS },
+      ] },
+    // The spine's latest game, so this is also where renderStandings finds
+    // its reigning champion. finish 1 earns BOTH champion and podium, so
+    // 6 judged ids + champion + podium = exactly 8 earned - two past the cap.
+    { date: "2026-08-04", hands: 100, startingStack: 5000, buyIn: 50, entries: 1, pot: 0,
+      results: [
+        { slug: "shelf-eight", handle: "eight", finish: 1, payout: 0, rebuys: 0, trophies: SIX_JUDGED_IDS },
+      ] },
+  ],
+};
+
+describe("renderStandings trophy shelf (Task 9, spec §5.3)", () => {
+  const html = renderStandings(shelfData);
+
+  test("a fixture player with a known earned set renders exactly that many marks, in trophyCase display order (M2)", () => {
+    const row = rowFor(html, "Three T.");
+    const [, shelf] = bareCells(row);
+    expect((shelf!.match(/<svg class="mark/g) ?? []).length).toBe(3);
+    // Display order (metal foil, sapphire, copper, pewter; registry order
+    // within a metal): hope-slayer (skull/foil), two-seven-showdown
+    // (shield/sapphire), founders-table (ribbon/pewter).
+    const iSkull = shelf!.indexOf('mark--skull"');
+    const iShield = shelf!.indexOf("mark--shield mark--sapphire");
+    const iRibbon = shelf!.indexOf("mark--ribbon mark--pewter");
+    expect(iSkull).toBeGreaterThan(-1);
+    expect(iShield).toBeGreaterThan(iSkull);
+    expect(iRibbon).toBeGreaterThan(iShield);
+  });
+
+  test("a player who has earned nothing still gets a present, empty Trophies cell (M2)", () => {
+    const rows = standingsRowBlocks(html);
+    expect(rows.length).toBe(5); // one per player on this fixture's roster
+    for (const row of rows) expect(bareCells(row).length).toBe(2);
+    const zeroRow = rowFor(html, "Zero Z.");
+    const [, shelf] = bareCells(zeroRow);
+    expect(shelf).toBe("");
+  });
+
+  test("eight earned trophies renders six marks and a +2, three renders three marks and no + at all (M3)", () => {
+    const eightShelf = bareCells(rowFor(html, "Eight E."))[1]!;
+    expect((eightShelf.match(/<svg class="mark/g) ?? []).length).toBe(6);
+    expect(eightShelf).toContain('<span class="shelf-more">+2</span>');
+
+    const threeShelf = bareCells(rowFor(html, "Three T."))[1]!;
+    expect((threeShelf.match(/<svg class="mark/g) ?? []).length).toBe(3);
+    expect(threeShelf).not.toContain("shelf-more");
+  });
+
+  test("exactly six earned renders six marks and no +, exactly seven renders six marks and a +1 (M3, the boundary)", () => {
+    const sixShelf = bareCells(rowFor(html, "Six S."))[1]!;
+    expect((sixShelf.match(/<svg class="mark/g) ?? []).length).toBe(6);
+    expect(sixShelf).not.toContain("shelf-more");
+
+    const sevenShelf = bareCells(rowFor(html, "Seven S."))[1]!;
+    expect((sevenShelf.match(/<svg class="mark/g) ?? []).length).toBe(6);
+    expect(sevenShelf).toContain('<span class="shelf-more">+1</span>');
+  });
+
+  test("every shelf is wrapped in .shelf, and no em dash anywhere on the page (M6)", () => {
+    expect(bareCells(rowFor(html, "Six S."))[1]).toStartWith('<span class="shelf">');
+    expect(html).not.toContain("—");
   });
 });
 

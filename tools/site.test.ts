@@ -162,6 +162,20 @@ describe("home page invariants", () => {
     );
     expect(facts).toContain('"hope-slayer"');
   });
+
+  // Task 9 (spec §5.3, M5): the Hope Coin section's closing button now
+  // points at the Coin's own page instead of Standings. Line 82's separate
+  // "Standings and trophies" button and the footer's Standings link are
+  // untouched by this task and stay pointed at /standings/ - this test only
+  // guards the one button this task was told to move.
+  test("the Hope Coin section's closing button points at /hope-coin/, not Standings (M5)", () => {
+    expect(html).toContain('href="/hope-coin/"');
+    expect(html).not.toContain('href="/standings/">The full record');
+    // Still exactly one lime button on the page (the RSVP CTA) - moving
+    // this button used btn-secondary, same as before, so this never touched
+    // the lime count, but the brief is explicit that the count stays 1.
+    expect(html.split("btn-primary").length - 1).toBe(1);
+  });
 });
 
 // Task 5: the set page (site/cards/2026-07/index.html) drops emoji chrome,
