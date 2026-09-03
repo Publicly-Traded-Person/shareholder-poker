@@ -835,10 +835,39 @@ ${stops}
   );
 }
 
+// The entry point: `bun tools/render.ts`, run from the repo root (see the
+// header comment at the top of this file). Reads site/data/games.json
+// relative to the process's own working directory - deliberately, not an
+// absolute path baked in here - because Task 10's render-drift test (see
+// tools/site.test.ts's "the generator, run into an empty directory"
+// describe block) spawns this exact file as a subprocess with a temp
+// directory as its cwd, so the same relative reads and writes land inside
+// that temp tree instead of the real site/ when the test runs it.
+//
+// Writes, in order: the three pages that existed before Task 10 (standings,
+// games index, ICS), then one site/player/<slug>/index.html per slug
+// playerSlugs() returns, then site/hope-coin/index.html. `Bun.write` creates
+// any parent directories that do not exist yet, so there is no separate
+// mkdir step for site/player/<slug>/ the first time a slug is added.
+//
+// Render never DELETES a page. There is deliberately no step here that
+// looks at what is already on disk under site/player/ and removes anything
+// missing from today's playerSlugs() - eligibility never lapses, because
+// games are never removed from the spine (house rule, restated in this
+// file's player-pages header comment above). A slug that has ever played
+// keeps its page forever.
 if (import.meta.main) {
   const data = JSON.parse(await Bun.file("site/data/games.json").text()) as GamesData;
   await Bun.write("site/standings/index.html", renderStandings(data));
   await Bun.write("site/games/index.html", renderGamesIndex(data));
   await Bun.write("site/next-game.ics", renderNextGameIcs(data));
-  console.log("rendered site/standings/index.html, site/games/index.html, site/next-game.ics");
+  const slugs = playerSlugs(data);
+  for (const slug of slugs) {
+    await Bun.write(`site/player/${slug}/index.html`, renderPlayer(data, slug));
+  }
+  await Bun.write("site/hope-coin/index.html", renderHopeCoin(data));
+  console.log(
+    `rendered site/standings/index.html, site/games/index.html, site/next-game.ics, ` +
+    `${slugs.length} player page(s) under site/player/, site/hope-coin/index.html`
+  );
 }

@@ -46,7 +46,7 @@ D1 `poker-rsvp-db`). Spec: `docs/superpowers/specs/2026-08-17-poker-quarterly-sy
 
 ```bash
 bun test tools          # the suite (58 tests at ship). Green before any commit.
-bun tools/render.ts     # regenerate site/standings/ + site/games/ + site/next-game.ics from games.json
+bun tools/render.ts     # regenerate site/standings/, site/games/, site/next-game.ics, one site/player/<slug>/ per player on the spine, and site/hope-coin/ from games.json
 bun tools/publish-game.ts <log.csv> --date YYYY-MM-DD --results results.json
 bun tools/chip-race.ts <log.csv> --date YYYY-MM-DD --start 5000 --inject site/games/<date>/index.html
 python3 -m http.server -d site   # local preview
@@ -62,10 +62,14 @@ python3 -m http.server -d site   # local preview
   (add to `aka` in `games.json`, never guess). Chip conservation, dense
   finishes, and payouts-sum-to-pot are refuse-to-publish checks: fix the
   input, never the check.
-- **Generated pages are never hand-edited.** `site/standings/index.html` and
-  `site/games/index.html` come from `bun tools/render.ts`; the drift check
-  (`bun tools/render.ts && git diff --exit-code` on those files) must stay
-  clean.
+- **Generated pages are never hand-edited.** `site/standings/index.html`,
+  `site/games/index.html`, every `site/player/<slug>/index.html`, and
+  `site/hope-coin/index.html` all come from `bun tools/render.ts`. The drift
+  check is `bun test tools` itself now (`tools/site.test.ts`'s Task 10
+  blocks): one leg re-runs the renderer and checks `git status --porcelain`
+  on those paths, and a second leg renders into an empty temp directory from
+  a copy of the data so a committed page the generator never writes fails
+  even when the working tree's `git diff` would stay clean.
 - **`site/data/games.json` stays in canonical `JSON.stringify(data, null, 2)`
   form** so a published game appends as a small diff Charlie can actually read.
 - **Copy rules:** no em dashes in `site/` copy, the word "experiment" never
