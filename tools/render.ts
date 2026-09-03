@@ -1,6 +1,8 @@
-// Renders the derived pages (standings, games index) as full committed HTML.
+// Renders the derived pages (standings, games index, player pages) as full
+// committed HTML.
 // Run: bun tools/render.ts   (reads site/data/games.json, writes site/*/index.html)
-import { deriveStandings, type GamesData } from "./lib/standings";
+import { deriveStandings, type GamesData, type Game, type GameResult, type CardRef } from "./lib/standings";
+import { trophyCase, TROPHIES, type Trophy, type Look, type Earned } from "./lib/trophies";
 
 // HTML-escapes a string for use in text content OR inside a double-quoted
 // attribute. Takes any string; returns it with & < > and " replaced by their
@@ -58,28 +60,66 @@ const SKULL =
   `<svg class="mark mark--skull" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M6 1a4.3 4.3 0 0 0-4.3 4.3c0 1.6.9 3 2.3 3.7V11h4V9a4.3 4.3 0 0 0 2.3-3.7A4.3 4.3 0 0 0 6 1Z"/><circle class="socket" cx="4.4" cy="5.3" r=".95"/><circle class="socket" cx="7.6" cy="5.3" r=".95"/></svg>`;
 const SKULL_EMPTY =
   `<svg class="mark mark--skull-empty" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M6 1.6a3.7 3.7 0 0 0-3.7 3.7c0 1.4.8 2.6 2 3.2v1.9h3.4V8.5a3.7 3.7 0 0 0 2-3.2A3.7 3.7 0 0 0 6 1.6Z"/></svg>`;
+// The two trophy shapes added for player pages (Task 2's CSS contract:
+// .mark--shield and .mark--ribbon carry geometry only, no fill of their own,
+// so the same path is reused for both the earned, coloured state (tone is
+// the trophy's own metal) and the locked, grey state (tone "empty", which
+// resolves to the shared .mark--empty fill:none/stroke rule already used by
+// the gem and skull marks above). Unlike GEM/GEM_EMPTY there is no separate
+// inset path for the locked state: Task 2's CSS comment says these two
+// shapes need no width/height of their own tuning, and one path serves both
+// tones the same way GEM's four metal calls share one path.
+const SHIELD = (tone: Look["metal"] | "empty") =>
+  `<svg class="mark mark--shield mark--${tone}" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M6 0 11 2 11 6.5 6 12 1 6.5 1 2Z"/></svg>`;
+const RIBBON = (tone: Look["metal"] | "empty") =>
+  `<svg class="mark mark--ribbon mark--${tone}" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M3 0 9 0 9 9 6 7 3 9Z"/></svg>`;
+
+// The fixed set of pages that get their own masthead link. Player pages and
+// the Hope Coin page (Tasks 7 and 8) are reachable ONLY from Standings and
+// are not themselves in this list, so nav() below treats any `current` that
+// is not one of these four as "conceptually under Standings" and highlights
+// that link instead of highlighting nothing. Keep this list and the anchors
+// nav() renders in sync; nothing else reads it.
+const NAV_HREFS = new Set(["/", "/games/", "/cards/", "/standings/"]);
 
 // nav(current) renders the masthead links, marking the page's own link with
-// aria-current so visitors can see where they are (styled in styles.css).
+// aria-current so visitors can see where they are (styled in styles.css). A
+// page whose own address (current) is not one of the four sections above
+// (a player page, the Hope Coin page) still needs exactly one link marked
+// current, per spec ("marks Standings as the current nav item" - task-7 and
+// task-8 briefs), so it falls back to Standings rather than marking nothing.
 const nav = (current: string) =>
   ([["/", "Home"], ["/games/", "Games"], ["/cards/", "Cards"], ["/standings/", "Standings"]] as const)
-    .map(([href, label]) =>
-      `<a href="${href}"${href === current ? ' aria-current="page"' : ""}>${label}</a>`)
+    .map(([href, label]) => {
+      const isCurrent = href === current || (href === "/standings/" && !NAV_HREFS.has(current));
+      return `<a href="${href}"${isCurrent ? ' aria-current="page"' : ""}>${label}</a>`;
+    })
     .join(" · ");
+
+// The share-image every page falls back to when it has no image of its own
+// (July's foil champion card). A player page with no card yet, or a page
+// that predates per-page images, all unfurl with this rather than nothing.
+const DEFAULT_OG_IMAGE = "https://poker.kmikeym.com/cards/2026-07/assets/card-1-lewd.png";
 
 // footerTone is the background class for the closing footer band. Bands must
 // alternate light/dark with no two of the same tone touching (brand rule), so
 // the caller passes whichever tone opposes its own last section. `current` is
 // the page's own nav href, used twice: it marks the nav link with aria-current
-// and it becomes the absolute og:url, so a shared link unfurls pointing at this
-// page rather than at whatever page the scraper guessed. `description` fills
-// the meta/og description.
+// (falling back to Standings when `current` names a page outside the fixed
+// four, per nav() above) and it becomes the absolute og:url, so a shared link
+// unfurls pointing at this page rather than at whatever page the scraper
+// guessed. `description` fills the meta/og description. `image` is the
+// og:image; it defaults to DEFAULT_OG_IMAGE so every existing caller (which
+// never passed one) keeps its current unfurl image unchanged. Player pages
+// (Task 7) are the first caller to pass their own, the newest card a player
+// holds.
 function page(
   title: string,
   body: string,
   footerTone: "band-light" | "band-dark",
   current: string,
-  description: string
+  description: string,
+  image: string = DEFAULT_OG_IMAGE
 ): string {
   return `<!doctype html>
 <html lang="en">
@@ -93,7 +133,7 @@ function page(
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:url" content="https://poker.kmikeym.com${current}">
 <meta property="og:type" content="website">
-<meta property="og:image" content="https://poker.kmikeym.com/cards/2026-07/assets/card-1-lewd.png">
+<meta property="og:image" content="${esc(image)}">
 <meta name="twitter:card" content="summary">
 <link rel="stylesheet" href="/styles.css">
 </head>
@@ -270,6 +310,260 @@ export function renderNextGameIcs(data: GamesData): string {
     "END:VCALENDAR",
     "",
   ].join("\r\n");
+}
+
+// ---------------------------------------------------------------------------
+// Player pages (spec 2026-09-02 §5.1). Every player who has played at least
+// one game on the spine gets /player/<slug>/: their cards, their trophy
+// case, their full game record, and a bio when Charlie has written one.
+// Task 10 runs this against the real data and commits site/player/<slug>/
+// for every slug playerSlugs() returns; this file only produces the string.
+
+// The tier name a caption uses for a card's metal, matching the wording the
+// set pages already use (Foil, Rare, Uncommon, Common). Kept local to this
+// file rather than in lib/standings.ts because it is presentation, not data.
+const TIER_NAME: Record<CardRef["metal"], string> = {
+  foil: "Foil",
+  sapphire: "Rare",
+  copper: "Uncommon",
+  pewter: "Common",
+};
+
+// Picks the drawn mark for an EARNED trophy tile: the shape from the
+// registry's look.shape, coloured by look.metal. The switch is written to
+// cover every member of Look["shape"] with no default fallthrough, so a
+// future trophy shape added to tools/lib/trophies.ts without a matching case
+// here is a compile error (the `never` assignment below fails to typecheck)
+// rather than a silently blank tile on a live page.
+function trophyMarkEarned(look: Look): string {
+  switch (look.shape) {
+    case "gem": return GEM(look.metal);
+    case "coin": return COIN;
+    case "skull": return SKULL;
+    case "shield": return SHIELD(look.metal);
+    case "ribbon": return RIBBON(look.metal);
+    default: {
+      const unreachable: never = look.shape;
+      throw new Error(`trophyMarkEarned: unknown trophy shape "${unreachable}"`);
+    }
+  }
+}
+
+// Picks the drawn mark for a LOCKED trophy tile: the same shape, greyed via
+// the shared .mark--empty outline (site/styles.css, Task 2). Gem and skull
+// already ship dedicated empty-state constants (GEM_EMPTY, SKULL_EMPTY) with
+// their own inset paths tuned for a stroke instead of a fill; shield and
+// ribbon reuse their single earned-state path with the "empty" tone swapped
+// in, per the SHIELD/RIBBON comment above.
+//
+// Coin has no dedicated locked art. Only one registry entry uses shape
+// "coin" (the Hope Coin), and this falls back to GEM_EMPTY, the same grey
+// diamond every other "not earned yet" mark on the site already draws. This
+// is a judgment call made here, in Task 7, not a stand-in for a check some
+// later task owns: nothing tests the exact shape a locked Hope Coin tile
+// draws, and a future pass is free to give it its own empty-coin constant
+// without touching this switch's other branches.
+function trophyMarkLocked(look: Look): string {
+  switch (look.shape) {
+    case "gem": return GEM_EMPTY;
+    case "coin": return GEM_EMPTY;
+    case "skull": return SKULL_EMPTY;
+    case "shield": return SHIELD("empty");
+    case "ribbon": return RIBBON("empty");
+    default: {
+      const unreachable: never = look.shape;
+      throw new Error(`trophyMarkLocked: unknown trophy shape "${unreachable}"`);
+    }
+  }
+}
+
+// The meta line under an earned trophy's name: "x3" when the player has
+// earned it more than once (never "x1" - a first earning reads as just its
+// date, per spec §5.1 step 3), then the most recent date, when there is one.
+// Reads `count` for how many and `dates` only for which ones are dated,
+// per trophies.ts's own contract on Earned: the Hope Coin can be earned with
+// count 1 and an EMPTY dates array (a stop with no recorded `from` has no
+// date to show), so this never infers a count from dates.length and never
+// invents a placeholder date when dates is empty - an empty dates list just
+// means the line has no date segment, not a blank date.
+function earnedTrophyMeta(e: Earned): string {
+  const parts: string[] = [];
+  if (e.count > 1) parts.push(`x${e.count}`);
+  if (e.dates.length > 0) parts.push(e.dates[e.dates.length - 1]!);
+  return parts.join(" · ");
+}
+
+// One tile in the trophy case: the mark, the trophy's name as a bare <h3>,
+// and `meta` as a bare <p>, both direct children of the .trophy element and
+// nothing else - site/styles.css styles a trophy's name and meta line
+// through exactly that shape (`.trophy h3`, `.trophy p`), so any other
+// nesting renders the text unstyled.
+function trophyTile(trophy: Trophy, meta: string, locked: boolean): string {
+  const mark = locked ? trophyMarkLocked(trophy.look) : trophyMarkEarned(trophy.look);
+  return `      <div class="trophy${locked ? " trophy--locked" : ""}">
+        ${mark}
+        <h3>${esc(trophy.name)}</h3>
+        <p>${meta}</p>
+      </div>`;
+}
+
+// Every slug with at least one result somewhere on the spine, and no other
+// slug. Derived from results rather than read off `players` because
+// eligibility never lapses: games are never removed from the spine (house
+// rule), so a player who has ever played keeps a page forever even if
+// `players` is later reordered or annotated. A player added to the roster
+// who has never played (a pre-spine Hope Coin holder, say) is correctly
+// excluded - they get named on the coin page, not a page of their own.
+export function playerSlugs(data: GamesData): string[] {
+  const slugs = new Set<string>();
+  for (const game of data.games) {
+    for (const result of game.results) slugs.add(result.slug);
+  }
+  return [...slugs].sort();
+}
+
+// Renders one player's full page: heading and handles, their card gallery
+// (newest set first, holo on the newest only when it is foil), their trophy
+// case from trophyCase(), their complete game record with a totals row, and
+// Charlie's bio when there is one. Takes the parsed games.json and a slug;
+// returns the full document; throws when the slug is not on the roster at
+// all (never render a page for an invented player).
+export function renderPlayer(data: GamesData, slug: string): string {
+  const player = data.players.find((p) => p.slug === slug);
+  if (!player) throw new Error(`renderPlayer: no player on the roster with slug "${slug}"`);
+
+  // Every game this player actually played, newest first. Both the gallery
+  // and the ledger read from this one list so they can never disagree about
+  // which games the player was in.
+  const played: { game: Game; result: GameResult }[] = [];
+  for (const game of data.games) {
+    const result = game.results.find((r) => r.slug === slug);
+    if (result) played.push({ game, result });
+  }
+  played.sort((a, b) => b.game.date.localeCompare(a.game.date));
+
+  // Cards: the subset of `played` carrying a card, in the same newest-first
+  // order. A game with a card must carry cardSet and cardSetName (spec
+  // §3.1; tools/site.test.ts's card cross-check enforces this over the real
+  // data); this throws rather than guessing either one so a malformed
+  // fixture or a future data bug fails loudly instead of publishing a
+  // broken link or a blank set name.
+  const carded = played.filter((p) => p.result.card);
+  const figures = carded.map(({ game, result }, i) => {
+    const card = result.card!;
+    if (!game.cardSet || !game.cardSetName) {
+      throw new Error(
+        `renderPlayer: ${slug}'s card for ${game.date} needs both cardSet and cardSetName on the game`
+      );
+    }
+    // Holo is reserved for the single newest card, and only when it is foil
+    // (spec §5.1 step 2 and the design's scarcity rule). The frame holds
+    // ONLY the image: a figcaption inside a holo frame is washed out by the
+    // glare layers (site/styles.css, .card-frame--holo comment; pinned by an
+    // existing test in tools/site.test.ts), so the caption sits outside it
+    // as its own .card-caption line, same as every other card frame.
+    const holo = i === 0 && card.metal === "foil";
+    const frameClass = holo ? "card-frame card-frame--holo shimmer" : "card-frame";
+    const tier = TIER_NAME[card.metal];
+    return `      <figure>
+        <div class="${frameClass}"><img src="/cards/${game.cardSet}/assets/${card.file}" alt="${esc(tier)} card: ${esc(player.name)}, ${esc(card.title)}"></div>
+        <figcaption class="card-caption">${esc(tier)} · ${esc(card.title)} · ${esc(game.cardSetName)}</figcaption>
+      </figure>`;
+  });
+  // A player with no card yet shows no gallery and no placeholder (spec
+  // §5.1 step 2) - the whole section, heading included, disappears rather
+  // than showing an empty grid.
+  const galleryHtml = figures.length > 0
+    ? `<h2 class="rule-label">Cards</h2>
+    <div class="card-gallery">
+${figures.join("\n")}
+    </div>`
+    : "";
+  // holo.js is the same script the card set pages already load (defer, so
+  // it never blocks rendering); only load it when a holo frame is actually
+  // on the page; an uncarded or non-foil-newest player pays nothing for it.
+  const holoScript = carded.length > 0 && carded[0]!.result.card!.metal === "foil"
+    ? "\n<script src=\"/holo.js\" defer></script>"
+    : "";
+
+  // The trophy case: earned tiles (looked up by id back against the
+  // registry for their name and look, since Earned carries only id/dates/
+  // count) before locked tiles, both in the exact order trophyCase already
+  // returns - this never recomputes or re-sorts that order.
+  const { earned, locked } = trophyCase(data, slug);
+  const trophyById = new Map(TROPHIES.map((t) => [t.id, t]));
+  const trophyTiles = [
+    ...earned.map((e) => {
+      const trophy = trophyById.get(e.id);
+      // trophyCase() only ever returns ids from its own registry, so this
+      // can only fire if the two files drift out of sync with each other -
+      // never a data problem, always a code bug, hence throw rather than
+      // skip the tile.
+      if (!trophy) throw new Error(`renderPlayer: trophyCase returned an unknown trophy id "${e.id}"`);
+      return trophyTile(trophy, earnedTrophyMeta(e), false);
+    }),
+    ...locked.map((t) => trophyTile(t, esc(t.earn), true)),
+  ].join("\n");
+
+  // The record: one row per game played, newest first, linking the game
+  // page, plus a totals row. Games the player missed contribute no row at
+  // all - `played` already excludes them.
+  const ledgerRows = played.map(({ game, result }) => `      <tr>
+        <td><a href="/games/${game.date}/">${game.date}</a></td>
+        <td class="num">${result.finish}</td>
+        <td class="num">$${result.payout}</td>
+        <td class="num">${result.rebuys}</td>
+      </tr>`).join("\n");
+  const totalPayout = played.reduce((sum, p) => sum + p.result.payout, 0);
+  const totalRebuys = played.reduce((sum, p) => sum + p.result.rebuys, 0);
+  const totalsRow = `      <tr class="ledger-total">
+        <td>Total</td>
+        <td class="num"></td>
+        <td class="num">$${totalPayout}</td>
+        <td class="num">${totalRebuys}</td>
+      </tr>`;
+
+  // Charlie's paragraph. Absent means no analysis block at all - not a
+  // placeholder, not "no bio yet" copy (spec §3.4: the page says nothing
+  // about its own absence).
+  const bioHtml = player.bio ? `<p>${esc(player.bio)}</p>` : "";
+
+  // og:image is the player's own newest card when they have one; page()'s
+  // own default covers everyone else. Passing `undefined` (rather than
+  // omitting the argument) still reaches page()'s default parameter, since
+  // that only skips a value when it is exactly undefined.
+  const newestCard = carded[0];
+  const image = newestCard
+    ? `https://poker.kmikeym.com/cards/${newestCard.game.cardSet}/assets/${newestCard.result.card!.file}`
+    : undefined;
+
+  const body = `
+<section class="band-light">
+  <div class="band-inner band-inner--wide">
+    <h1 class="display">${esc(player.name)}</h1>
+    <p class="stat">Plays as ${listWithAnd(player.aka.map(esc))}</p>
+    ${galleryHtml}
+    <h2 class="rule-label">Trophy case</h2>
+    <div class="trophy-case">
+${trophyTiles}
+    </div>
+    <h2 class="rule-label">The record</h2>
+    <div class="table-scroll"><table class="ledger">
+      <thead><tr><th>Game</th><th>Finish</th><th>Payout</th><th>Rebuys</th></tr></thead>
+      <tbody>
+${ledgerRows}
+${totalsRow}
+      </tbody>
+    </table></div>
+    ${bioHtml}
+  </div>
+</section>${holoScript}`;
+
+  return page(
+    player.name, body, "band-dark", `/player/${slug}/`,
+    `${player.name}'s cards, trophies, and full game record on K5M Shareholder Poker.`,
+    image
+  );
 }
 
 if (import.meta.main) {
