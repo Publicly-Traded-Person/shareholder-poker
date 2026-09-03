@@ -62,38 +62,46 @@ const SKULL_EMPTY =
   `<svg class="mark mark--skull-empty" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M6 1.6a3.7 3.7 0 0 0-3.7 3.7c0 1.4.8 2.6 2 3.2v1.9h3.4V8.5a3.7 3.7 0 0 0 2-3.2A3.7 3.7 0 0 0 6 1.6Z"/></svg>`;
 // The two trophy shapes added for player pages (Task 2's CSS contract:
 // .mark--shield and .mark--ribbon carry geometry only, no fill of their own,
-// so the same path is reused for both the earned, coloured state (tone is
-// the trophy's own metal) and the locked, grey state (tone "empty", which
-// resolves to the shared .mark--empty fill:none/stroke rule already used by
-// the gem and skull marks above). Unlike GEM/GEM_EMPTY there is no separate
-// inset path for the locked state: Task 2's CSS comment says these two
-// shapes need no width/height of their own tuning, and one path serves both
-// tones the same way GEM's four metal calls share one path.
-const SHIELD = (tone: Look["metal"] | "empty") =>
-  `<svg class="mark mark--shield mark--${tone}" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M6 0 11 2 11 6.5 6 12 1 6.5 1 2Z"/></svg>`;
-const RIBBON = (tone: Look["metal"] | "empty") =>
-  `<svg class="mark mark--ribbon mark--${tone}" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M3 0 9 0 9 9 6 7 3 9Z"/></svg>`;
-
-// The fixed set of pages that get their own masthead link. Player pages and
-// the Hope Coin page (Tasks 7 and 8) are reachable ONLY from Standings and
-// are not themselves in this list, so nav() below treats any `current` that
-// is not one of these four as "conceptually under Standings" and highlights
-// that link instead of highlighting nothing. Keep this list and the anchors
-// nav() renders in sync; nothing else reads it.
-const NAV_HREFS = new Set(["/", "/games/", "/cards/", "/standings/"]);
+// so the same path draws every metal, exactly the way GEM's one path takes
+// a metal argument). Each has its own dedicated _EMPTY sibling for the
+// locked state, the same pattern GEM/GEM_EMPTY and SKULL/SKULL_EMPTY already
+// use, and for the same reason: `.mark--empty` strokes at stroke-width 1.2,
+// and a path that touches the viewBox edge loses half that stroke to
+// clipping. SHIELD's flat top and point touch y=0 and y=12 exactly, so
+// SHIELD_EMPTY is inset a full unit on every side, matching GEM_EMPTY's own
+// 0..12 -> 1..11 inset. RIBBON is centered with margin to spare, but gets an
+// inset sibling anyway for the same "locked reads as a smaller echo of
+// earned" reason GEM_EMPTY is smaller than GEM.
+//
+// Review round 1 (Task 7): the shield's first draft was a symmetric hexagon,
+// near-indistinguishable from GEM's diamond at 12px, which defeats telling
+// marks apart at a glance once Task 9 puts several in one dense row. A flat
+// top reads as a shield unmistakably. The ribbon's first draft was
+// top-anchored (y 0..9 in the 12-tall box) rather than vertically centered
+// like every other mark; it is centered here.
+const SHIELD = (metal: Look["metal"]) =>
+  `<svg class="mark mark--shield mark--${metal}" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M1 0 11 0 11 6.5 6 12 1 6.5Z"/></svg>`;
+const SHIELD_EMPTY =
+  `<svg class="mark mark--shield mark--empty" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2 1 10 1 10 6.5 6 11 2 6.5Z"/></svg>`;
+const RIBBON = (metal: Look["metal"]) =>
+  `<svg class="mark mark--ribbon mark--${metal}" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M3 1.5 9 1.5 9 10.5 6 8.5 3 10.5Z"/></svg>`;
+const RIBBON_EMPTY =
+  `<svg class="mark mark--ribbon mark--empty" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M4 2.5 8 2.5 8 9.5 6 8 4 9.5Z"/></svg>`;
 
 // nav(current) renders the masthead links, marking the page's own link with
-// aria-current so visitors can see where they are (styled in styles.css). A
-// page whose own address (current) is not one of the four sections above
-// (a player page, the Hope Coin page) still needs exactly one link marked
-// current, per spec ("marks Standings as the current nav item" - task-7 and
-// task-8 briefs), so it falls back to Standings rather than marking nothing.
+// aria-current so visitors can see where they are (styled in styles.css).
+// Strict equality only: nav() carries no routing policy of its own about
+// what a page outside the four sections "belongs under". A page whose own
+// address isn't one of these four hrefs (a player page, the Hope Coin page)
+// still wants exactly one link marked current, but that is an opinion for
+// the caller to state explicitly - see page()'s `navCurrent` parameter
+// below, which is how renderPlayer asks for Standings without changing what
+// this function does or does to any future page (a game page, the archive
+// page) that is also outside this list but should highlight something else.
 const nav = (current: string) =>
   ([["/", "Home"], ["/games/", "Games"], ["/cards/", "Cards"], ["/standings/", "Standings"]] as const)
-    .map(([href, label]) => {
-      const isCurrent = href === current || (href === "/standings/" && !NAV_HREFS.has(current));
-      return `<a href="${href}"${isCurrent ? ' aria-current="page"' : ""}>${label}</a>`;
-    })
+    .map(([href, label]) =>
+      `<a href="${href}"${href === current ? ' aria-current="page"' : ""}>${label}</a>`)
     .join(" · ");
 
 // The share-image every page falls back to when it has no image of its own
@@ -104,22 +112,35 @@ const DEFAULT_OG_IMAGE = "https://poker.kmikeym.com/cards/2026-07/assets/card-1-
 // footerTone is the background class for the closing footer band. Bands must
 // alternate light/dark with no two of the same tone touching (brand rule), so
 // the caller passes whichever tone opposes its own last section. `current` is
-// the page's own nav href, used twice: it marks the nav link with aria-current
-// (falling back to Standings when `current` names a page outside the fixed
-// four, per nav() above) and it becomes the absolute og:url, so a shared link
+// the page's own address: it becomes the absolute og:url, so a shared link
 // unfurls pointing at this page rather than at whatever page the scraper
 // guessed. `description` fills the meta/og description. `image` is the
 // og:image; it defaults to DEFAULT_OG_IMAGE so every existing caller (which
-// never passed one) keeps its current unfurl image unchanged. Player pages
-// (Task 7) are the first caller to pass their own, the newest card a player
-// holds.
+// never passed one) keeps its current unfurl image unchanged.
+//
+// `navCurrent` defaults to `current`, which is correct for every page that
+// IS one of nav()'s four sections (today, every existing caller). A page
+// that is not one of those four - a player page, the Hope Coin page - has
+// its own `current` (for og:url) but still wants a specific nav link
+// marked, so it passes `navCurrent` explicitly instead of nav() guessing a
+// routing policy from `current`'s shape (review round 1, Task 7: the first
+// draft put that guess inside nav() itself, which would have silently
+// mis-highlighted Standings for any future page - a game page, the archive
+// page - that is also outside the four but should highlight something
+// else). `footerHref`/`footerText` work the same way for the one footer
+// link, defaulting to today's "poker.kmikeym.com" pointing at "/" so every
+// existing caller is unaffected; the player page's brief calls for a single
+// Standings link there instead.
 function page(
   title: string,
   body: string,
   footerTone: "band-light" | "band-dark",
   current: string,
   description: string,
-  image: string = DEFAULT_OG_IMAGE
+  image: string = DEFAULT_OG_IMAGE,
+  navCurrent: string = current,
+  footerHref: string = "/",
+  footerText: string = "poker.kmikeym.com"
 ): string {
   return `<!doctype html>
 <html lang="en">
@@ -139,11 +160,11 @@ function page(
 </head>
 <body>
 <nav class="band-dark" style="padding:1rem 1.25rem;">
-  <div class="band-inner">${nav(current)}</div>
+  <div class="band-inner">${nav(navCurrent)}</div>
 </nav>
 ${body}
 <footer class="${footerTone}" style="padding:1.5rem 1.25rem; text-align:center;">
-  <div class="band-inner"><p class="stat">Generated from the game record. <a href="/">poker.kmikeym.com</a></p></div>
+  <div class="band-inner"><p class="stat">Generated from the game record. <a href="${footerHref}">${esc(footerText)}</a></p></div>
 </footer>
 </body>
 </html>
@@ -350,11 +371,11 @@ function trophyMarkEarned(look: Look): string {
 }
 
 // Picks the drawn mark for a LOCKED trophy tile: the same shape, greyed via
-// the shared .mark--empty outline (site/styles.css, Task 2). Gem and skull
-// already ship dedicated empty-state constants (GEM_EMPTY, SKULL_EMPTY) with
-// their own inset paths tuned for a stroke instead of a fill; shield and
-// ribbon reuse their single earned-state path with the "empty" tone swapped
-// in, per the SHIELD/RIBBON comment above.
+// the shared .mark--empty outline (site/styles.css, Task 2), drawn from its
+// own dedicated _EMPTY constant the same way GEM_EMPTY and SKULL_EMPTY are
+// - not the earned path with a class swapped in, because several of these
+// paths touch the viewBox edge and would clip half their stroke (see the
+// SHIELD/RIBBON comment above).
 //
 // Coin has no dedicated locked art. Only one registry entry uses shape
 // "coin" (the Hope Coin), and this falls back to GEM_EMPTY, the same grey
@@ -368,8 +389,8 @@ function trophyMarkLocked(look: Look): string {
     case "gem": return GEM_EMPTY;
     case "coin": return GEM_EMPTY;
     case "skull": return SKULL_EMPTY;
-    case "shield": return SHIELD("empty");
-    case "ribbon": return RIBBON("empty");
+    case "shield": return SHIELD_EMPTY;
+    case "ribbon": return RIBBON_EMPTY;
     default: {
       const unreachable: never = look.shape;
       throw new Error(`trophyMarkLocked: unknown trophy shape "${unreachable}"`);
@@ -559,10 +580,16 @@ ${totalsRow}
   </div>
 </section>${holoScript}`;
 
+  // navCurrent: the page's own address (`current`, above) drives og:url, but
+  // a player page isn't one of nav()'s four sections, so Standings has to be
+  // named explicitly here rather than guessed from the address's shape (see
+  // page()'s navCurrent comment). footerHref/footerText: the brief's page
+  // description is explicit that the foot holds one link, to Standings, not
+  // the generic "poker.kmikeym.com" -> "/" every other page uses.
   return page(
     player.name, body, "band-dark", `/player/${slug}/`,
     `${player.name}'s cards, trophies, and full game record on K5M Shareholder Poker.`,
-    image
+    image, "/standings/", "/standings/", "Standings"
   );
 }
 
