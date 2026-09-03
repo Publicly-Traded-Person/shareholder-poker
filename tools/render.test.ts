@@ -133,6 +133,12 @@ describe("renderStandings", () => {
   });
 
   test("the Hope Coin tile's heading links to /hope-coin/, and the Foil tile's champion sentence is byte-identical to what it rendered before this task (M4)", () => {
+    // Pins the exact heading markup, not just "a link exists somewhere in
+    // the tile" - deliberately strict. Moving the link into the paragraph
+    // (to mirror the Foil tile's "The card set" sentence-link pattern,
+    // say) or dropping it entirely both fail this line. That is the point:
+    // whoever makes that change is expected to update this assertion in
+    // the same commit, not discover afterward that nothing was guarding it.
     expect(html).toContain('<h3><a href="/hope-coin/">The Hope Coin</a>');
     // Pinned literal: this is the exact paragraph renderStandings produced
     // for the Foil tile before Task 9 touched this file, reproduced here

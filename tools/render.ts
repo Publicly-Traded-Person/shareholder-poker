@@ -237,6 +237,30 @@ function trophyShelf(earned: Earned[]): string {
   return `<span class="shelf">${marks}${more}</span>`;
 }
 
+// Renders the standings page in full: the Foil and Hope Coin tiles, then
+// the ledger table with one row per player on `deriveStandings(data).rows`.
+// Takes the parsed games.json; returns the complete HTML document (this is
+// what Task 10 writes to the committed site/standings/index.html, and what
+// the render drift check - `bun tools/render.ts && git diff --exit-code` on
+// that file - compares against). Throws nothing of its own: an empty
+// `data.games` list would fail earlier, inside `latest.results.find(...)!`
+// below, which is deliberate - a standings page with no games at all is a
+// data error, not a page this function should render blank.
+//
+// Two invariants worth knowing before touching this function again:
+//
+//   - Each row calls trophyCase(data, r.slug) itself, the same function the
+//     player page's own trophy case calls (renderPlayer, further down this
+//     file). This is not incidental: it is what guarantees the shelf here
+//     and the case on /player/<slug>/ can never disagree about what a
+//     player has earned, because both read the one registry through the
+//     one function rather than each keeping its own count.
+//   - The Trophies `<td>` is appended LAST in the row, after Rebuys, on
+//     purpose - the brief for this column (task 9) is explicit that the
+//     numeric columns (Games through Rebuys) stay together as one block,
+//     so a reader scanning the table doesn't have a text column splitting
+//     them. Add a future column after Trophies, not before it, unless a
+//     later brief says otherwise.
 export function renderStandings(data: GamesData): string {
   const s = deriveStandings(data);
   const nameOf = new Map(data.players.map(p => [p.slug, p.name]));
