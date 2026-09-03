@@ -114,34 +114,63 @@ const DEFAULT_OG_IMAGE = "https://poker.kmikeym.com/cards/2026-07/assets/card-1-
 // the caller passes whichever tone opposes its own last section. `current` is
 // the page's own address: it becomes the absolute og:url, so a shared link
 // unfurls pointing at this page rather than at whatever page the scraper
-// guessed. `description` fills the meta/og description. `image` is the
-// og:image; it defaults to DEFAULT_OG_IMAGE so every existing caller (which
-// never passed one) keeps its current unfurl image unchanged.
+// guessed. `description` fills the meta/og description.
 //
-// `navCurrent` defaults to `current`, which is correct for every page that
-// IS one of nav()'s four sections (today, every existing caller). A page
-// that is not one of those four - a player page, the Hope Coin page - has
-// its own `current` (for og:url) but still wants a specific nav link
-// marked, so it passes `navCurrent` explicitly instead of nav() guessing a
-// routing policy from `current`'s shape (review round 1, Task 7: the first
-// draft put that guess inside nav() itself, which would have silently
-// mis-highlighted Standings for any future page - a game page, the archive
-// page - that is also outside the four but should highlight something
-// else). `footerHref`/`footerText` work the same way for the one footer
-// link, defaulting to today's "poker.kmikeym.com" pointing at "/" so every
-// existing caller is unaffected; the player page's brief calls for a single
-// Standings link there instead.
+// `options` is everything a caller only sometimes needs to override, all of
+// it optional (review round 2, Task 7: these used to be four trailing
+// positional string parameters, which typechecks happily even when two of
+// them are transposed at a call site - nothing about `string` stops
+// `navCurrent` and `footerHref` from swapping past the compiler). Read this
+// comment before adding a caller, not the call site you are copying from:
+//
+//   image      - the og:image. Defaults to DEFAULT_OG_IMAGE (July's foil
+//                champion card), which is what every page rendered before
+//                this option existed unfurled with, so omitting it keeps
+//                that unchanged. Override when the page has its own picture
+//                worth sharing (renderPlayer passes a player's newest card).
+//   navCurrent - which of nav()'s four links gets aria-current. Defaults to
+//                `current` itself, correct for any page that IS one of
+//                those four sections (every caller before Task 7). A page
+//                outside the four - a player page, the Hope Coin page -
+//                still wants exactly one link marked, so it names that link
+//                here explicitly rather than nav() guessing a routing
+//                policy from `current`'s shape (round 1 found exactly that
+//                guess baked into nav() itself, which would have silently
+//                mis-highlighted Standings for any future page - a game
+//                page, the archive page - that is also outside the four but
+//                should highlight something else).
+//   footerHref - the one footer link's target. Defaults to "/", today's
+//                "back to the homepage" link on every existing page.
+//   footerText - that link's visible text. Defaults to "poker.kmikeym.com".
+//                A page whose brief calls for a specific footer link (the
+//                player page's brief: "one link, to Standings") overrides
+//                footerHref and footerText together.
+//
+// The two existing callers, renderStandings and renderGamesIndex, pass no
+// fifth argument at all and are byte-identical to before this option
+// existed - confirmed by the render drift check, which is the actual
+// guard: those two pages are committed HTML this option must never move.
+type PageOptions = {
+  image?: string;
+  navCurrent?: string;
+  footerHref?: string;
+  footerText?: string;
+};
+
 function page(
   title: string,
   body: string,
   footerTone: "band-light" | "band-dark",
   current: string,
   description: string,
-  image: string = DEFAULT_OG_IMAGE,
-  navCurrent: string = current,
-  footerHref: string = "/",
-  footerText: string = "poker.kmikeym.com"
+  options: PageOptions = {}
 ): string {
+  const {
+    image = DEFAULT_OG_IMAGE,
+    navCurrent = current,
+    footerHref = "/",
+    footerText = "poker.kmikeym.com",
+  } = options;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -583,13 +612,16 @@ ${totalsRow}
   // navCurrent: the page's own address (`current`, above) drives og:url, but
   // a player page isn't one of nav()'s four sections, so Standings has to be
   // named explicitly here rather than guessed from the address's shape (see
-  // page()'s navCurrent comment). footerHref/footerText: the brief's page
+  // page()'s PageOptions comment). footerHref/footerText: the brief's page
   // description is explicit that the foot holds one link, to Standings, not
-  // the generic "poker.kmikeym.com" -> "/" every other page uses.
+  // the generic "poker.kmikeym.com" -> "/" every other page uses. Named
+  // fields, not positional slots, so a future edit here cannot transpose
+  // navCurrent and footerHref past the compiler the way four same-typed
+  // trailing string parameters could (round 2 finding).
   return page(
     player.name, body, "band-dark", `/player/${slug}/`,
     `${player.name}'s cards, trophies, and full game record on K5M Shareholder Poker.`,
-    image, "/standings/", "/standings/", "Standings"
+    { image, navCurrent: "/standings/", footerHref: "/standings/", footerText: "Standings" }
   );
 }
 
