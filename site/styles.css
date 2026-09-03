@@ -147,6 +147,19 @@ h2.display { font-size: clamp(1.4rem, 4vw, 2rem); margin: 0 0 .6em; }
 .ledger tr.finish-1 td:first-child { color: var(--foil-deep); font-weight: 800; }
 .ledger tr.finish-2 td:first-child,
 .ledger tr.finish-3 td:first-child { color: var(--sapphire); font-weight: 700; }
+/* The player-page ledger's totals row (tools/render.ts's renderPlayer):
+   without this it renders identically to a game row, which on a one-game
+   player's page (Drew A., Gene) reads as two copies of the same game. The
+   parchment fill and heavier rule borrow `.ledger th`'s own "this is
+   structure, not a data row" voice rather than inventing a new one. No
+   rarity metal here on purpose: metals in this system mark an earned
+   trophy's rarity (see docs/brand.md), never a generic "this is a summary"
+   accent, so a totals row must never reach for one. */
+.ledger tr.ledger-total td {
+  background: var(--parchment);
+  border-top: 2px solid var(--line);
+  font-weight: 800;
+}
 
 /* Card frames (gallery). Dark objects in a light room get real presentation:
    border, lift, and a hover raise. */
@@ -477,3 +490,119 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
 .mark--skull { fill: var(--pewter-deep); }
 .mark--skull .socket { fill: var(--paper); }
 .mark--skull-empty { fill: none; stroke: var(--pewter); stroke-width: 1.1; }
+
+/* Trophy shapes (player pages, spec 2026-09-02 §4.3): "a new mark shape is
+   one SVG constant [in tools/render.ts] and one CSS class [here]". Shield
+   and ribbon carry shape only, no fill or stroke of their own: a trophy's
+   colour comes from a metal class on the same element (mark mark--shield
+   mark--sapphire), and its locked state is the shared .mark--empty outline
+   above, so baking a fill in here would fight one of those two classes on
+   every trophy tile depending on which was written later in the cascade.
+   Pinned to the same 12x12 box every other mark uses (skull, coin, the
+   empty diamond) even though neither shield nor ribbon is round, so the
+   tight gap in .shelf and the icon column in .trophy don't have to special-
+   case one shape; the SVG constants that draw them need no width/height
+   of their own, the same way .chip-race svg already lets CSS size an <svg>
+   instead of its markup. */
+.mark--shield { width: 12px; height: 12px; }
+.mark--ribbon { width: 12px; height: 12px; }
+
+/* Trophy case (/player/<slug>/, spec §5.1 step 3): a denser .tiles grid --
+   trophy tiles hold one mark plus two short lines, not a stat block, so
+   three fit per row on desktop where standings tiles fit two (the
+   .tiles--3 grammar above, just under a different name because these tiles
+   are never mixed into a plain .tiles grid). 900px stays the only
+   breakpoint, per the .cols rule elsewhere in this file. */
+.trophy-case { display: grid; grid-template-columns: 1fr; gap: 1rem; margin: 1.25em 0; }
+@media (min-width: 900px) { .trophy-case { grid-template-columns: 1fr 1fr 1fr; } }
+.trophy {
+  display: flex; align-items: flex-start; gap: .7rem;
+  background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
+  padding: .8rem 1rem; box-shadow: 0 1px 3px rgba(26, 28, 32, .06);
+}
+.trophy .mark { flex: none; margin-top: .2em; }
+/* These h3/p selectors assume tasks 7-9 mark up a trophy tile's name as an
+   <h3> and its count/date-or-earn-line as a <p>, both direct children of
+   .trophy. That assumption is NOT part of the fixed eleven-name class
+   contract (task-2-brief.md) and nothing enforces it: if a future task
+   marks up the name or meta line with different tags, these rules silently
+   style nothing, no test fails, and the text just renders unstyled inline.
+   If that happens, fix it here by matching the tags that task actually
+   used, not by inventing a new class. */
+.trophy h3, .trophy p { margin: 0; }
+.trophy h3 { font-size: .95em; font-weight: 700; }
+.trophy p { font-size: .85em; color: var(--muted-ink); }
+/* Locked reads as the unopened pack, the same quiet parchment
+   .season-card--upcoming already uses for "not yet" states. The mark itself
+   goes grey via .mark--empty on the SVG element, never here: this rule must
+   not carry its own fill or stroke, or the two greys could drift apart the
+   day only one of them gets edited. */
+.trophy--locked { background: var(--parchment); box-shadow: none; }
+.trophy--locked p { color: var(--pewter-deep); }
+
+/* Standings Trophies column (spec §5.3): a dense run of earned marks in one
+   table cell, capped at six with a "+N" overflow so one player's trophy
+   count never wraps the whole row taller. */
+.shelf { display: inline-flex; align-items: center; gap: .2em; vertical-align: -1px; }
+.shelf-more {
+  margin-left: .35em;
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: .78em; color: var(--muted-ink);
+}
+
+/* Standings trophy legend (spec follow-up 2026-09-03, beneath the ledger
+   the .shelf column above sits in): a quiet key pairing all fifteen
+   registry marks with their names, generated by tools/render.ts
+   trophyLegend() straight off TROPHIES so a sixteenth trophy needs no
+   second edit here. Fifteen items on an already dense page is meant to
+   read as one small-print key, not a second table - a plain wrapping
+   inline list, muted text, no border or background of its own, the same
+   "quiet, not a card" restraint .card-caption already uses below. Marks
+   keep their own colors (the metals are the accent, same as everywhere
+   else on the site); this rule adds no color of its own and never reaches
+   for --lime, which is reserved for the one RSVP CTA. */
+.trophy-legend {
+  list-style: none; margin: 1.5em 0 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: .35em 1.25em;
+  font-size: .82em; color: var(--muted-ink);
+}
+.trophy-legend li { display: inline-flex; align-items: center; gap: .4em; }
+
+/* Card gallery (/player/<slug>/, spec §5.1 step 2): one figure per set a
+   player was carded in. A fixed basis, not .card-grid's auto-fill/minmax
+   grid, because a player owns at most a handful of cards; auto-fill reserves
+   phantom empty tracks up to the container width, which would strand a
+   lone card in a narrow column with dead space beside it instead of letting
+   it sit at a natural size. Figure margin reset for the same reason
+   .card-grid resets it: browser default figure margins (1em 40px) squeeze
+   the frame inside itself and push the caption past the edge. */
+.card-gallery { display: flex; flex-wrap: wrap; gap: 1.5rem; margin: 1.25em 0; }
+.card-gallery figure { margin: 0; width: min(240px, 40vw); }
+.card-gallery img { width: 100%; }
+
+/* The Hope Coin's route (/hope-coin/, spec §5.2): a vertical line with each
+   holder's stop hanging off it, oldest at the top. A plain hairline
+   (--line), not a rarity metal, because this line is structure, not a
+   rarity signal (the "gold means something" rule above the rarity accents
+   applies here too). */
+.route { position: relative; list-style: none; margin: 1.5em 0; padding: 0; }
+.route::before {
+  content: ""; position: absolute; top: .3em; bottom: .3em; left: 5px;
+  width: 2px; background: var(--line);
+}
+.route-stop { position: relative; margin: 0 0 1.5rem; padding-left: 2rem; }
+.route-stop:last-child { margin-bottom: 0; }
+/* The bead on the line: paper-filled so the hairline shows through an
+   unfilled ring, the same "hollow means not-here" reading .mark--empty
+   already uses for a locked mark. */
+.route-stop::before {
+  content: "";
+  position: absolute; left: 0; top: .3em; width: 12px; height: 12px;
+  border-radius: 50%; background: var(--paper); border: 2px solid var(--pewter-deep);
+}
+/* The present holder: filled foil bead, bold text. Foil, not sapphire, on
+   purpose -- the coin itself is drawn in foil (.coin-ring/.coin-core above)
+   and the current stop should read as the same metal as the trophy it
+   marks. */
+.route-stop--current { font-weight: 800; }
+.route-stop--current::before { background: var(--foil-deep); border-color: var(--foil-deep); }

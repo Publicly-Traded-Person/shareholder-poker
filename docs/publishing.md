@@ -3,13 +3,39 @@
 Ratchet status: pass 1 (one command + narrative + Mike's go). Each pass
 removes a named manual step; see the plan and spec section 6.
 
+**Running the suite writes to `site/`, so commit the regeneration before you
+test.** `bun test tools` is not read-only: one of its checks
+(`tools/site.test.ts`, "the generated paths clean") re-runs
+`bun tools/render.ts` for real, in place, to prove the committed standings
+page, games index, calendar file, player pages, and Hope Coin page are
+exactly what the generator produces. That check refuses to run at all while
+any of those five paths is uncommitted - it names the dirty path in its
+failure message - because it cannot tell your fresh regeneration apart from
+a hand-edit it would otherwise silently overwrite.
+
+This refusal is not a rare misfire. You will hit it every single time you
+follow this runbook's own step 5, because that step's own instruction is
+"re-run `bun tools/render.ts`," which is exactly what leaves those five
+paths dirty. Expect it, and work in this order:
+
+1. Regenerate (`bun tools/render.ts`, as step 5 says).
+2. Commit the generated pages (the five paths above, or the whole diff).
+3. Run `bun test tools` on a clean tree.
+4. Review the diff.
+
+The same refusal fires for the reason it exists: an uncommitted hand-edit to
+any of the five paths trips it too, on purpose, so it never silently
+overwrites work you meant to keep. Either way the fix is the same - commit
+or stash the dirty path, then run `bun test tools` again.
+
 ## Game night + day after
 
 1. Export the PokerNow log CSV. It is PRIVATE; it never enters this repo.
 2. Write `results.json` (the judged part): `[{handle, finish, payout, rebuys, trophies}]`.
 3. Run: `bun tools/publish-game.ts <log.csv> --date YYYY-MM-DD --results results.json`
-   - Halts on chip-conservation mismatch or an unknown handle. Fix the input,
-     never the check.
+   - Halts on chip-conservation mismatch, an unknown handle, or a trophy id
+     in `results.json` that is not one of the ids in `tools/lib/trophies.ts`.
+     Fix the input, never the check.
 4. Write the narrative page `site/games/<date>/index.html` (copy an existing
    game page shell). Dignity rule; no em dashes; no collections/owed content.
    Then inject the chip race into it (the shell carries CHIP-RACE markers;
@@ -51,6 +77,99 @@ removes a named manual step; see the plan and spec section 6.
 7. Board: comment results on the month's game issue, close it, open next
    month's issue, add to project #1.
 
+## Hope Coin handoff (same commit as the game that moved it)
+
+When the Coin changes hands at a game, append one stop to `hopeCoin.history`
+(top of `site/data/games.json`) in the same commit as that game's own
+publish. A handoff touches three things. `validateCoinHistory`
+(`tools/lib/hope-coin.ts`, wired into `tools/data.test.ts`) is the chain
+validator that catches a half-done handoff — a stop with no `to` that is
+not actually the last one, a summary that disagrees with the last stop,
+stops out of order, or a stop whose `to` does not match the next stop's
+`from`. It only checks; it does not write anything for you, so still do
+all three by hand and then run `bun test tools` before you commit:
+
+- Append a new stop to `hopeCoin.history` with the new stop's `holder` (the
+  slug it moved to), the new stop's `from` (the date it moved, YYYY-MM-DD),
+  the new stop's `how` (one plain sentence: what happened, nothing more),
+  and, when it is known, the new stop's `place`.
+- Set the previous stop's `to` to that same date. The previous stop is
+  whichever stop was last in `hopeCoin.history` before this one; it is the
+  only field on it that still needed closing.
+- Update the two summary fields at the very top of the file to match the
+  new last stop: `hopeCoin.holder` becomes the new stop's `holder`, and
+  `hopeCoin.since` becomes the new stop's `from`.
+
+Do all three in the same edit. `bun test tools` now checks the chain end to
+end (that the summary agrees with the last stop, that every earlier stop's
+`to` is filled, that stops run oldest to newest with no gap between one
+stop's `to` and the next stop's `from`), so leaving a piece out fails the
+suite instead of quietly publishing a Coin page that tells two different
+stories. Read the failure message; it names the stop and the fields that
+disagree.
+
+### Prepending a remembered pre-spine stop
+
+Everything above is the APPEND case: a new stop becomes the new last stop,
+closing off whichever stop used to be last. Recovering an earlier stop Mike
+now remembers - a hop the Coin made before the earliest stop already on
+file - is the opposite edit. Following the append bullets above for it
+would build a broken chain (there is no "previous stop" to close; the
+remembered stop comes before everything already in the array), so do this
+instead:
+
+- Insert the new stop at the FRONT of `hopeCoin.history` (index 0), not the
+  end.
+- Set the new stop's `to` to whatever date was, until this edit, the first
+  stop's `from`. That is the one date that keeps the chain unbroken: the
+  remembered stop now hands off, with no gap and no overlap, to the stop
+  that used to be first.
+- Leave the new stop's `from` off entirely when Mike does not remember the
+  exact date the Coin arrived there. Only the first stop in the array may
+  omit `from`, and after this edit the new stop IS the first one.
+- If the remembered holder has never appeared in `hopeCoin.history` or on
+  any game's roster, add them to `players` (top of `games.json`) so the
+  page has a name to show, not a bare slug. A holder with no games of their
+  own is a legitimate roster entry; they never get a page under
+  `site/player/` (that only happens on a slug's first game result), but the
+  Hope Coin page still names whoever it says held the Coin.
+- The two summary fields at the top of the file, `hopeCoin.holder` and
+  `hopeCoin.since`, do NOT change for a prepend. They describe who holds
+  the Coin right now, and a stop about its distant past never touches that.
+
+Run `bun test tools` after a prepend the same as after an append.
+`validateCoinHistory` is what catches a mistake either way - it does not
+have a separate "prepend mode," it just checks the whole array's shape, so
+a broken prepend fails the exact same rules a broken append would.
+
+### The Coin's history is still being reconstructed
+
+The real `hopeCoin.history` today starts with the nick-m stop from April
+2026; the Coin is older than that, and Mike is recovering its earlier stops
+from memory, one prepend at a time, per the section just above. Until every
+stop back to the actual beginning is recovered, `hopeCoin.historyPending`
+(top of `games.json`, beside `holder` and `since`) stays `true`. While it
+is, the Hope Coin page prints one extra sentence under "The journey"
+heading, above the route, saying the journey shown is only what the record
+can currently date. `tools/render.ts`'s `renderHopeCoin` is what prints
+that sentence; it is never typed onto the page by hand, the same reason
+`recordQualifier`'s "being backfilled" line on standings and the games
+index reads `backfillPending` instead of a hardcoded string (see "Known
+open items" in `CLAUDE.md`) - a typed sentence would keep announcing an
+unfinished journey on the day it actually finishes.
+
+When a prepend finally reaches back to the Coin's true first stop - the one
+with no earlier stop still missing - remove `hopeCoin.historyPending`
+entirely in that same commit. Delete the field; do not set it to `false`.
+An absent field is the one state nothing has to guess about, the same
+reason a finished season backfill deletes its own entry from
+`backfillPending` (a few lines up) instead of leaving a `false` behind for
+someone to wonder about later. Removing it early, before the history
+actually reaches back to the beginning, would silently tell visitors the
+Coin's journey is complete when it is not; forgetting to remove it once the
+history really is finished would keep the page apologizing for a gap that
+no longer exists.
+
 ## Cards (per set, still manual by design)
 
 Card copy is judgment; it does not automate. Render per
@@ -87,6 +206,57 @@ change, refresh the home page's "The cards" tile (`site/index.html`) so it
 names the set that just shipped instead of the one still in production; it
 is hand-typed copy, not runtime-filled, so nothing else will catch it going
 stale.
+
+### Card fields on every result
+
+Minting a set also touches two things on the `games.json` side that the
+steps above do not cover, because they live on the game's data, not on the
+set page itself. Do these in the same commit as the set page:
+
+- The game itself gets `cardSetName`: the set's own display name, exactly
+  as it reads on the set page, for example "The Founder's Table". Add it
+  beside `cardSet` (same game object). The "card cross-check" describe
+  block in `tools/site.test.ts` (Task 5) checks the pair over every game in
+  the real data: a game carrying `cardSet` with no `cardSetName` now fails
+  the suite, so a skipped `cardSetName` is caught before it merges.
+- Every result in that game gets a `card` block with three fields: `metal`
+  (one of `foil`, `sapphire`, `copper`, `pewter`, which the pages name
+  Foil, Rare, Uncommon, Common), `file` (the filename under
+  `site/cards/<cardSet>/assets/`, nothing more), and `title` (the caption
+  title exactly as it reads under that card on the set page, never a
+  paraphrase).
+
+A set that ships with some results carrying a `card` block and others
+missing it is a half-done state. The same card cross-check (Task 5) catches
+it: it fails whenever an asset under `assets/` is claimed by no result, or
+by more than one, so an incomplete fill is caught before it merges. Finish
+all of them yourself, before the commit that ships the set page.
+
+## Player bio (optional, one paragraph)
+
+A player's `bio` (their entry in the `players` array, top of `games.json`)
+is one paragraph in Charlie's own words, written for the public to read on
+that player's page. It follows the same dignity rule as everything else in
+`site/`, and it is never lifted from the vault's private notes; write it
+fresh for this page, even if a private note already says something similar.
+
+Leave `bio` absent when there is nothing ready to publish yet. The page
+simply renders with no analysis block in that case; an absent `bio` is a
+complete, valid state, not a placeholder waiting to be filled.
+
+## Adding a trophy
+
+A new trophy is one entry in `tools/lib/trophies.ts`: an id, a name, an
+earn line, a look, and, for anything derived from the record rather than
+judged by a human at the table, a rule. That file is the single place a
+trophy gets added; read its own header comment before adding one. Do not
+copy its list of ids into this runbook: a copied list is a second list that
+goes stale the moment the real one changes, and Charlie should always be
+reading the one true list, not a snapshot of it.
+
+After adding an entry, run the suite (`bun test tools`). It rejects a
+malformed entry, such as a missing field or a rule left off a trophy that
+needs one, before it can reach a page.
 
 ## Portrait consent (per set, Tier 2b)
 

@@ -1,6 +1,10 @@
-// Renders the derived pages (standings, games index) as full committed HTML.
+// Renders the derived pages (standings, games index, player pages) as full
+// committed HTML.
 // Run: bun tools/render.ts   (reads site/data/games.json, writes site/*/index.html)
-import { deriveStandings, type GamesData } from "./lib/standings";
+import {
+  deriveStandings, type GamesData, type Game, type GameResult, type CardRef, type HopeCoinStop,
+} from "./lib/standings";
+import { trophyCase, TROPHIES, displayOrder, type Trophy, type Look, type Earned } from "./lib/trophies";
 
 // HTML-escapes a string for use in text content OR inside a double-quoted
 // attribute. Takes any string; returns it with & < > and " replaced by their
@@ -58,29 +62,117 @@ const SKULL =
   `<svg class="mark mark--skull" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M6 1a4.3 4.3 0 0 0-4.3 4.3c0 1.6.9 3 2.3 3.7V11h4V9a4.3 4.3 0 0 0 2.3-3.7A4.3 4.3 0 0 0 6 1Z"/><circle class="socket" cx="4.4" cy="5.3" r=".95"/><circle class="socket" cx="7.6" cy="5.3" r=".95"/></svg>`;
 const SKULL_EMPTY =
   `<svg class="mark mark--skull-empty" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M6 1.6a3.7 3.7 0 0 0-3.7 3.7c0 1.4.8 2.6 2 3.2v1.9h3.4V8.5a3.7 3.7 0 0 0 2-3.2A3.7 3.7 0 0 0 6 1.6Z"/></svg>`;
+// The two trophy shapes added for player pages (Task 2's CSS contract:
+// .mark--shield and .mark--ribbon carry geometry only, no fill of their own,
+// so the same path draws every metal, exactly the way GEM's one path takes
+// a metal argument). Each has its own dedicated _EMPTY sibling for the
+// locked state, the same pattern GEM/GEM_EMPTY and SKULL/SKULL_EMPTY already
+// use, and for the same reason: `.mark--empty` strokes at stroke-width 1.2,
+// and a path that touches the viewBox edge loses half that stroke to
+// clipping. SHIELD's flat top and point touch y=0 and y=12 exactly, so
+// SHIELD_EMPTY is inset a full unit on every side, matching GEM_EMPTY's own
+// 0..12 -> 1..11 inset. RIBBON is centered with margin to spare, but gets an
+// inset sibling anyway for the same "locked reads as a smaller echo of
+// earned" reason GEM_EMPTY is smaller than GEM.
+//
+// Review round 1 (Task 7): the shield's first draft was a symmetric hexagon,
+// near-indistinguishable from GEM's diamond at 12px, which defeats telling
+// marks apart at a glance once Task 9 puts several in one dense row. A flat
+// top reads as a shield unmistakably. The ribbon's first draft was
+// top-anchored (y 0..9 in the 12-tall box) rather than vertically centered
+// like every other mark; it is centered here.
+const SHIELD = (metal: Look["metal"]) =>
+  `<svg class="mark mark--shield mark--${metal}" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M1 0 11 0 11 6.5 6 12 1 6.5Z"/></svg>`;
+const SHIELD_EMPTY =
+  `<svg class="mark mark--shield mark--empty" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2 1 10 1 10 6.5 6 11 2 6.5Z"/></svg>`;
+const RIBBON = (metal: Look["metal"]) =>
+  `<svg class="mark mark--ribbon mark--${metal}" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M3 1.5 9 1.5 9 10.5 6 8.5 3 10.5Z"/></svg>`;
+const RIBBON_EMPTY =
+  `<svg class="mark mark--ribbon mark--empty" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M4 2.5 8 2.5 8 9.5 6 8 4 9.5Z"/></svg>`;
 
 // nav(current) renders the masthead links, marking the page's own link with
 // aria-current so visitors can see where they are (styled in styles.css).
+// Strict equality only: nav() carries no routing policy of its own about
+// what a page outside the four sections "belongs under". A page whose own
+// address isn't one of these four hrefs (a player page, the Hope Coin page)
+// still wants exactly one link marked current, but that is an opinion for
+// the caller to state explicitly - see page()'s `navCurrent` parameter
+// below, which is how renderPlayer asks for Standings without changing what
+// this function does or does to any future page (a game page, the archive
+// page) that is also outside this list but should highlight something else.
 const nav = (current: string) =>
   ([["/", "Home"], ["/games/", "Games"], ["/cards/", "Cards"], ["/standings/", "Standings"]] as const)
     .map(([href, label]) =>
       `<a href="${href}"${href === current ? ' aria-current="page"' : ""}>${label}</a>`)
     .join(" · ");
 
+// The share-image every page falls back to when it has no image of its own
+// (July's foil champion card). A player page with no card yet, or a page
+// that predates per-page images, all unfurl with this rather than nothing.
+const DEFAULT_OG_IMAGE = "https://poker.kmikeym.com/cards/2026-07/assets/card-1-lewd.png";
+
 // footerTone is the background class for the closing footer band. Bands must
 // alternate light/dark with no two of the same tone touching (brand rule), so
 // the caller passes whichever tone opposes its own last section. `current` is
-// the page's own nav href, used twice: it marks the nav link with aria-current
-// and it becomes the absolute og:url, so a shared link unfurls pointing at this
-// page rather than at whatever page the scraper guessed. `description` fills
-// the meta/og description.
+// the page's own address: it becomes the absolute og:url, so a shared link
+// unfurls pointing at this page rather than at whatever page the scraper
+// guessed. `description` fills the meta/og description.
+//
+// `options` is everything a caller only sometimes needs to override, all of
+// it optional (review round 2, Task 7: these used to be four trailing
+// positional string parameters, which typechecks happily even when two of
+// them are transposed at a call site - nothing about `string` stops
+// `navCurrent` and `footerHref` from swapping past the compiler). Read this
+// comment before adding a caller, not the call site you are copying from:
+//
+//   image      - the og:image. Defaults to DEFAULT_OG_IMAGE (July's foil
+//                champion card), which is what every page rendered before
+//                this option existed unfurled with, so omitting it keeps
+//                that unchanged. Override when the page has its own picture
+//                worth sharing (renderPlayer passes a player's newest card).
+//   navCurrent - which of nav()'s four links gets aria-current. Defaults to
+//                `current` itself, correct for any page that IS one of
+//                those four sections (every caller before Task 7). A page
+//                outside the four - a player page, the Hope Coin page -
+//                still wants exactly one link marked, so it names that link
+//                here explicitly rather than nav() guessing a routing
+//                policy from `current`'s shape (round 1 found exactly that
+//                guess baked into nav() itself, which would have silently
+//                mis-highlighted Standings for any future page - a game
+//                page, the archive page - that is also outside the four but
+//                should highlight something else).
+//   footerHref - the one footer link's target. Defaults to "/", today's
+//                "back to the homepage" link on every existing page.
+//   footerText - that link's visible text. Defaults to "poker.kmikeym.com".
+//                A page whose brief calls for a specific footer link (the
+//                player page's brief: "one link, to Standings") overrides
+//                footerHref and footerText together.
+//
+// The two existing callers, renderStandings and renderGamesIndex, pass no
+// fifth argument at all and are byte-identical to before this option
+// existed - confirmed by the render drift check, which is the actual
+// guard: those two pages are committed HTML this option must never move.
+type PageOptions = {
+  image?: string;
+  navCurrent?: string;
+  footerHref?: string;
+  footerText?: string;
+};
+
 function page(
   title: string,
   body: string,
   footerTone: "band-light" | "band-dark",
   current: string,
-  description: string
+  description: string,
+  options: PageOptions = {}
 ): string {
+  const {
+    image = DEFAULT_OG_IMAGE,
+    navCurrent = current,
+    footerHref = "/",
+    footerText = "poker.kmikeym.com",
+  } = options;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -93,23 +185,159 @@ function page(
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:url" content="https://poker.kmikeym.com${current}">
 <meta property="og:type" content="website">
-<meta property="og:image" content="https://poker.kmikeym.com/cards/2026-07/assets/card-1-lewd.png">
+<meta property="og:image" content="${esc(image)}">
 <meta name="twitter:card" content="summary">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 <nav class="band-dark" style="padding:1rem 1.25rem;">
-  <div class="band-inner">${nav(current)}</div>
+  <div class="band-inner">${nav(navCurrent)}</div>
 </nav>
 ${body}
 <footer class="${footerTone}" style="padding:1.5rem 1.25rem; text-align:center;">
-  <div class="band-inner"><p class="stat">Generated from the game record. <a href="/">poker.kmikeym.com</a></p></div>
+  <div class="band-inner"><p class="stat">Generated from the game record. <a href="${footerHref}">${esc(footerText)}</a></p></div>
 </footer>
 </body>
 </html>
 `;
 }
 
+// The standings row's own trophy shelf (task 9 of the 2026-09-02
+// player-pages-trophies-hope-coin plan, spec §5.3): a dense run of the
+// player's earned marks, in trophyCase's own display order, capped at six
+// so one player's trophy count never grows a ledger row taller than its
+// neighbors. Takes the `earned` list trophyCase() already returned for this
+// slug - never recomputed here, per the one design rule at the top of
+// tools/lib/trophies.ts ("a trophy is one registry entry and nothing
+// else") - and returns the <span class="shelf"> markup for the Trophies
+// cell. A player who has earned nothing gets back "": renderStandings
+// always writes the <td> around whatever this returns, so an empty string
+// is what keeps that cell present on the row but visibly empty, rather
+// than this function inventing a "nothing yet" placeholder of its own.
+//
+// Draws marks with trophyMarkEarned, defined further down this file in the
+// player-page section Task 7 built - reused rather than a second SVG
+// switch, so a shelf mark and a trophy-case tile for the same trophy are
+// always pixel-identical.
+//
+// Gives one shelf mark an accessible name (final fix wave, item 5): every
+// shape trophyMarkEarned draws is `aria-hidden="true"` except the Coin
+// (which already carries its own `role="img" aria-label="Hope Coin"` - see
+// the COIN constant), because on a trophy-case tile the name already sits
+// right next to the mark as visible `<h3>` text, so hiding the mark itself
+// from a screen reader there loses nothing. The shelf has no such text: it
+// is nothing but a dense run of marks, so the same aria-hidden marks that
+// are harmless on a tile leave the standings Trophies column announcing as
+// an empty cell under a header that is not empty. Takes the raw SVG string
+// trophyMarkEarned already built and the trophy's own `name` from the
+// registry - the actual name Charlie would read on that trophy's own tile,
+// never re-derived or abbreviated here - and returns the same markup with
+// an accessible name wired in, plus a `title` attribute either way (a
+// native browser hover label for sighted visitors; still no visible
+// legend, which is the site owner's design call, not this fix's).
+//
+// Two shapes, because the Coin already has an accessible name of its own:
+//   - Every other shape: swap its `aria-hidden="true"` for
+//     `role="img" aria-label="<name>" title="<name>"`, in the exact spot
+//     aria-hidden held, which is why this leaves the leading
+//     `<svg class="mark ...` prefix every mark starts with untouched (Task
+//     9's own shelf tests count and order marks by matching that exact
+//     prefix and the class names right after it; swapping a same-length
+//     attribute is what keeps that markup shape intact instead of
+//     reordering the tag's attributes and breaking those tests for a
+//     reason that has nothing to do with what they are actually checking).
+//   - The Coin: never overwrite its own aria-label with the registry's
+//     longer "The Hope Coin" - a screen reader and a mouse hover
+//     disagreeing about one mark's name would be worse than the gap this
+//     fix closes. Only a matching `title` is added, read back off the
+//     markup's own existing aria-label rather than off `name`.
+function accessibleShelfMark(markup: string, name: string): string {
+  const label = esc(name);
+  if (markup.includes('aria-hidden="true"')) {
+    return markup.replace('aria-hidden="true"', `role="img" aria-label="${label}" title="${label}"`);
+  }
+  const existingLabel = /aria-label="([^"]*)"/.exec(markup);
+  const hoverLabel = existingLabel ? esc(existingLabel[1]!) : label;
+  return markup.replace(">", ` title="${hoverLabel}">`);
+}
+const SHELF_CAP = 6;
+function trophyShelf(earned: Earned[]): string {
+  if (earned.length === 0) return "";
+  const trophyById = new Map(TROPHIES.map((t) => [t.id, t]));
+  const marks = earned.slice(0, SHELF_CAP).map((e) => {
+    const trophy = trophyById.get(e.id);
+    // trophyCase() only ever returns ids from its own registry, so this can
+    // only fire if this file and lib/trophies.ts have drifted out of sync
+    // with each other - never a data problem, always a code bug, hence
+    // throw rather than silently dropping a mark off the shelf.
+    if (!trophy) throw new Error(`trophyShelf: trophyCase returned an unknown trophy id "${e.id}"`);
+    return accessibleShelfMark(trophyMarkEarned(trophy.look), trophy.name);
+  }).join("");
+  const overflow = earned.length - SHELF_CAP;
+  const more = overflow > 0 ? `<span class="shelf-more">+${overflow}</span>` : "";
+  return `<span class="shelf">${marks}${more}</span>`;
+}
+
+// The standings page's trophy legend (spec follow-up 2026-09-03): a quiet
+// key beneath the ledger pairing every registry trophy's own mark with its
+// name, in the exact order the shelf and the trophy case already draw them.
+// Takes nothing - it reads TROPHIES through displayOrder() directly, never a
+// second list of names or marks, because that is this repo's one design rule
+// for trophies (tools/lib/trophies.ts header comment: "a trophy is one
+// registry entry and nothing else"). Adding a trophy to the registry makes
+// it appear here automatically; nothing about this function names a count
+// or an id.
+//
+// Draws every mark EARNED (trophyMarkEarned, the same helper trophyShelf and
+// the player-page trophy case both call - never a second SVG switch), never
+// LOCKED: this legend explains what a shape and a metal mean, not whether
+// any one player has earned it, so there is no "locked" reading to draw.
+// Each mark stays aria-hidden (its default from trophyMarkEarned/the GEM,
+// SKULL, SHIELD, RIBBON, and COIN constants) rather than routed through
+// accessibleShelfMark like the shelf's own marks are: the trophy's name
+// already sits right next to the mark as visible text in the same <li>, the
+// identical reasoning accessibleShelfMark's own comment gives for leaving a
+// trophy-case tile's mark aria-hidden, so hiding it again here from a screen
+// reader loses nothing.
+function trophyLegend(): string {
+  const items = displayOrder()
+    .map((trophy) => `<li>${trophyMarkEarned(trophy.look)} <span>${esc(trophy.name)}</span></li>`)
+    .join("");
+  return `<ul class="trophy-legend">${items}</ul>`;
+}
+
+// Renders the standings page in full: the Foil and Hope Coin tiles, then
+// the ledger table with one row per player on `deriveStandings(data).rows`.
+// Takes the parsed games.json; returns the complete HTML document (this is
+// what Task 10 writes to the committed site/standings/index.html, and what
+// the render drift check - `bun tools/render.ts && git diff --exit-code` on
+// that file - compares against). Throws nothing of its own: an empty
+// `data.games` list would fail earlier, inside `latest.results.find(...)!`
+// below, which is deliberate - a standings page with no games at all is a
+// data error, not a page this function should render blank.
+//
+// Two invariants worth knowing before touching this function again:
+//
+//   - Each row calls trophyCase(data, r.slug) itself, the same function the
+//     player page's own trophy case calls (renderPlayer, further down this
+//     file). This is not incidental: it is what guarantees the shelf here
+//     and the case on /player/<slug>/ can never disagree about what a
+//     player has earned, because both read the one registry through the
+//     one function rather than each keeping its own count.
+//   - The Trophies `<td>` is appended LAST in the row, after Rebuys, on
+//     purpose - the brief for this column (task 9) is explicit that the
+//     numeric columns (Games through Rebuys) stay together as one block,
+//     so a reader scanning the table doesn't have a text column splitting
+//     them. Add a future column after Trophies, not before it, unless a
+//     later brief says otherwise.
+//
+// The trophy legend (spec follow-up 2026-09-03) sits beneath the closed
+// table, not inside it: the Trophies column shows what THIS player earned
+// (shelf, capped, dense), and the legend beneath explains what every mark
+// on the whole page MEANS (uncapped, all fifteen). Built by trophyLegend()
+// above, which reads the registry directly rather than this function
+// passing it anything - the count on the legend tracks TROPHIES.length on
+// its own, so a sixteenth trophy needs no edit here.
 export function renderStandings(data: GamesData): string {
   const s = deriveStandings(data);
   const nameOf = new Map(data.players.map(p => [p.slug, p.name]));
@@ -122,15 +350,23 @@ export function renderStandings(data: GamesData): string {
     .map(([slug, n]) =>
       `<li>${esc(nameOf.get(slug) ?? slug)}: ${SKULL.repeat(n)}${SKULL_EMPTY.repeat(3 - n)} <span class="stat">${n} of 3</span> skulls</li>`)
     .join("\n          ");
-  const rows = s.rows.map((r, i) => `      <tr class="finish-${i + 1}">
-        <td>${esc(r.name)}${r.slug === champ.slug ? " " + GEM("foil") : ""}${r.slug === s.hopeCoin.holder ? " " + COIN : ""}</td>
+  // Each row's name is now the way into that player's own page (task 9,
+  // M1): the anchor wraps the name only, so the champion gem and Coin mark
+  // that already followed the name keep sitting outside the link, exactly
+  // where they were before this task touched this line.
+  const rows = s.rows.map((r, i) => {
+    const { earned } = trophyCase(data, r.slug);
+    return `      <tr class="finish-${i + 1}">
+        <td><a href="/player/${r.slug}/">${esc(r.name)}</a>${r.slug === champ.slug ? " " + GEM("foil") : ""}${r.slug === s.hopeCoin.holder ? " " + COIN : ""}</td>
         <td class="num">${r.games}</td>
         <td class="num">${r.wins}</td>
         <td class="num">${r.cashes}</td>
         <td class="num">${r.bestFinish}</td>
         <td class="num">$${r.totalPayout}</td>
         <td class="num">${r.rebuys}</td>
-      </tr>`).join("\n");
+        <td>${trophyShelf(earned)}</td>
+      </tr>`;
+  }).join("\n");
   const body = `
 <section class="band-light">
   <div class="band-inner band-inner--wide">
@@ -142,7 +378,7 @@ export function renderStandings(data: GamesData): string {
         <p><strong>${esc(champName)}</strong> ${GEM("foil")} holds the foil: won ${latest.date}.${latest.cardSet ? ` <a href="/cards/${latest.cardSet}/">The card set</a>.` : ""}</p>
       </div>
       <div class="tile">
-        <h3>The Hope Coin ${COIN}</h3>
+        <h3><a href="/hope-coin/">The Hope Coin</a> ${COIN}</h3>
         <p><strong>${esc(holderName)}</strong> holds the Coin (since ${s.hopeCoin.since}). Three kills on the holder takes it.</p>
         <ul>
           ${skulls}
@@ -150,11 +386,12 @@ export function renderStandings(data: GamesData): string {
       </div>
     </div>
     <div class="table-scroll"><table class="ledger">
-      <thead><tr><th>Player</th><th>Games</th><th>Wins</th><th>Cashes</th><th>Best</th><th>Won</th><th>Rebuys</th></tr></thead>
+      <thead><tr><th>Player</th><th>Games</th><th>Wins</th><th>Cashes</th><th>Best</th><th>Won</th><th>Rebuys</th><th>Trophies</th></tr></thead>
       <tbody>
 ${rows}
       </tbody>
     </table></div>
+    ${trophyLegend()}
   </div>
 </section>`;
   return page(
@@ -272,10 +509,509 @@ export function renderNextGameIcs(data: GamesData): string {
   ].join("\r\n");
 }
 
+// ---------------------------------------------------------------------------
+// Player pages (spec 2026-09-02 §5.1). Every player who has played at least
+// one game on the spine gets /player/<slug>/: their cards, their trophy
+// case, their full game record, and a bio when Charlie has written one.
+// Task 10 runs this against the real data and commits site/player/<slug>/
+// for every slug playerSlugs() returns; this file only produces the string.
+
+// The tier name a caption uses for a card's metal, matching the wording the
+// set pages already use (Foil, Rare, Uncommon, Common). Kept local to this
+// file rather than in lib/standings.ts because it is presentation, not data.
+const TIER_NAME: Record<CardRef["metal"], string> = {
+  foil: "Foil",
+  sapphire: "Rare",
+  copper: "Uncommon",
+  pewter: "Common",
+};
+
+// Picks the drawn mark for an EARNED trophy tile: the shape from the
+// registry's look.shape, coloured by look.metal. The switch is written to
+// cover every member of Look["shape"] with no default fallthrough, so a
+// future trophy shape added to tools/lib/trophies.ts without a matching case
+// here is a compile error (the `never` assignment below fails to typecheck)
+// rather than a silently blank tile on a live page.
+function trophyMarkEarned(look: Look): string {
+  switch (look.shape) {
+    case "gem": return GEM(look.metal);
+    case "coin": return COIN;
+    case "skull": return SKULL;
+    case "shield": return SHIELD(look.metal);
+    case "ribbon": return RIBBON(look.metal);
+    default: {
+      const unreachable: never = look.shape;
+      throw new Error(`trophyMarkEarned: unknown trophy shape "${unreachable}"`);
+    }
+  }
+}
+
+// Picks the drawn mark for a LOCKED trophy tile: the same shape, greyed via
+// the shared .mark--empty outline (site/styles.css, Task 2), drawn from its
+// own dedicated _EMPTY constant the same way GEM_EMPTY and SKULL_EMPTY are
+// - not the earned path with a class swapped in, because several of these
+// paths touch the viewBox edge and would clip half their stroke (see the
+// SHIELD/RIBBON comment above).
+//
+// Coin has no dedicated locked art. Only one registry entry uses shape
+// "coin" (the Hope Coin), and this falls back to GEM_EMPTY, the same grey
+// diamond every other "not earned yet" mark on the site already draws. This
+// is a judgment call made here, in Task 7, not a stand-in for a check some
+// later task owns: nothing tests the exact shape a locked Hope Coin tile
+// draws, and a future pass is free to give it its own empty-coin constant
+// without touching this switch's other branches.
+function trophyMarkLocked(look: Look): string {
+  switch (look.shape) {
+    case "gem": return GEM_EMPTY;
+    case "coin": return GEM_EMPTY;
+    case "skull": return SKULL_EMPTY;
+    case "shield": return SHIELD_EMPTY;
+    case "ribbon": return RIBBON_EMPTY;
+    default: {
+      const unreachable: never = look.shape;
+      throw new Error(`trophyMarkLocked: unknown trophy shape "${unreachable}"`);
+    }
+  }
+}
+
+// The meta line under an earned trophy's name: "x3" when the player has
+// earned it more than once (never "x1" - a first earning reads as just its
+// date, per spec §5.1 step 3), then the most recent date, when there is one.
+// Reads `count` for how many and `dates` only for which ones are dated,
+// per trophies.ts's own contract on Earned: the Hope Coin can be earned with
+// count 1 and an EMPTY dates array (a stop with no recorded `from` has no
+// date to show), so this never infers a count from dates.length and never
+// invents a placeholder date when dates is empty - an empty dates list just
+// means the line has no date segment, not a blank date.
+function earnedTrophyMeta(e: Earned): string {
+  const parts: string[] = [];
+  if (e.count > 1) parts.push(`x${e.count}`);
+  if (e.dates.length > 0) parts.push(e.dates[e.dates.length - 1]!);
+  return parts.join(" · ");
+}
+
+// One tile in the trophy case: the mark, the trophy's name as a bare <h3>,
+// and `meta` as a bare <p>, both direct children of the .trophy element and
+// nothing else - site/styles.css styles a trophy's name and meta line
+// through exactly that shape (`.trophy h3`, `.trophy p`), so any other
+// nesting renders the text unstyled.
+function trophyTile(trophy: Trophy, meta: string, locked: boolean): string {
+  const mark = locked ? trophyMarkLocked(trophy.look) : trophyMarkEarned(trophy.look);
+  return `      <div class="trophy${locked ? " trophy--locked" : ""}">
+        ${mark}
+        <h3>${esc(trophy.name)}</h3>
+        <p>${meta}</p>
+      </div>`;
+}
+
+// Every slug with at least one result somewhere on the spine, and no other
+// slug. Derived from results rather than read off `players` because
+// eligibility never lapses: games are never removed from the spine (house
+// rule), so a player who has ever played keeps a page forever even if
+// `players` is later reordered or annotated. A player added to the roster
+// who has never played (a pre-spine Hope Coin holder, say) is correctly
+// excluded - they get named on the coin page, not a page of their own.
+export function playerSlugs(data: GamesData): string[] {
+  const slugs = new Set<string>();
+  for (const game of data.games) {
+    for (const result of game.results) slugs.add(result.slug);
+  }
+  return [...slugs].sort();
+}
+
+// Renders one player's full page: heading and handles, their card gallery
+// (newest set first, holo on the newest only when it is foil), their trophy
+// case from trophyCase(), their complete game record with a totals row, and
+// Charlie's bio when there is one. Takes the parsed games.json and a slug;
+// returns the full document; throws when the slug is not on the roster at
+// all (never render a page for an invented player).
+export function renderPlayer(data: GamesData, slug: string): string {
+  const player = data.players.find((p) => p.slug === slug);
+  if (!player) throw new Error(`renderPlayer: no player on the roster with slug "${slug}"`);
+
+  // Every game this player actually played, newest first. Both the gallery
+  // and the ledger read from this one list so they can never disagree about
+  // which games the player was in.
+  const played: { game: Game; result: GameResult }[] = [];
+  for (const game of data.games) {
+    const result = game.results.find((r) => r.slug === slug);
+    if (result) played.push({ game, result });
+  }
+  played.sort((a, b) => b.game.date.localeCompare(a.game.date));
+
+  // Cards: the subset of `played` carrying a card, in the same newest-first
+  // order. A game with a card must carry cardSet and cardSetName (spec
+  // §3.1; tools/site.test.ts's card cross-check enforces this over the real
+  // data); this throws rather than guessing either one so a malformed
+  // fixture or a future data bug fails loudly instead of publishing a
+  // broken link or a blank set name.
+  const carded = played.filter((p) => p.result.card);
+  const figures = carded.map(({ game, result }, i) => {
+    const card = result.card!;
+    if (!game.cardSet || !game.cardSetName) {
+      throw new Error(
+        `renderPlayer: ${slug}'s card for ${game.date} needs both cardSet and cardSetName on the game`
+      );
+    }
+    // Holo is reserved for the single newest card, and only when it is foil
+    // (spec §5.1 step 2 and the design's scarcity rule). The frame holds
+    // ONLY the image: a figcaption inside a holo frame is washed out by the
+    // glare layers (site/styles.css, .card-frame--holo comment; pinned by an
+    // existing test in tools/site.test.ts), so the caption sits outside it
+    // as its own .card-caption line, same as every other card frame.
+    const holo = i === 0 && card.metal === "foil";
+    const frameClass = holo ? "card-frame card-frame--holo shimmer" : "card-frame";
+    const tier = TIER_NAME[card.metal];
+    return `      <figure>
+        <div class="${frameClass}"><img src="/cards/${game.cardSet}/assets/${card.file}" alt="${esc(tier)} card: ${esc(player.name)}, ${esc(card.title)}"></div>
+        <figcaption class="card-caption">${esc(tier)} · ${esc(card.title)} · ${esc(game.cardSetName)}</figcaption>
+      </figure>`;
+  });
+  // A player with no card yet shows no gallery and no placeholder (spec
+  // §5.1 step 2) - the whole section, heading included, disappears rather
+  // than showing an empty grid.
+  const galleryHtml = figures.length > 0
+    ? `<h2 class="rule-label">Cards</h2>
+    <div class="card-gallery">
+${figures.join("\n")}
+    </div>`
+    : "";
+  // holo.js is the same script the card set pages already load (defer, so
+  // it never blocks rendering); only load it when a holo frame is actually
+  // on the page; an uncarded or non-foil-newest player pays nothing for it.
+  const holoScript = carded.length > 0 && carded[0]!.result.card!.metal === "foil"
+    ? "\n<script src=\"/holo.js\" defer></script>"
+    : "";
+
+  // The trophy case: earned tiles (looked up by id back against the
+  // registry for their name and look, since Earned carries only id/dates/
+  // count) before locked tiles, both in the exact order trophyCase already
+  // returns - this never recomputes or re-sorts that order.
+  const { earned, locked } = trophyCase(data, slug);
+  const trophyById = new Map(TROPHIES.map((t) => [t.id, t]));
+  const trophyTiles = [
+    ...earned.map((e) => {
+      const trophy = trophyById.get(e.id);
+      // trophyCase() only ever returns ids from its own registry, so this
+      // can only fire if the two files drift out of sync with each other -
+      // never a data problem, always a code bug, hence throw rather than
+      // skip the tile.
+      if (!trophy) throw new Error(`renderPlayer: trophyCase returned an unknown trophy id "${e.id}"`);
+      return trophyTile(trophy, earnedTrophyMeta(e), false);
+    }),
+    ...locked.map((t) => trophyTile(t, esc(t.earn), true)),
+  ].join("\n");
+
+  // The record: one row per game played, newest first, linking the game
+  // page, plus a totals row. Games the player missed contribute no row at
+  // all - `played` already excludes them.
+  const ledgerRows = played.map(({ game, result }) => `      <tr>
+        <td><a href="/games/${game.date}/">${game.date}</a></td>
+        <td class="num">${result.finish}</td>
+        <td class="num">$${result.payout}</td>
+        <td class="num">${result.rebuys}</td>
+      </tr>`).join("\n");
+  const totalPayout = played.reduce((sum, p) => sum + p.result.payout, 0);
+  const totalRebuys = played.reduce((sum, p) => sum + p.result.rebuys, 0);
+  const totalsRow = `      <tr class="ledger-total">
+        <td>Total</td>
+        <td class="num"></td>
+        <td class="num">$${totalPayout}</td>
+        <td class="num">${totalRebuys}</td>
+      </tr>`;
+
+  // Charlie's paragraph. Absent means no analysis block at all - not a
+  // placeholder, not "no bio yet" copy (spec §3.4: the page says nothing
+  // about its own absence).
+  const bioHtml = player.bio ? `<p>${esc(player.bio)}</p>` : "";
+
+  // og:image is the player's own newest card when they have one; page()'s
+  // own default covers everyone else. Passing `undefined` (rather than
+  // omitting the argument) still reaches page()'s default parameter, since
+  // that only skips a value when it is exactly undefined.
+  const newestCard = carded[0];
+  const image = newestCard
+    ? `https://poker.kmikeym.com/cards/${newestCard.game.cardSet}/assets/${newestCard.result.card!.file}`
+    : undefined;
+
+  const body = `
+<section class="band-light">
+  <div class="band-inner band-inner--wide">
+    <h1 class="display">${esc(player.name)}</h1>
+    <p class="stat">Plays as ${listWithAnd(player.aka.map(esc))}</p>
+    ${galleryHtml}
+    <h2 class="rule-label">Trophy case</h2>
+    <div class="trophy-case">
+${trophyTiles}
+    </div>
+    <h2 class="rule-label">The record</h2>
+    <div class="table-scroll"><table class="ledger">
+      <thead><tr><th>Game</th><th>Finish</th><th>Payout</th><th>Rebuys</th></tr></thead>
+      <tbody>
+${ledgerRows}
+${totalsRow}
+      </tbody>
+    </table></div>
+    ${bioHtml}
+  </div>
+</section>${holoScript}`;
+
+  // navCurrent: the page's own address (`current`, above) drives og:url, but
+  // a player page isn't one of nav()'s four sections, so Standings has to be
+  // named explicitly here rather than guessed from the address's shape (see
+  // page()'s PageOptions comment). footerHref/footerText: the brief's page
+  // description is explicit that the foot holds one link, to Standings, not
+  // the generic "poker.kmikeym.com" -> "/" every other page uses. Named
+  // fields, not positional slots, so a future edit here cannot transpose
+  // navCurrent and footerHref past the compiler the way four same-typed
+  // trailing string parameters could (round 2 finding).
+  return page(
+    player.name, body, "band-dark", `/player/${slug}/`,
+    `${player.name}'s cards, trophies, and full game record on K5M Shareholder Poker.`,
+    { image, navCurrent: "/standings/", footerHref: "/standings/", footerText: "Standings" }
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The Hope Coin's own page (spec 2026-09-02-player-pages-trophies-hope-coin
+// §5.2, task 8 of that plan). One page: what the Coin is, who holds it now
+// (the same tile standings already shows), and the journey - one row per
+// stop in hopeCoin.history, oldest first. Task 10 runs this against the
+// real data and commits site/hope-coin/index.html; this file only produces
+// the string, the same split the Player pages section above documents.
+//
+// The real hopeCoin.history at ship time holds exactly one stop - nick-m,
+// from 2026-04-14, no `to`, no `place` - so the live page is a one-stop
+// journey. Everything below is written and tested against a three-stop
+// fixture instead (tools/render.test.ts), because Mike intends to append
+// the earlier stops later as a data-only change and this renderer has to
+// already handle that history without a code change when he does.
+
+// "2026-04-14" -> "April 2026": the spelled-out month/year format the
+// journey below uses (M4 of the task brief). Deliberately not shortDate()'s
+// abbreviated "Apr 14" a few lines up - that is RSVP button copy for a
+// different page, and a coin handoff is remembered as "when", by month, not
+// "which Tuesday".
+function monthYear(iso: string): string {
+  const [y, m] = iso.split("-").map(Number);
+  return `${MONTHS[m - 1]} ${y}`;
+}
+
+// The date phrase for one journey row, given the whole history and this
+// row's index so it can look at its neighbor. Takes the history array
+// (not just the one stop) because the "before" case reads the NEXT stop's
+// `from`, never a date of its own: nobody recorded when the very first
+// stop began (see the HopeCoinStop comment in lib/standings.ts), so this
+// borrows the date the stop AFTER it started rather than inventing one for
+// itself. Returns the phrase, or "" for the one shape named below; never
+// throws - a malformed chain (a `to` that does not match the next `from`,
+// a non-first stop missing `from`) is tools/lib/hope-coin.ts's job to catch
+// before this ever runs, not this function's.
+//
+// Three cases, checked in this order because a stop can match more than one
+// shape below and the first match is the one that applies:
+//   1. both `from` and `to` present: a closed stop, "<from> to <to>".
+//   2. the last stop: still current, "since <from>".
+//   3. the first stop, no `from`: "before <next stop's from>".
+//
+// One shape M4 does not name: a history with exactly ONE stop that has
+// neither `from` nor a next stop to borrow one from - simultaneously first
+// and last. tools/lib/hope-coin.ts's validateCoinHistory (rule 4, its
+// "summary agreement" check) explicitly permits this exact shape ("the last
+// stop is also the first and has no from at all"), so real data can reach
+// this function in that state, not just a hypothetical type. No task names
+// a check for what this combination should render, and inventing a date
+// here would break the one rule this whole function exists to follow - so
+// it renders no date phrase at all, the same way a missing `place` below
+// renders no place element rather than a guessed one.
+function hopeCoinStopDate(history: HopeCoinStop[], i: number): string {
+  const stop = history[i]!;
+  const isLast = i === history.length - 1;
+  if (stop.from !== undefined && stop.to !== undefined) {
+    return `${monthYear(stop.from)} to ${monthYear(stop.to)}`;
+  }
+  if (isLast) {
+    return stop.from !== undefined ? `since ${monthYear(stop.from)}` : "";
+  }
+  const next = history[i + 1];
+  return next?.from !== undefined ? `before ${monthYear(next.from)}` : "";
+}
+
+// The holder's newest carded image, for the Hope Coin page's own og:image
+// (Task 4 of the 2026-09-02 final fix wave: renderHopeCoin used to pass no
+// `image` option at all, so every unfurl of /hope-coin/ showed page()'s
+// DEFAULT_OG_IMAGE - July's foil champion card - regardless of who actually
+// holds the Coin). Mirrors renderPlayer's own "carded games, newest first"
+// scan above rather than calling renderPlayer itself (that returns a whole
+// document, not an image URL) or exporting a shared helper (nothing else
+// needs one yet, and a one-caller helper kept local is easier for Charlie to
+// find than one more cross-file import). Takes the parsed games.json and the
+// holder's slug; returns the absolute card image URL for their most recent
+// carded game, or undefined when they have never been carded - a pre-spine
+// holder (nick-m's own predecessor, gene, in the fixture below) legitimately
+// has no card at all, and undefined is what reaches page()'s own `image`
+// default parameter, the same fallback every other uncarded page already
+// gets (see renderPlayer's own comment on passing undefined deliberately).
+function newestCardImage(data: GamesData, slug: string): string | undefined {
+  const carded = data.games
+    .filter((g) => g.results.some((r) => r.slug === slug && r.card))
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const newest = carded[0];
+  if (!newest) return undefined;
+  const result = newest.results.find((r) => r.slug === slug)!;
+  // The card cross-check in tools/site.test.ts already refuses to publish
+  // any game that carries a `card` on a result without also carrying
+  // `cardSet` on the game, so this can only fire on a data bug that check
+  // missed - never a normal state, hence throw rather than guess a path.
+  if (!newest.cardSet) {
+    throw new Error(`newestCardImage: ${slug}'s card for ${newest.date} needs cardSet on the game`);
+  }
+  return `https://poker.kmikeym.com/cards/${newest.cardSet}/assets/${result.card!.file}`;
+}
+
+// Renders the Hope Coin's own page: two sentences saying what the Coin is
+// and what taking it costs, the holder-now tile exactly as standings shows
+// it (name, since date, skull tally - built from the same deriveStandings()
+// call so the two pages can never disagree about a count), and the journey:
+// one `.route-stop` per hopeCoin.history entry, oldest first, the last one
+// marked `.route-stop--current`. While data.hopeCoin.historyPending is true,
+// one more sentence lands under "The journey" heading, above the route,
+// saying the record's earliest datable stop is not the Coin's actual first
+// stop (see journeyIncompleteHtml below); the sentence is absent entirely
+// once that flag is gone. Takes the parsed games.json; returns the full
+// document. Throws nothing of its own: an absent history (the rollout state
+// before any stops existed - see the comment on GamesData.hopeCoin.history)
+// renders a journey with zero rows, and a malformed chain is caught
+// upstream by validateCoinHistory, not here.
+export function renderHopeCoin(data: GamesData): string {
+  const s = deriveStandings(data);
+  const nameOf = new Map(data.players.map((p) => [p.slug, p.name]));
+  const holderName = nameOf.get(s.hopeCoin.holder) ?? s.hopeCoin.holder;
+
+  // The skull tally: the same shape renderStandings' own Hope Coin tile
+  // builds, from the exact same deriveStandings() map, so a visitor never
+  // sees two different counts for the same slug on the two pages.
+  const skulls = Object.entries(s.hopeCoin.skulls)
+    .map(([slug, n]) =>
+      `<li>${esc(nameOf.get(slug) ?? slug)}: ${SKULL.repeat(n)}${SKULL_EMPTY.repeat(3 - n)} <span class="stat">${n} of 3</span> skulls</li>`)
+    .join("\n          ");
+
+  // The journey: oldest stop first, exactly as hopeCoin.history lists them
+  // - never re-sorted, because a re-sort would silently paper over a chain
+  // validateCoinHistory should have caught instead of rendering something
+  // wrong. An absent history maps to an empty list, which renders zero rows.
+  const history = data.hopeCoin.history ?? [];
+  const stops = history.map((stop, i) => {
+    const isCurrent = i === history.length - 1;
+    const name = esc(nameOf.get(stop.holder) ?? stop.holder);
+    const dateText = hopeCoinStopDate(history, i);
+    // A stop with no date phrase (the one unnamed shape above) gets no
+    // <span> at all - an empty one would still be "inventing" a blank date
+    // element for a case the spec never describes.
+    const dateHtml = dateText ? ` <span class="stat">${esc(dateText)}</span>` : "";
+    // A stop with no `place` gets no place element at all, not an empty one
+    // and not "location unknown" copy - the task brief calls this out by
+    // name, because either alternative would read as the site claiming to
+    // know something it does not.
+    const placeHtml = stop.place ? `\n        <p class="stat">${esc(stop.place)}</p>` : "";
+    return `      <li class="route-stop${isCurrent ? " route-stop--current" : ""}">
+        <p><strong>${name}</strong>${dateHtml}</p>${placeHtml}
+        <p>${esc(stop.how)}</p>
+      </li>`;
+  }).join("\n");
+
+  // The incomplete-journey note (spec follow-up 2026-09-03). While
+  // hopeCoin.historyPending is true, the earliest stop above is only the
+  // earliest one anyone can currently date; the Coin itself is older, and
+  // Mike is reconstructing the stops before it from memory. This sentence is
+  // the ONLY thing that flag produces, and it is the whole reason the flag
+  // exists rather than a sentence typed straight into this template: a typed
+  // sentence would still be sitting here the day the history is finished,
+  // the exact failure that had already happened once (a "The journey" page
+  // showing a single stop with no hint anything was missing) and the exact
+  // failure recordQualifier() was already built to prevent for the standings
+  // "record starts with..." line via backfillPending (see that function's
+  // own comment, top of this file). Never re-word this sentence here - it is
+  // the owner's own copy, quoted verbatim - and never gate it on anything
+  // but this one flag (not history.length, not whether a stop has a `from`):
+  // the flag is Charlie's own signal that reconstruction is still in
+  // progress, not something this renderer should infer from the chain's
+  // shape. Falsy - absent (the default state, and the state once Charlie
+  // deletes the field per docs/publishing.md rather than setting it false;
+  // see the field's own comment on GamesData.hopeCoin in
+  // tools/lib/standings.ts) - renders nothing at all, not even an empty
+  // paragraph.
+  const journeyIncompleteHtml = data.hopeCoin.historyPending
+    ? `\n    <p class="stat">The journey starts with the stop the record can date. The Coin is older than that, and its earlier stops are being reconstructed.</p>`
+    : "";
+
+  const body = `
+<section class="band-light">
+  <div class="band-inner">
+    <h1 class="display">The Hope Coin ${COIN}</h1>
+    <p>The Hope Coin is the game's traveling trophy: it moves to whoever lands the third skull on the current holder.</p>
+    <div class="tile">
+      <p><strong>${esc(holderName)}</strong> holds the Coin (since ${s.hopeCoin.since}). Three kills on the holder takes it.</p>
+      <ul>
+        ${skulls}
+      </ul>
+    </div>
+    <h2 class="rule-label">The journey</h2>${journeyIncompleteHtml}
+    <ol class="route">
+${stops}
+    </ol>
+  </div>
+</section>`;
+
+  // navCurrent: the Hope Coin page isn't one of nav()'s four sections, so
+  // Standings is named explicitly here rather than guessed from the
+  // address's shape - the same reasoning renderPlayer's own call documents
+  // above, on page()'s PageOptions comment.
+  // image: the CURRENT holder's newest card, not a fixed page image - a
+  // handoff moves the Coin to a new slug, and this page's unfurl should move
+  // with it. newestCardImage() returns undefined for a holder who has never
+  // been carded (a pre-spine holder), which reaches page()'s own default and
+  // falls back to the site-wide default card, same as any other uncarded page.
+  return page(
+    "The Hope Coin", body, "band-dark", "/hope-coin/",
+    "Every stop the K5M Shareholder Poker Hope Coin has made, and who holds it now.",
+    { navCurrent: "/standings/", image: newestCardImage(data, s.hopeCoin.holder) }
+  );
+}
+
+// The entry point: `bun tools/render.ts`, run from the repo root (see the
+// header comment at the top of this file). Reads site/data/games.json
+// relative to the process's own working directory - deliberately, not an
+// absolute path baked in here - because Task 10's render-drift test (see
+// tools/site.test.ts's "the generator, run into an empty directory"
+// describe block) spawns this exact file as a subprocess with a temp
+// directory as its cwd, so the same relative reads and writes land inside
+// that temp tree instead of the real site/ when the test runs it.
+//
+// Writes, in order: the three pages that existed before Task 10 (standings,
+// games index, ICS), then one site/player/<slug>/index.html per slug
+// playerSlugs() returns, then site/hope-coin/index.html. `Bun.write` creates
+// any parent directories that do not exist yet, so there is no separate
+// mkdir step for site/player/<slug>/ the first time a slug is added.
+//
+// Render never DELETES a page. There is deliberately no step here that
+// looks at what is already on disk under site/player/ and removes anything
+// missing from today's playerSlugs() - eligibility never lapses, because
+// games are never removed from the spine (house rule, restated in this
+// file's player-pages header comment above). A slug that has ever played
+// keeps its page forever.
 if (import.meta.main) {
   const data = JSON.parse(await Bun.file("site/data/games.json").text()) as GamesData;
   await Bun.write("site/standings/index.html", renderStandings(data));
   await Bun.write("site/games/index.html", renderGamesIndex(data));
   await Bun.write("site/next-game.ics", renderNextGameIcs(data));
-  console.log("rendered site/standings/index.html, site/games/index.html, site/next-game.ics");
+  const slugs = playerSlugs(data);
+  for (const slug of slugs) {
+    await Bun.write(`site/player/${slug}/index.html`, renderPlayer(data, slug));
+  }
+  await Bun.write("site/hope-coin/index.html", renderHopeCoin(data));
+  console.log(
+    `rendered site/standings/index.html, site/games/index.html, site/next-game.ics, ` +
+    `${slugs.length} player page(s) under site/player/, site/hope-coin/index.html`
+  );
 }

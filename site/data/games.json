@@ -11,7 +11,15 @@
   "portraitUploads": true,
   "hopeCoin": {
     "holder": "nick-m",
-    "since": "2026-04-14"
+    "since": "2026-04-14",
+    "historyPending": true,
+    "history": [
+      {
+        "holder": "nick-m",
+        "from": "2026-04-14",
+        "how": "Third skull on Matt M."
+      }
+    ]
   },
   "players": [
     {
@@ -54,8 +62,7 @@
       "slug": "webvee",
       "name": "Gene",
       "aka": [
-        "webvee",
-        "Webvee"
+        "webvee"
       ]
     },
     {
@@ -82,6 +89,7 @@
       "entries": 9,
       "pot": 450,
       "cardSet": "2026-07",
+      "cardSetName": "The Founder's Table",
       "results": [
         {
           "slug": "chris-g",
@@ -91,7 +99,12 @@
           "rebuys": 0,
           "trophies": [
             "hope-slayer"
-          ]
+          ],
+          "card": {
+            "metal": "foil",
+            "file": "card-1-lewd.png",
+            "title": "Champion"
+          }
         },
         {
           "slug": "nick-m",
@@ -99,7 +112,12 @@
           "finish": 2,
           "payout": 135,
           "rebuys": 2,
-          "trophies": []
+          "trophies": [],
+          "card": {
+            "metal": "sapphire",
+            "file": "card-2-nickmershon.png",
+            "title": "2nd, holds the Coin"
+          }
         },
         {
           "slug": "beau-g",
@@ -107,7 +125,12 @@
           "finish": 3,
           "payout": 0,
           "rebuys": 0,
-          "trophies": []
+          "trophies": [],
+          "card": {
+            "metal": "sapphire",
+            "file": "card-3-bg.png",
+            "title": "3rd"
+          }
         },
         {
           "slug": "kmikeym",
@@ -117,7 +140,12 @@
           "rebuys": 0,
           "trophies": [
             "cain-and-abel"
-          ]
+          ],
+          "card": {
+            "metal": "copper",
+            "file": "card-4-kmikeym.png",
+            "title": "The Founder"
+          }
         },
         {
           "slug": "amy-m",
@@ -125,7 +153,12 @@
           "finish": 5,
           "payout": 0,
           "rebuys": 1,
-          "trophies": []
+          "trophies": [],
+          "card": {
+            "metal": "pewter",
+            "file": "card-5-amaxwell.png",
+            "title": "The Patient Rock"
+          }
         },
         {
           "slug": "webvee",
@@ -133,7 +166,12 @@
           "finish": 6,
           "payout": 0,
           "rebuys": 0,
-          "trophies": []
+          "trophies": [],
+          "card": {
+            "metal": "pewter",
+            "file": "card-6-webvee.png",
+            "title": "Mysterious Wildcard"
+          }
         }
       ]
     },
@@ -145,6 +183,7 @@
       "entries": 8,
       "pot": 400,
       "cardSet": "2026-08",
+      "cardSetName": "Wire to Wire",
       "results": [
         {
           "slug": "thomas-d",
@@ -154,7 +193,12 @@
           "rebuys": 0,
           "trophies": [
             "hope-slayer"
-          ]
+          ],
+          "card": {
+            "metal": "foil",
+            "file": "card-1-spladow.png",
+            "title": "Champion"
+          }
         },
         {
           "slug": "beau-g",
@@ -162,7 +206,12 @@
           "finish": 2,
           "payout": 120,
           "rebuys": 0,
-          "trophies": []
+          "trophies": [],
+          "card": {
+            "metal": "sapphire",
+            "file": "card-2-bg.png",
+            "title": "2nd"
+          }
         },
         {
           "slug": "amy-m",
@@ -170,7 +219,12 @@
           "finish": 3,
           "payout": 0,
           "rebuys": 0,
-          "trophies": []
+          "trophies": [],
+          "card": {
+            "metal": "sapphire",
+            "file": "card-3-amaxwell.png",
+            "title": "3rd, the bubble"
+          }
         },
         {
           "slug": "chris-g",
@@ -178,7 +232,12 @@
           "finish": 4,
           "payout": 0,
           "rebuys": 0,
-          "trophies": []
+          "trophies": [],
+          "card": {
+            "metal": "pewter",
+            "file": "card-6-lewd.png",
+            "title": "July's champion"
+          }
         },
         {
           "slug": "drew-a",
@@ -186,7 +245,12 @@
           "finish": 5,
           "payout": 0,
           "rebuys": 0,
-          "trophies": []
+          "trophies": [],
+          "card": {
+            "metal": "pewter",
+            "file": "card-7-mohdi_drew.png",
+            "title": "5th"
+          }
         },
         {
           "slug": "nick-m",
@@ -194,7 +258,12 @@
           "finish": 6,
           "payout": 0,
           "rebuys": 1,
-          "trophies": []
+          "trophies": [],
+          "card": {
+            "metal": "sapphire",
+            "file": "card-4-nickmershon.png",
+            "title": "Holds the Coin"
+          }
         },
         {
           "slug": "kmikeym",
@@ -202,7 +271,12 @@
           "finish": 7,
           "payout": 0,
           "rebuys": 0,
-          "trophies": []
+          "trophies": [],
+          "card": {
+            "metal": "copper",
+            "file": "card-5-kmikeym.png",
+            "title": "The Founder"
+          }
         }
       ]
     }

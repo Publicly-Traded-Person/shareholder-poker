@@ -3,10 +3,15 @@
 // Sits beside the publish flow as a standing guard; run: bun test tools.
 // Tasks add per-page describe blocks below the site-wide rules; keep new
 // blocks additive and self-contained so they merge cleanly.
-import { describe, expect, test } from "bun:test";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import {
+  copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { execFileSync } from "node:child_process";
 import { join } from "node:path";
-import type { GamesData } from "./lib/standings";
+import type { CardRef, GamesData } from "./lib/standings";
+import { playerSlugs } from "./render";
 
 // Recursively lists every committed .html file under site/.
 export function siteHtmlFiles(
@@ -161,6 +166,20 @@ describe("home page invariants", () => {
       new URL("../site/home-facts.js", import.meta.url).pathname
     );
     expect(facts).toContain('"hope-slayer"');
+  });
+
+  // Task 9 (spec §5.3, M5): the Hope Coin section's closing button now
+  // points at the Coin's own page instead of Standings. Line 82's separate
+  // "Standings and trophies" button and the footer's Standings link are
+  // untouched by this task and stay pointed at /standings/ - this test only
+  // guards the one button this task was told to move.
+  test("the Hope Coin section's closing button points at /hope-coin/, not Standings (M5)", () => {
+    expect(html).toContain('href="/hope-coin/"');
+    expect(html).not.toContain('href="/standings/">The full record');
+    // Still exactly one lime button on the page (the RSVP CTA) - moving
+    // this button used btn-secondary, same as before, so this never touched
+    // the lime count, but the brief is explicit that the count stays 1.
+    expect(html.split("btn-primary").length - 1).toBe(1);
   });
 });
 
@@ -320,5 +339,443 @@ describe("styles.css keeps its own contrast promise (#12)", () => {
   test(".mark--empty strokes with the -deep pewter, like every other mark", () => {
     const rule = css.match(/\.mark--empty\s*\{[^}]*\}/)?.[0] ?? "";
     expect(rule).toContain("var(--pewter-deep)");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 5 (#27): the card cross-check. Every card asset under a set's
+// assets/ folder must be claimed by exactly one result in games.json, and
+// every card the record claims must point at a real file with a caption
+// that actually reads that way on the set page. This is what would have
+// caught a mistyped metal or a copy-pasted title before it shipped, and
+// what will catch the next set if it's ever wrong.
+describe("card cross-check: the record and the set pages agree (#27, Task 5)", () => {
+  const data = JSON.parse(readFileSync(join(SITE, "data/games.json"), "utf8")) as GamesData;
+
+  // The only four metals styles.css draws a mark for; a fifth here would be
+  // a typo, not a new tier.
+  const METALS: CardRef["metal"][] = ["foil", "sapphire", "copper", "pewter"];
+
+  // Set-page tier labels, keyed by the metal that maps to them.
+  const TIER_OF: Record<CardRef["metal"], string> = {
+    foil: "Foil",
+    sapphire: "Rare",
+    copper: "Uncommon",
+    pewter: "Common",
+  };
+
+  const nameOf = new Map(data.players.map((p) => [p.slug, p.name]));
+
+  // Every game that has minted a set, narrowed so `cardSet` reads as a
+  // plain string for the rest of this block instead of `string | undefined`.
+  const cardGames = data.games.filter(
+    (g): g is typeof g & { cardSet: string } => !!g.cardSet
+  );
+
+  // Composes the caption text exactly as a set page renders it (the SVG
+  // mark is not part of this string; M3 only checks the text that follows
+  // it): "<Tier> · <Name> · <Title>" with a middle dot and one space on
+  // each side. Built from the data, never read off the page, so a wrong
+  // metal or title in the record produces a string the page cannot
+  // contain, rather than the other way round.
+  function caption(card: CardRef, name: string): string {
+    return `${TIER_OF[card.metal]} · ${name} · ${card.title}`;
+  }
+
+  // True only when the sorted asset filenames match the sorted card.file
+  // values exactly: same count, same names in the same order once sorted.
+  // Shared by leg (a), which runs it against the real data, and leg (b),
+  // which runs it against a deliberately broken copy — the same function
+  // has to say "match" for one and "no match" for the other, or neither
+  // result means anything.
+  function assetsMatchRecord(assetFiles: string[], cardFiles: string[]): boolean {
+    const a = [...assetFiles].sort();
+    const b = [...cardFiles].sort();
+    return a.length === b.length && a.every((f, i) => f === b[i]);
+  }
+
+  for (const game of cardGames) {
+    const assetsDir = join(SITE, "cards", game.cardSet, "assets");
+    const assetFiles = readdirSync(assetsDir);
+    const cardFiles = game.results.filter((r) => r.card).map((r) => r.card!.file);
+
+    // [M1] (a): an asset claimed by no result, or claimed twice, breaks
+    // this equality either way (extra file on one side, or a duplicate
+    // collapsing the count on the other).
+    test(`cards/${game.cardSet} assets/ matches games.json card.file exactly`, () => {
+      expect(assetsMatchRecord(assetFiles, cardFiles)).toBe(true);
+    });
+
+    // [M1] (b): proves (a) isn't vacuously true. Delete one result's
+    // `card` from a copy of this game and rerun the identical comparison;
+    // the asset that card claimed is now unclaimed, so it must fail.
+    // Never edit the real data here — only a structuredClone of it.
+    test(`cards/${game.cardSet} comparison would catch an unclaimed asset`, () => {
+      const broken = structuredClone(game);
+      delete broken.results[0].card;
+      const brokenCardFiles = broken.results.filter((r) => r.card).map((r) => r.card!.file);
+      expect(assetsMatchRecord(assetFiles, brokenCardFiles)).toBe(false);
+    });
+  }
+
+  // Every result that carries a card, across both sets, generated from the
+  // parsed data rather than typed into this file — a card added next month
+  // is covered automatically, with no test to remember to add.
+  const cardedResults = cardGames.flatMap((game) =>
+    game.results
+      .filter((r): r is typeof r & { card: CardRef } => !!r.card)
+      .map((result) => ({ game, result }))
+  );
+
+  for (const { game, result } of cardedResults) {
+    const card = result.card;
+
+    // [M2] (c): the file the record claims must exist under this set's own
+    // assets folder (a card pointed at another set's file, or a typo,
+    // fails here), and the metal must be one of the four the site knows
+    // how to render.
+    test(`${game.date} ${result.slug}: card.file exists and card.metal is valid`, () => {
+      const filePath = join(SITE, "cards", game.cardSet, "assets", card.file);
+      expect(() => statSync(filePath), `${result.slug}: ${card.file} does not exist`).not.toThrow();
+      expect(METALS, `${result.slug}: metal "${card.metal}" is not one of foil/sapphire/copper/pewter`).toContain(
+        card.metal
+      );
+    });
+
+    // [M3] (d): the caption composed from this result's own data must
+    // appear verbatim on its set's page. A wrong metal or title in the
+    // record composes a string the page does not contain, and fails here
+    // by slug and set rather than silently rendering something else.
+    test(`${game.date} ${result.slug}: caption appears on cards/${game.cardSet}`, () => {
+      const html = readPage(join(SITE, "cards", game.cardSet, "index.html"));
+      const name = nameOf.get(result.slug);
+      expect(name, `no players[] entry named for slug ${result.slug}`).toBeDefined();
+      expect(html).toContain(caption(card, name!));
+    });
+  }
+
+  // [M3] (e): the July champion's card, mutated one field at a time, to
+  // prove leg (d) is actually reading the metal and the title rather than
+  // matching on the name alone (which appears in every one of that
+  // player's captions across every set).
+  describe("the caption check reads the metal and the title, not just the name", () => {
+    const julyGame = cardGames.find((g) => g.date === "2026-07-14")!;
+    const julyHtml = readPage(join(SITE, "cards", julyGame.cardSet, "index.html"));
+    const champion = julyGame.results.find((r) => r.slug === "chris-g")!;
+    const championName = nameOf.get(champion.slug)!;
+
+    test("wrong metal (Foil swapped for Common) is absent from the page", () => {
+      const wrongMetal: CardRef = { ...champion.card!, metal: "pewter" };
+      expect(julyHtml).not.toContain(caption(wrongMetal, championName));
+    });
+
+    test("wrong title (Champion swapped out) is absent from the page", () => {
+      const wrongTitle: CardRef = { ...champion.card!, title: "Runner-up" };
+      expect(julyHtml).not.toContain(caption(wrongTitle, championName));
+    });
+  });
+
+  // [M3] (e2): the number of captions actually printed on a set page must
+  // equal the number of carded results for that set's game — otherwise a
+  // caption on the page could belong to nobody the record claims.
+  for (const game of cardGames) {
+    test(`cards/${game.cardSet} has exactly one card-caption per carded result`, () => {
+      const html = readPage(join(SITE, "cards", game.cardSet, "index.html"));
+      const captionCount = (html.match(/class="card-caption"/g) ?? []).length;
+      const cardedCount = game.results.filter((r) => r.card).length;
+      expect(captionCount).toBe(cardedCount);
+    });
+  }
+
+  // [M4] (f): shared by the real-data pass below and the broken-copy test,
+  // so the same rule is proven to both hold today and to be capable of
+  // failing.
+  function cardSetNameOk(game: { cardSet?: string; cardSetName?: string }): boolean {
+    return !game.cardSet || (!!game.cardSetName && game.cardSetName.length > 0);
+  }
+
+  for (const game of data.games) {
+    test(`${game.date}: cardSet implies cardSetName`, () => {
+      expect(cardSetNameOk(game), `${game.date} has cardSet but no cardSetName`).toBe(true);
+    });
+  }
+
+  test("a copy of a game with cardSetName deleted fails the same check", () => {
+    const broken = { ...cardGames[0], cardSetName: undefined };
+    expect(cardSetNameOk(broken)).toBe(false);
+  });
+
+  // [M4] (g): the two set names as they were read off the pages, verbatim.
+  test('2026-07-14 cardSetName is "The Founder\'s Table"', () => {
+    expect(data.games.find((g) => g.date === "2026-07-14")?.cardSetName).toBe("The Founder's Table");
+  });
+
+  test('2026-08-11 cardSetName is "Wire to Wire"', () => {
+    expect(data.games.find((g) => g.date === "2026-08-11")?.cardSetName).toBe("Wire to Wire");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 10 (#27, 2026-09-02-player-pages-trophies-hope-coin plan; spec §6
+// "Rendering and the drift check", §7 "Site invariants extend on their own").
+//
+// This task owns every generated file under site/player/<slug>/ and
+// site/hope-coin/: it is the one place a stale generated page, or a page the
+// generator no longer produces, can hide. The two checks that matter are
+// different from each other on purpose:
+//
+//   - A `git diff --exit-code` after `bun tools/render.ts` (the M2 block
+//     below) proves the committed bytes agree with whatever the generator
+//     writes into the SAME tree it already lives in. It is the check
+//     docs/publishing.md already calls "the pre-merge drift check".
+//   - But that check alone cannot prove the generator is what PRODUCED a
+//     page in the first place. A page Charlie (or a future task) wrote by
+//     hand, that the generator never touches, ALSO leaves that diff clean
+//     forever - nothing ever re-derives it to disagree. So the M1 block
+//     below renders into a directory that starts completely empty, seeded
+//     with nothing but a copy of site/data/games.json (the renderer's one
+//     input). A committed page the generator never writes is simply absent
+//     from that fresh tree, and the file-set comparison fails by name -
+//     which a clean `git diff` on the real site/ tree cannot catch, because
+//     there is nothing there for it to compare against.
+
+// Recursively lists every FILE (not directory) under `dir`, full paths, in
+// no particular order - the caller sorts. Returns [] for a directory that
+// does not exist yet, so a completely-missing site/hope-coin/ (the failure
+// this whole section exists to catch) produces an empty set to compare
+// against the generated one, rather than throwing before the assertion runs.
+function filesUnder(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+  const out: string[] = [];
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name);
+    if (statSync(p).isDirectory()) out.push(...filesUnder(p));
+    else out.push(p);
+  }
+  return out;
+}
+
+// Both file lists made relative to their own root and sorted, so two trees
+// rooted at different absolute paths (a temp dir vs. the committed site/)
+// can be compared on name alone. "player/kmikeym/index.html", not the full
+// path to either root.
+function relSorted(root: string, files: string[]): string[] {
+  return files.map((f) => f.slice(root.length + 1)).sort();
+}
+
+// True only when both relative-path lists are identical - same count, same
+// names, once sorted. Extracted as its own function (rather than inlined in
+// the test below) for the same reason tools/site.test.ts's card cross-check
+// extracts `assetsMatchRecord`: the "would catch a missing page" test right
+// below proves this exact comparison can return false, not just that the
+// real data happens to make it return true today.
+function fileSetsMatch(a: string[], b: string[]): boolean {
+  const sa = [...a].sort();
+  const sb = [...b].sort();
+  return sa.length === sb.length && sa.every((f, i) => f === sb[i]);
+}
+
+describe("the file-set comparison used below can actually fail (#27, Task 10)", () => {
+  test("a page present on one side but not the other is caught", () => {
+    const committed = ["kmikeym/index.html", "chris-g/index.html"];
+    // As if the generator silently skipped a slug: chris-g's page never got
+    // written, so the generated side is missing an entry the committed side
+    // has.
+    const generated = ["kmikeym/index.html"];
+    expect(fileSetsMatch(committed, generated)).toBe(false);
+  });
+  test("identical sets in a different order still match", () => {
+    expect(fileSetsMatch(["a", "b"], ["b", "a"])).toBe(true);
+  });
+});
+
+describe("the generator, run into an empty directory, produces exactly what's committed (#27, Task 10, M1)", () => {
+  let tempRoot: string;
+
+  // Renders into a directory that starts completely empty apart from a
+  // copied site/data/games.json (the renderer's one input) - `mkdtempSync`
+  // guarantees the directory it hands back did not exist a moment ago, so
+  // two `bun test tools` runs in flight on the same machine can never share
+  // a path. tools/render.ts is spawned as its OWN process (matching the
+  // real `bun tools/render.ts` Charlie runs), with `tempRoot` as that
+  // process's working directory: render.ts reads and writes plain relative
+  // paths ("site/data/games.json", "site/player/<slug>/index.html", ...)
+  // resolved against its own cwd, so pointing that cwd at the temp root is
+  // what makes every write land inside it instead of the real site/.
+  // `process.execPath` (the bun binary currently running this suite) is
+  // used instead of the bare string "bun" so this does not depend on PATH
+  // resolution inside the child process.
+  beforeAll(() => {
+    tempRoot = mkdtempSync(join(tmpdir(), "poker-render-drift-"));
+    mkdirSync(join(tempRoot, "site", "data"), { recursive: true });
+    copyFileSync(join(SITE, "data", "games.json"), join(tempRoot, "site", "data", "games.json"));
+    const renderTs = join(SITE, "..", "tools", "render.ts");
+    execFileSync(process.execPath, [renderTs], { cwd: tempRoot, stdio: "pipe" });
+  });
+
+  // Cleans up the temp tree unconditionally, success or failure, so a
+  // broken run does not leave stray directories behind in the OS temp
+  // folder every time this suite runs.
+  afterAll(() => {
+    rmSync(tempRoot, { recursive: true, force: true });
+  });
+
+  for (const sub of ["player", "hope-coin"] as const) {
+    test(`site/${sub}/: the generated file set matches the committed one`, () => {
+      const committedRoot = join(SITE, sub);
+      const generatedRoot = join(tempRoot, "site", sub);
+      const committed = relSorted(committedRoot, filesUnder(committedRoot));
+      const generated = relSorted(generatedRoot, filesUnder(generatedRoot));
+      expect(
+        fileSetsMatch(committed, generated),
+        `committed: ${JSON.stringify(committed)}\ngenerated: ${JSON.stringify(generated)}`
+      ).toBe(true);
+    });
+
+    test(`site/${sub}/: every generated file is byte-identical to its committed twin`, () => {
+      const committedRoot = join(SITE, sub);
+      const generatedRoot = join(tempRoot, "site", sub);
+      const rels = relSorted(committedRoot, filesUnder(committedRoot));
+      for (const rel of rels) {
+        const committedBytes = readFileSync(join(committedRoot, rel), "utf8");
+        const generatedBytes = readFileSync(join(generatedRoot, rel), "utf8");
+        expect(generatedBytes, `${sub}/${rel} differs from the generator's output`).toBe(committedBytes);
+      }
+    });
+  }
+});
+
+describe("running the real renderer leaves the generated paths clean (#27, Task 10, M2)", () => {
+  // This is docs/publishing.md's "pre-merge drift check", finally an actual
+  // test rather than a step Charlie has to remember to run by hand: it
+  // regenerates the five paths render.ts owns, in place, against the real
+  // committed site/data/games.json, then asks git whether anything moved.
+  // Unlike the M1 block above, this exercises the REAL site/ tree - it is
+  // what would catch a hand-edit to a generated page, or a data change
+  // whose regeneration got skipped before commit.
+  test("git status --porcelain reports no change under the five generated paths", () => {
+    const repoRoot = join(SITE, "..");
+    const renderTs = join(repoRoot, "tools", "render.ts");
+    const watched = [
+      "site/standings/index.html",
+      "site/games/index.html",
+      "site/next-game.ics",
+      "site/player/",
+      "site/hope-coin/",
+    ];
+
+    // GUARD - DO NOT REMOVE (round 1 review, coordinator ruling: silent data
+    // loss reported as success is not shippable). Everything below this
+    // comment and above the `execFileSync(process.execPath, ...)` render
+    // call runs BEFORE the renderer touches disk, on purpose.
+    //
+    // This test's whole point is to run `bun tools/render.ts` for real, in
+    // place, over the actual committed site/ tree - that is what lets it
+    // prove the committed bytes agree with the generator (M2). But
+    // `Bun.write` has no concept of "something was already sitting here
+    // that I should not clobber": it just overwrites. If Charlie has an
+    // UNCOMMITTED hand-edit to any of the five watched paths when he runs
+    // `bun test tools` - for some completely unrelated reason, a month from
+    // now, at night, having not written this file - this test would
+    // silently regenerate over that edit, destroy it, and then report
+    // "clean" as if nothing happened. Silent data loss reported as success
+    // is exactly what this check exists to prevent, not cause. So: check
+    // for a dirty tree on these paths BEFORE rendering, and refuse loudly
+    // instead of running the renderer over anything that is not already
+    // clean. A future edit that deletes this pre-check to "simplify" the
+    // test would silently reintroduce the data-loss bug this guard was
+    // written to close - don't.
+    const preStatus = execFileSync("git", ["status", "--porcelain", "--", ...watched], {
+      cwd: repoRoot,
+    }).toString();
+    expect(
+      preStatus,
+      "bun test tools is about to run `bun tools/render.ts` for real and " +
+      "overwrite the generated pages in site/ - but the working copy of a " +
+      "generated file already has an uncommitted change, which this would " +
+      "destroy:\n" + preStatus +
+      "\nCommit or stash the change to the dirty path(s) above, then re-run `bun test tools`."
+    ).toBe("");
+
+    execFileSync(process.execPath, [renderTs], { cwd: repoRoot, stdio: "pipe" });
+    const status = execFileSync("git", ["status", "--porcelain", "--", ...watched], {
+      cwd: repoRoot,
+    }).toString();
+    expect(status, `git status --porcelain reported drift:\n${status}`).toBe("");
+  });
+});
+
+describe("site/player/ holds exactly one page per spine slug, and no others (#27, Task 10, M3)", () => {
+  const data = JSON.parse(readFileSync(join(SITE, "data/games.json"), "utf8")) as GamesData;
+  // Derived from the data, never typed here - a player added to the record
+  // with no game yet correctly gets no page, and a new spine slug is
+  // covered automatically the day it plays its first game.
+  const expectedSlugs = [...playerSlugs(data)].sort();
+
+  test("directory names under site/player/ equal playerSlugs(data)", () => {
+    const dirs = readdirSync(join(SITE, "player"))
+      .filter((name) => statSync(join(SITE, "player", name)).isDirectory())
+      .sort();
+    expect(dirs).toEqual(expectedSlugs);
+  });
+
+  // One case per directory actually found on disk - not per slug the data
+  // names - so a stray directory the generator does not produce still gets
+  // its own case (and, per the check above, already fails the file-set
+  // test), rather than silently never being iterated.
+  const playerDirs = readdirSync(join(SITE, "player")).filter((name) =>
+    statSync(join(SITE, "player", name)).isDirectory()
+  );
+  for (const slug of playerDirs) {
+    test(`site/player/${slug}/ exists, links the favicon, and carries its own og:url and og:type=website`, () => {
+      const pagePath = join(SITE, "player", slug, "index.html");
+      expect(existsSync(pagePath), `site/player/${slug}/index.html is missing`).toBe(true);
+      const html = readPage(pagePath);
+      expect(html).toContain('href="/favicon.svg"');
+      expect(metaProp(html, "og:url")).toBe(`${ORIGIN}/player/${slug}/`);
+      expect(metaProp(html, "og:type")).toBe("website");
+    });
+  }
+});
+
+describe("site/hope-coin/index.html exists and carries its own unfurl tags (#27, Task 10, M4)", () => {
+  const pagePath = join(SITE, "hope-coin", "index.html");
+  test("exists, links the favicon, and carries its own og:url and og:type=website", () => {
+    expect(existsSync(pagePath), "site/hope-coin/index.html is missing").toBe(true);
+    const html = readPage(pagePath);
+    expect(html).toContain('href="/favicon.svg"');
+    expect(metaProp(html, "og:url")).toBe(`${ORIGIN}/hope-coin/`);
+    expect(metaProp(html, "og:type")).toBe("website");
+  });
+});
+
+describe("site/standings/index.html links every player on the spine and the Hope Coin page (#27, Task 10, M5)", () => {
+  const data = JSON.parse(readFileSync(join(SITE, "data/games.json"), "utf8")) as GamesData;
+  const slugs = playerSlugs(data);
+  const html = readPage(join(SITE, "standings", "index.html"));
+
+  // Iterates the slugs the data derives, not a typed list, so a player added
+  // to the record with no link on standings fails here by name the day they
+  // are added, rather than needing a matching edit to this test.
+  for (const slug of slugs) {
+    test(`links /player/${slug}/`, () => {
+      expect(html).toContain(`href="/player/${slug}/"`);
+    });
+  }
+
+  // The per-slug loop above only proves every spine slug has SOME link; it
+  // would not notice an extra link to a slug that is not on the spine, or
+  // one slug linked twice while another is missing (a duplicate href
+  // collapses to one distinct entry, which quietly backfills the count a
+  // missing player would otherwise have left short). Comparing the full
+  // distinct set catches both.
+  test("exactly one distinct /player/ link per spine slug (no extra, no duplicate standing in for a missing one)", () => {
+    const hrefs = [...html.matchAll(/href="\/player\/([a-z0-9-]+)\/"/g)].map((m) => m[1]!);
+    const distinct = [...new Set(hrefs)].sort();
+    expect(distinct).toEqual([...slugs].sort());
+  });
+
+  test("links /hope-coin/", () => {
+    expect(html).toContain('href="/hope-coin/"');
   });
 });
