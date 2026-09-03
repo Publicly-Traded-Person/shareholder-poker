@@ -259,6 +259,64 @@ describe("renderStandings trophy shelf (Task 9, spec §5.3)", () => {
     expect(bareCells(rowFor(html, "Six S."))[1]).toStartWith('<span class="shelf">');
     expect(html).not.toContain("—");
   });
+
+  // Final fix wave, item 5: every shelf mark used to be aria-hidden, so a
+  // screen reader landed on the Trophies column and heard an empty cell
+  // under a header that plainly is not empty. Three T.'s shelf (hope-slayer,
+  // two-seven-showdown, founders-table) exercises three different registry
+  // names in one cell.
+  test("each shelf mark carries an accessible name from the registry, and a matching title", () => {
+    const shelf = bareCells(rowFor(html, "Three T."))[1]!;
+    expect(shelf).not.toContain("aria-hidden");
+    for (const name of ["Hope Slayer", "2-7 Showdown", "Founder's Table"]) {
+      expect(shelf).toContain(`role="img" aria-label="${name}" title="${name}"`);
+    }
+    // The prefix Task 9's own mark-counting and mark-ordering tests above
+    // match against (`<svg class="mark`, then the class names right after
+    // it) must survive this fix untouched - it is what those tests actually
+    // check, and this fix has no business moving it.
+    expect((shelf.match(/<svg class="mark/g) ?? []).length).toBe(3);
+    expect(shelf.indexOf("mark--shield mark--sapphire")).toBeGreaterThan(shelf.indexOf('mark--skull"'));
+  });
+
+  // The Coin is the one shape trophyMarkEarned already draws with its own
+  // accessible name (role="img" aria-label="Hope Coin"), so its shelf mark
+  // must gain a matching title without that label being overwritten by the
+  // registry's longer "The Hope Coin" - a screen reader and a mouse hover
+  // disagreeing about one mark's name would be its own small bug. A fixture
+  // of its own: shelfData's players never hold the Coin, so this is the only
+  // case that puts the hope-coin trophy inside a shelf cell at all.
+  test("the Hope Coin's own shelf mark keeps its existing aria-label and only gains a title", () => {
+    const coinData: GamesData = {
+      nextGame: { date: "2026-09-08", time: "7:00pm PT" },
+      hopeCoin: {
+        holder: "coin-holder",
+        since: "2026-07-14",
+        history: [{ holder: "coin-holder", from: "2026-07-14", how: "Took it at the table." }],
+      },
+      players: [
+        { slug: "coin-holder", name: "Coin H.", aka: ["coinh"] },
+        // renderStandings needs a finish-1 result in the spine's latest game
+        // to find its own reigning champion; giving that finish to a second
+        // player, rather than coin-holder, is what keeps coin-holder's own
+        // earned set down to exactly the Hope Coin (finish 4 of 4 earns
+        // neither champion nor podium, and payout: 0 on both results means
+        // no paid spot exists at all, so the-bubble's own rule - one finish
+        // past the last paid spot - has no bubble to find either).
+        { slug: "other", name: "Other O.", aka: ["other"] },
+      ],
+      games: [
+        { date: "2026-07-14", hands: 100, startingStack: 5000, buyIn: 50, entries: 4, pot: 0,
+          results: [
+            { slug: "other", handle: "other", finish: 1, payout: 0, rebuys: 0, trophies: [] },
+            { slug: "coin-holder", handle: "coinh", finish: 4, payout: 0, rebuys: 0, trophies: [] },
+          ] },
+      ],
+    };
+    const shelf = bareCells(rowFor(renderStandings(coinData), "Coin H."))[1]!;
+    expect(shelf).toContain('role="img" aria-label="Hope Coin" title="Hope Coin"');
+    expect(shelf).not.toContain("The Hope Coin");
+  });
 });
 
 describe("renderGamesIndex", () => {
@@ -765,5 +823,46 @@ describe("renderHopeCoin", () => {
     expect(html).toContain('href="/standings/" aria-current="page"');
     expect(html).not.toContain("—");
     expect(html).not.toContain("btn-primary");
+  });
+
+  // Final fix wave, item 4: /hope-coin/ used to pass no `image` option at
+  // all, so every unfurl showed page()'s DEFAULT_OG_IMAGE (July's foil
+  // champion card) no matter who actually held the Coin. Both branches of
+  // newestCardImage() get their own case here rather than trusting hcData's
+  // holder alone, because hcData's own nick-m happens to have no card, so it
+  // only ever exercised the fallback branch.
+  test("M7: og:image is the current holder's newest card when they have one", () => {
+    // nick-m carries no card anywhere in hcData - a real branch worth its
+    // own fixture, since hcData's holder always taking the fallback would
+    // never prove the "holder has a card" branch actually works.
+    const cardedData: GamesData = {
+      ...hcData,
+      games: [
+        ...hcData.games,
+        {
+          date: "2026-04-14", hands: 190, startingStack: 5000, buyIn: 50, entries: 2, pot: 100,
+          cardSet: "2026-04", cardSetName: "Spring Table",
+          results: [
+            { slug: "nick-m", handle: "nickmershon", finish: 1, payout: 100, rebuys: 0, trophies: [],
+              card: { metal: "foil", file: "card-1-nick-m.png", title: "Champion" } },
+            { slug: "chris-g", handle: "LEWD", finish: 2, payout: 0, rebuys: 0, trophies: [] },
+          ],
+        },
+      ],
+    };
+    const cardedHtml = renderHopeCoin(cardedData);
+    expect(cardedHtml).toContain(
+      '<meta property="og:image" content="https://poker.kmikeym.com/cards/2026-04/assets/card-1-nick-m.png">'
+    );
+  });
+
+  test("M7: og:image falls back to the site default when the current holder has never been carded", () => {
+    // hcData's holder, nick-m, has no `card` on any result in the fixture -
+    // the legitimate "pre-spine holder" shape (see newestCardImage's own
+    // comment in tools/render.ts), so this must fall back rather than 404
+    // on a card that does not exist.
+    expect(html).toContain(
+      '<meta property="og:image" content="https://poker.kmikeym.com/cards/2026-07/assets/card-1-lewd.png">'
+    );
   });
 });

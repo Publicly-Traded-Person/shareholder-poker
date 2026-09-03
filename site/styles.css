@@ -147,6 +147,19 @@ h2.display { font-size: clamp(1.4rem, 4vw, 2rem); margin: 0 0 .6em; }
 .ledger tr.finish-1 td:first-child { color: var(--foil-deep); font-weight: 800; }
 .ledger tr.finish-2 td:first-child,
 .ledger tr.finish-3 td:first-child { color: var(--sapphire); font-weight: 700; }
+/* The player-page ledger's totals row (tools/render.ts's renderPlayer):
+   without this it renders identically to a game row, which on a one-game
+   player's page (Drew A., Gene) reads as two copies of the same game. The
+   parchment fill and heavier rule borrow `.ledger th`'s own "this is
+   structure, not a data row" voice rather than inventing a new one. No
+   rarity metal here on purpose: metals in this system mark an earned
+   trophy's rarity (see docs/brand.md), never a generic "this is a summary"
+   accent, so a totals row must never reach for one. */
+.ledger tr.ledger-total td {
+  background: var(--parchment);
+  border-top: 2px solid var(--line);
+  font-weight: 800;
+}
 
 /* Card frames (gallery). Dark objects in a light room get real presentation:
    border, lift, and a hover raise. */

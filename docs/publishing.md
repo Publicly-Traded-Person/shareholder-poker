@@ -3,16 +3,30 @@
 Ratchet status: pass 1 (one command + narrative + Mike's go). Each pass
 removes a named manual step; see the plan and spec section 6.
 
-**Running the suite writes to `site/`.** `bun test tools` is not read-only:
-one of its checks (`tools/site.test.ts`, "the generated paths clean") re-runs
+**Running the suite writes to `site/`, so commit the regeneration before you
+test.** `bun test tools` is not read-only: one of its checks
+(`tools/site.test.ts`, "the generated paths clean") re-runs
 `bun tools/render.ts` for real, in place, to prove the committed standings
 page, games index, calendar file, player pages, and Hope Coin page are
-exactly what the generator produces. If you have an uncommitted hand-edit
-sitting on any of those five paths when you run the suite, that check
-refuses instead of silently overwriting it - it names the dirty path in its
-failure message and tells you to commit or stash it before re-running. If
-you hit that refusal, that is what it means: finish or set aside your
-in-progress edit first, then run `bun test tools` again on a clean tree.
+exactly what the generator produces. That check refuses to run at all while
+any of those five paths is uncommitted - it names the dirty path in its
+failure message - because it cannot tell your fresh regeneration apart from
+a hand-edit it would otherwise silently overwrite.
+
+This refusal is not a rare misfire. You will hit it every single time you
+follow this runbook's own step 5, because that step's own instruction is
+"re-run `bun tools/render.ts`," which is exactly what leaves those five
+paths dirty. Expect it, and work in this order:
+
+1. Regenerate (`bun tools/render.ts`, as step 5 says).
+2. Commit the generated pages (the five paths above, or the whole diff).
+3. Run `bun test tools` on a clean tree.
+4. Review the diff.
+
+The same refusal fires for the reason it exists: an uncommitted hand-edit to
+any of the five paths trips it too, on purpose, so it never silently
+overwrites work you meant to keep. Either way the fix is the same - commit
+or stash the dirty path, then run `bun test tools` again.
 
 ## Game night + day after
 
@@ -67,13 +81,13 @@ in-progress edit first, then run `bun test tools` again on a clean tree.
 
 When the Coin changes hands at a game, append one stop to `hopeCoin.history`
 (top of `site/data/games.json`) in the same commit as that game's own
-publish. A handoff touches four things. `validateCoinHistory`
+publish. A handoff touches three things. `validateCoinHistory`
 (`tools/lib/hope-coin.ts`, wired into `tools/data.test.ts`) is the chain
 validator that catches a half-done handoff — a stop with no `to` that is
 not actually the last one, a summary that disagrees with the last stop,
 stops out of order, or a stop whose `to` does not match the next stop's
 `from`. It only checks; it does not write anything for you, so still do
-all four by hand and then run `bun test tools` before you commit:
+all three by hand and then run `bun test tools` before you commit:
 
 - Append a new stop to `hopeCoin.history` with the new stop's `holder` (the
   slug it moved to), the new stop's `from` (the date it moved, YYYY-MM-DD),
@@ -93,6 +107,40 @@ stop's `to` and the next stop's `from`), so leaving a piece out fails the
 suite instead of quietly publishing a Coin page that tells two different
 stories. Read the failure message; it names the stop and the fields that
 disagree.
+
+### Prepending a remembered pre-spine stop
+
+Everything above is the APPEND case: a new stop becomes the new last stop,
+closing off whichever stop used to be last. Recovering an earlier stop Mike
+now remembers - a hop the Coin made before the earliest stop already on
+file - is the opposite edit. Following the append bullets above for it
+would build a broken chain (there is no "previous stop" to close; the
+remembered stop comes before everything already in the array), so do this
+instead:
+
+- Insert the new stop at the FRONT of `hopeCoin.history` (index 0), not the
+  end.
+- Set the new stop's `to` to whatever date was, until this edit, the first
+  stop's `from`. That is the one date that keeps the chain unbroken: the
+  remembered stop now hands off, with no gap and no overlap, to the stop
+  that used to be first.
+- Leave the new stop's `from` off entirely when Mike does not remember the
+  exact date the Coin arrived there. Only the first stop in the array may
+  omit `from`, and after this edit the new stop IS the first one.
+- If the remembered holder has never appeared in `hopeCoin.history` or on
+  any game's roster, add them to `players` (top of `games.json`) so the
+  page has a name to show, not a bare slug. A holder with no games of their
+  own is a legitimate roster entry; they never get a page under
+  `site/player/` (that only happens on a slug's first game result), but the
+  Hope Coin page still names whoever it says held the Coin.
+- The two summary fields at the top of the file, `hopeCoin.holder` and
+  `hopeCoin.since`, do NOT change for a prepend. They describe who holds
+  the Coin right now, and a stop about its distant past never touches that.
+
+Run `bun test tools` after a prepend the same as after an append.
+`validateCoinHistory` is what catches a mistake either way - it does not
+have a separate "prepend mode," it just checks the whole array's shape, so
+a broken prepend fails the exact same rules a broken append would.
 
 ## Cards (per set, still manual by design)
 

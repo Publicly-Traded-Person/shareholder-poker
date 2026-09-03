@@ -219,6 +219,47 @@ ${body}
 // player-page section Task 7 built - reused rather than a second SVG
 // switch, so a shelf mark and a trophy-case tile for the same trophy are
 // always pixel-identical.
+//
+// Gives one shelf mark an accessible name (final fix wave, item 5): every
+// shape trophyMarkEarned draws is `aria-hidden="true"` except the Coin
+// (which already carries its own `role="img" aria-label="Hope Coin"` - see
+// the COIN constant), because on a trophy-case tile the name already sits
+// right next to the mark as visible `<h3>` text, so hiding the mark itself
+// from a screen reader there loses nothing. The shelf has no such text: it
+// is nothing but a dense run of marks, so the same aria-hidden marks that
+// are harmless on a tile leave the standings Trophies column announcing as
+// an empty cell under a header that is not empty. Takes the raw SVG string
+// trophyMarkEarned already built and the trophy's own `name` from the
+// registry - the actual name Charlie would read on that trophy's own tile,
+// never re-derived or abbreviated here - and returns the same markup with
+// an accessible name wired in, plus a `title` attribute either way (a
+// native browser hover label for sighted visitors; still no visible
+// legend, which is the site owner's design call, not this fix's).
+//
+// Two shapes, because the Coin already has an accessible name of its own:
+//   - Every other shape: swap its `aria-hidden="true"` for
+//     `role="img" aria-label="<name>" title="<name>"`, in the exact spot
+//     aria-hidden held, which is why this leaves the leading
+//     `<svg class="mark ...` prefix every mark starts with untouched (Task
+//     9's own shelf tests count and order marks by matching that exact
+//     prefix and the class names right after it; swapping a same-length
+//     attribute is what keeps that markup shape intact instead of
+//     reordering the tag's attributes and breaking those tests for a
+//     reason that has nothing to do with what they are actually checking).
+//   - The Coin: never overwrite its own aria-label with the registry's
+//     longer "The Hope Coin" - a screen reader and a mouse hover
+//     disagreeing about one mark's name would be worse than the gap this
+//     fix closes. Only a matching `title` is added, read back off the
+//     markup's own existing aria-label rather than off `name`.
+function accessibleShelfMark(markup: string, name: string): string {
+  const label = esc(name);
+  if (markup.includes('aria-hidden="true"')) {
+    return markup.replace('aria-hidden="true"', `role="img" aria-label="${label}" title="${label}"`);
+  }
+  const existingLabel = /aria-label="([^"]*)"/.exec(markup);
+  const hoverLabel = existingLabel ? esc(existingLabel[1]!) : label;
+  return markup.replace(">", ` title="${hoverLabel}">`);
+}
 const SHELF_CAP = 6;
 function trophyShelf(earned: Earned[]): string {
   if (earned.length === 0) return "";
@@ -230,7 +271,7 @@ function trophyShelf(earned: Earned[]): string {
     // with each other - never a data problem, always a code bug, hence
     // throw rather than silently dropping a mark off the shelf.
     if (!trophy) throw new Error(`trophyShelf: trophyCase returned an unknown trophy id "${e.id}"`);
-    return trophyMarkEarned(trophy.look);
+    return accessibleShelfMark(trophyMarkEarned(trophy.look), trophy.name);
   }).join("");
   const overflow = earned.length - SHELF_CAP;
   const more = overflow > 0 ? `<span class="shelf-more">+${overflow}</span>` : "";
@@ -759,6 +800,38 @@ function hopeCoinStopDate(history: HopeCoinStop[], i: number): string {
   return next?.from !== undefined ? `before ${monthYear(next.from)}` : "";
 }
 
+// The holder's newest carded image, for the Hope Coin page's own og:image
+// (Task 4 of the 2026-09-02 final fix wave: renderHopeCoin used to pass no
+// `image` option at all, so every unfurl of /hope-coin/ showed page()'s
+// DEFAULT_OG_IMAGE - July's foil champion card - regardless of who actually
+// holds the Coin). Mirrors renderPlayer's own "carded games, newest first"
+// scan above rather than calling renderPlayer itself (that returns a whole
+// document, not an image URL) or exporting a shared helper (nothing else
+// needs one yet, and a one-caller helper kept local is easier for Charlie to
+// find than one more cross-file import). Takes the parsed games.json and the
+// holder's slug; returns the absolute card image URL for their most recent
+// carded game, or undefined when they have never been carded - a pre-spine
+// holder (nick-m's own predecessor, gene, in the fixture below) legitimately
+// has no card at all, and undefined is what reaches page()'s own `image`
+// default parameter, the same fallback every other uncarded page already
+// gets (see renderPlayer's own comment on passing undefined deliberately).
+function newestCardImage(data: GamesData, slug: string): string | undefined {
+  const carded = data.games
+    .filter((g) => g.results.some((r) => r.slug === slug && r.card))
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const newest = carded[0];
+  if (!newest) return undefined;
+  const result = newest.results.find((r) => r.slug === slug)!;
+  // The card cross-check in tools/site.test.ts already refuses to publish
+  // any game that carries a `card` on a result without also carrying
+  // `cardSet` on the game, so this can only fire on a data bug that check
+  // missed - never a normal state, hence throw rather than guess a path.
+  if (!newest.cardSet) {
+    throw new Error(`newestCardImage: ${slug}'s card for ${newest.date} needs cardSet on the game`);
+  }
+  return `https://poker.kmikeym.com/cards/${newest.cardSet}/assets/${result.card!.file}`;
+}
+
 // Renders the Hope Coin's own page: two sentences saying what the Coin is
 // and what taking it costs, the holder-now tile exactly as standings shows
 // it (name, since date, skull tally - built from the same deriveStandings()
@@ -828,10 +901,15 @@ ${stops}
   // Standings is named explicitly here rather than guessed from the
   // address's shape - the same reasoning renderPlayer's own call documents
   // above, on page()'s PageOptions comment.
+  // image: the CURRENT holder's newest card, not a fixed page image - a
+  // handoff moves the Coin to a new slug, and this page's unfurl should move
+  // with it. newestCardImage() returns undefined for a holder who has never
+  // been carded (a pre-spine holder), which reaches page()'s own default and
+  // falls back to the site-wide default card, same as any other uncarded page.
   return page(
     "The Hope Coin", body, "band-dark", "/hope-coin/",
     "Every stop the K5M Shareholder Poker Hope Coin has made, and who holds it now.",
-    { navCurrent: "/standings/" }
+    { navCurrent: "/standings/", image: newestCardImage(data, s.hopeCoin.holder) }
   );
 }
 
