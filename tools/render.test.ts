@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
   esc, recordQualifier, renderStandings, renderGamesIndex, renderNextGameIcs, secondTuesday,
-  playerSlugs, renderPlayer,
+  playerSlugs, renderPlayer, renderHopeCoin,
 } from "./render";
-import type { GamesData } from "./lib/standings";
+import { deriveStandings, type GamesData } from "./lib/standings";
 import { TROPHIES } from "./lib/trophies";
 
 const data: GamesData = {
@@ -387,5 +387,152 @@ describe("renderPlayer", () => {
     expect(chris).toContain('href="/standings/" aria-current="page"');
     expect(nick).not.toContain("—");
     expect(nick).not.toContain("btn-primary");
+  });
+});
+
+// The Hope Coin page (task 8 of the 2026-09-02 player-pages-trophies-hope-
+// coin plan). A fixture of its own, per the task brief, because the real
+// data's hopeCoin.history holds exactly one stop and this renderer has to
+// already handle the multi-stop history that arrives later:
+//
+//   gene    - no `from` (nobody remembers when his tenure began), `to`
+//             2025-06-01, no `place`. Exercises the "first stop with no
+//             from" wording, which borrows chris-g's `from` below rather
+//             than inventing a date of its own.
+//   chris-g - a closed stop, 2025-06-01 to 2026-04-14, WITH a `place`.
+//             Exercises the "closed stop" span wording and the "place
+//             present" case.
+//   nick-m  - the current stop, from 2026-04-14, no `to`, no `place`.
+//             Exercises the "since" wording and the "no place" case, and
+//             matches the real data's holder and since date so this
+//             fixture's current stop reads the same as the live one will.
+//
+// nick-m also carries three "hope-slayer" trophies on the games below -
+// the three kills on chris-g that the spec's mechanic says takes the coin -
+// so deriveStandings computes a real, non-zero skull tally for the CURRENT
+// holder's own slug, not just some other challenger's. That is what lets
+// the M2 test below check the coin page's holder-tile skull text against
+// the identical text renderStandings computes for that same slug, rather
+// than two numbers that merely happen to both be zero.
+const hcData: GamesData = {
+  nextGame: { date: "2026-10-13", time: "7:00pm PT" },
+  hopeCoin: {
+    holder: "nick-m",
+    since: "2026-04-14",
+    history: [
+      { holder: "gene", to: "2025-06-01", how: "Held it since before anyone kept records." },
+      {
+        holder: "chris-g", from: "2025-06-01", to: "2026-04-14", place: "The Felt Room",
+        how: "Lost the third skull to Nick.",
+      },
+      { holder: "nick-m", from: "2026-04-14", how: "Took the coin on the third skull." },
+    ],
+  },
+  players: [
+    { slug: "gene", name: "Gene V.", aka: ["gene"] },
+    { slug: "chris-g", name: "Chris G.", aka: ["LEWD"] },
+    { slug: "nick-m", name: "Nick M.", aka: ["nickmershon"] },
+  ],
+  games: [
+    { date: "2026-01-13", hands: 150, startingStack: 5000, buyIn: 50, entries: 2, pot: 100,
+      results: [
+        { slug: "nick-m", handle: "nickmershon", finish: 1, payout: 100, rebuys: 0, trophies: ["hope-slayer"] },
+        { slug: "chris-g", handle: "LEWD", finish: 2, payout: 0, rebuys: 0, trophies: [] },
+      ] },
+    { date: "2026-02-10", hands: 160, startingStack: 5000, buyIn: 50, entries: 2, pot: 100,
+      results: [
+        { slug: "nick-m", handle: "nickmershon", finish: 1, payout: 100, rebuys: 0, trophies: ["hope-slayer"] },
+        { slug: "chris-g", handle: "LEWD", finish: 2, payout: 0, rebuys: 0, trophies: [] },
+      ] },
+    { date: "2026-03-10", hands: 170, startingStack: 5000, buyIn: 50, entries: 2, pot: 100,
+      results: [
+        { slug: "nick-m", handle: "nickmershon", finish: 1, payout: 100, rebuys: 0, trophies: ["hope-slayer"] },
+        { slug: "chris-g", handle: "LEWD", finish: 2, payout: 0, rebuys: 0, trophies: [] },
+      ] },
+  ],
+};
+
+// Pulls out each `.route-stop` `<li>...</li>` block whole, in document
+// order, so tests below can check what lands INSIDE one stop's own markup
+// (its `how` sentence, its place-or-not) without a stray match from a
+// neighboring stop - the blocks never nest, so a non-greedy match to the
+// next `</li>` is exact, not an approximation.
+function routeStopBlocks(html: string): string[] {
+  return [...html.matchAll(/<li class="route-stop(?: route-stop--current)?">[\s\S]*?<\/li>/g)].map((m) => m[0]);
+}
+
+describe("renderHopeCoin", () => {
+  const html = renderHopeCoin(hcData);
+  const standingsHtml = renderStandings(hcData);
+
+  test("M1: is a full document that says what the Coin is and that three kills on the holder takes it", () => {
+    expect(html).toStartWith("<!doctype html>");
+    expect(html).toContain("The Hope Coin is the game's traveling trophy");
+    expect(html).toContain("Three kills on the holder takes it.");
+  });
+
+  test("M2: shows the current holder, their since date, and the identical skull text standings renders for that slug", () => {
+    const s = deriveStandings(hcData);
+    expect(s.hopeCoin.holder).toBe("nick-m");
+    const n = s.hopeCoin.skulls["nick-m"];
+    // Sanity on the fixture itself: this leg is only meaningful if the
+    // CURRENT holder is the slug carrying a non-zero tally, not some
+    // unrelated challenger who merely happens to also read "0 of 3".
+    expect(n).toBeGreaterThan(0);
+    const skullText = `<span class="stat">${n} of 3</span> skulls`;
+    expect(html).toContain("Nick M.");
+    expect(html).toContain(hcData.hopeCoin.since);
+    expect(html).toContain(skullText);
+    expect(standingsHtml).toContain(skullText);
+  });
+
+  test("M3: one route-stop per history entry, oldest first, in document order", () => {
+    const tags = html.match(/<li class="route-stop(?: route-stop--current)?">/g) ?? [];
+    expect(tags.length).toBe(3);
+    const names = [...html.matchAll(/<li class="route-stop(?: route-stop--current)?">\s*<p><strong>([^<]+)<\/strong>/g)]
+      .map((m) => m[1]);
+    expect(names).toEqual(["Gene V.", "Chris G.", "Nick M."]);
+  });
+
+  test("M3: each stop's own how sentence lands inside its own stop's markup, not a neighbor's", () => {
+    const blocks = routeStopBlocks(html);
+    expect(blocks.length).toBe(3);
+    expect(blocks[0]).toContain("Held it since before anyone kept records.");
+    expect(blocks[1]).toContain("Lost the third skull to Nick.");
+    expect(blocks[2]).toContain("Took the coin on the third skull.");
+  });
+
+  test("M3: a stop with a place shows it, and a stop without one adds no place element at all", () => {
+    const blocks = routeStopBlocks(html);
+    expect(blocks[1]).toContain("The Felt Room");
+    // gene and nick-m carry no `place`; their blocks must carry no <p
+    // class="stat"> at all (their date phrase is a <span>, not a <p>), so
+    // this also rules out an empty placeholder paragraph standing in for
+    // the missing place.
+    expect(blocks[0]).not.toContain('<p class="stat">');
+    expect(blocks[2]).not.toContain('<p class="stat">');
+  });
+
+  test("M4: a closed stop reads a month-to-month span, the current stop reads since, and a from-less first stop reads before the next stop's month", () => {
+    const blocks = routeStopBlocks(html);
+    expect(blocks[0]).toContain("before June 2025"); // gene: no from; chris-g's from is 2025-06-01
+    expect(blocks[1]).toContain("June 2025 to April 2026"); // chris-g: 2025-06-01 to 2026-04-14
+    expect(blocks[2]).toContain("since April 2026"); // nick-m: from 2026-04-14, current
+  });
+
+  test("M5: exactly one stop is marked current, and it is the last one", () => {
+    expect(html.split("route-stop--current").length - 1).toBe(1);
+    const blocks = routeStopBlocks(html);
+    expect(blocks[2]).toContain("route-stop--current");
+    expect(blocks[0]).not.toContain("route-stop--current");
+    expect(blocks[1]).not.toContain("route-stop--current");
+  });
+
+  test("M6: carries og:url, og:type, marks Standings current, no em dash, no btn-primary", () => {
+    expect(html).toContain('<meta property="og:url" content="https://poker.kmikeym.com/hope-coin/">');
+    expect(html).toContain('<meta property="og:type" content="website">');
+    expect(html).toContain('href="/standings/" aria-current="page"');
+    expect(html).not.toContain("—");
+    expect(html).not.toContain("btn-primary");
   });
 });

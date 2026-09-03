@@ -1,7 +1,9 @@
 // Renders the derived pages (standings, games index, player pages) as full
 // committed HTML.
 // Run: bun tools/render.ts   (reads site/data/games.json, writes site/*/index.html)
-import { deriveStandings, type GamesData, type Game, type GameResult, type CardRef } from "./lib/standings";
+import {
+  deriveStandings, type GamesData, type Game, type GameResult, type CardRef, type HopeCoinStop,
+} from "./lib/standings";
 import { trophyCase, TROPHIES, type Trophy, type Look, type Earned } from "./lib/trophies";
 
 // HTML-escapes a string for use in text content OR inside a double-quoted
@@ -622,6 +624,147 @@ ${totalsRow}
     player.name, body, "band-dark", `/player/${slug}/`,
     `${player.name}'s cards, trophies, and full game record on K5M Shareholder Poker.`,
     { image, navCurrent: "/standings/", footerHref: "/standings/", footerText: "Standings" }
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The Hope Coin's own page (spec 2026-09-02-player-pages-trophies-hope-coin
+// §5.2, task 8 of that plan). One page: what the Coin is, who holds it now
+// (the same tile standings already shows), and the journey - one row per
+// stop in hopeCoin.history, oldest first. Task 10 runs this against the
+// real data and commits site/hope-coin/index.html; this file only produces
+// the string, the same split the Player pages section above documents.
+//
+// The real hopeCoin.history at ship time holds exactly one stop - nick-m,
+// from 2026-04-14, no `to`, no `place` - so the live page is a one-stop
+// journey. Everything below is written and tested against a three-stop
+// fixture instead (tools/render.test.ts), because Mike intends to append
+// the earlier stops later as a data-only change and this renderer has to
+// already handle that history without a code change when he does.
+
+// "2026-04-14" -> "April 2026": the spelled-out month/year format the
+// journey below uses (M4 of the task brief). Deliberately not shortDate()'s
+// abbreviated "Apr 14" a few lines up - that is RSVP button copy for a
+// different page, and a coin handoff is remembered as "when", by month, not
+// "which Tuesday".
+function monthYear(iso: string): string {
+  const [y, m] = iso.split("-").map(Number);
+  return `${MONTHS[m - 1]} ${y}`;
+}
+
+// The date phrase for one journey row, given the whole history and this
+// row's index so it can look at its neighbor. Takes the history array
+// (not just the one stop) because the "before" case reads the NEXT stop's
+// `from`, never a date of its own: nobody recorded when the very first
+// stop began (see the HopeCoinStop comment in lib/standings.ts), so this
+// borrows the date the stop AFTER it started rather than inventing one for
+// itself. Returns the phrase, or "" for the one shape named below; never
+// throws - a malformed chain (a `to` that does not match the next `from`,
+// a non-first stop missing `from`) is tools/lib/hope-coin.ts's job to catch
+// before this ever runs, not this function's.
+//
+// Three cases, checked in this order because a stop can match more than one
+// shape below and the first match is the one that applies:
+//   1. both `from` and `to` present: a closed stop, "<from> to <to>".
+//   2. the last stop: still current, "since <from>".
+//   3. the first stop, no `from`: "before <next stop's from>".
+//
+// One shape M4 does not name: a history with exactly ONE stop that has
+// neither `from` nor a next stop to borrow one from - simultaneously first
+// and last. tools/lib/hope-coin.ts's validateCoinHistory (rule 4, its
+// "summary agreement" check) explicitly permits this exact shape ("the last
+// stop is also the first and has no from at all"), so real data can reach
+// this function in that state, not just a hypothetical type. No task names
+// a check for what this combination should render, and inventing a date
+// here would break the one rule this whole function exists to follow - so
+// it renders no date phrase at all, the same way a missing `place` below
+// renders no place element rather than a guessed one.
+function hopeCoinStopDate(history: HopeCoinStop[], i: number): string {
+  const stop = history[i]!;
+  const isLast = i === history.length - 1;
+  if (stop.from !== undefined && stop.to !== undefined) {
+    return `${monthYear(stop.from)} to ${monthYear(stop.to)}`;
+  }
+  if (isLast) {
+    return stop.from !== undefined ? `since ${monthYear(stop.from)}` : "";
+  }
+  const next = history[i + 1];
+  return next?.from !== undefined ? `before ${monthYear(next.from)}` : "";
+}
+
+// Renders the Hope Coin's own page: two sentences saying what the Coin is
+// and what taking it costs, the holder-now tile exactly as standings shows
+// it (name, since date, skull tally - built from the same deriveStandings()
+// call so the two pages can never disagree about a count), and the journey:
+// one `.route-stop` per hopeCoin.history entry, oldest first, the last one
+// marked `.route-stop--current`. Takes the parsed games.json; returns the
+// full document. Throws nothing of its own: an absent history (the rollout
+// state before any stops existed - see the comment on
+// GamesData.hopeCoin.history) renders a journey with zero rows, and a
+// malformed chain is caught upstream by validateCoinHistory, not here.
+export function renderHopeCoin(data: GamesData): string {
+  const s = deriveStandings(data);
+  const nameOf = new Map(data.players.map((p) => [p.slug, p.name]));
+  const holderName = nameOf.get(s.hopeCoin.holder) ?? s.hopeCoin.holder;
+
+  // The skull tally: the same shape renderStandings' own Hope Coin tile
+  // builds, from the exact same deriveStandings() map, so a visitor never
+  // sees two different counts for the same slug on the two pages.
+  const skulls = Object.entries(s.hopeCoin.skulls)
+    .map(([slug, n]) =>
+      `<li>${esc(nameOf.get(slug) ?? slug)}: ${SKULL.repeat(n)}${SKULL_EMPTY.repeat(3 - n)} <span class="stat">${n} of 3</span> skulls</li>`)
+    .join("\n          ");
+
+  // The journey: oldest stop first, exactly as hopeCoin.history lists them
+  // - never re-sorted, because a re-sort would silently paper over a chain
+  // validateCoinHistory should have caught instead of rendering something
+  // wrong. An absent history maps to an empty list, which renders zero rows.
+  const history = data.hopeCoin.history ?? [];
+  const stops = history.map((stop, i) => {
+    const isCurrent = i === history.length - 1;
+    const name = esc(nameOf.get(stop.holder) ?? stop.holder);
+    const dateText = hopeCoinStopDate(history, i);
+    // A stop with no date phrase (the one unnamed shape above) gets no
+    // <span> at all - an empty one would still be "inventing" a blank date
+    // element for a case the spec never describes.
+    const dateHtml = dateText ? ` <span class="stat">${esc(dateText)}</span>` : "";
+    // A stop with no `place` gets no place element at all, not an empty one
+    // and not "location unknown" copy - the task brief calls this out by
+    // name, because either alternative would read as the site claiming to
+    // know something it does not.
+    const placeHtml = stop.place ? `\n        <p class="stat">${esc(stop.place)}</p>` : "";
+    return `      <li class="route-stop${isCurrent ? " route-stop--current" : ""}">
+        <p><strong>${name}</strong>${dateHtml}</p>${placeHtml}
+        <p>${esc(stop.how)}</p>
+      </li>`;
+  }).join("\n");
+
+  const body = `
+<section class="band-light">
+  <div class="band-inner">
+    <h1 class="display">The Hope Coin ${COIN}</h1>
+    <p>The Hope Coin is the game's traveling trophy: it moves to whoever lands the third skull on the current holder.</p>
+    <div class="tile">
+      <p><strong>${esc(holderName)}</strong> holds the Coin (since ${s.hopeCoin.since}). Three kills on the holder takes it.</p>
+      <ul>
+        ${skulls}
+      </ul>
+    </div>
+    <h2 class="rule-label">The journey</h2>
+    <ol class="route">
+${stops}
+    </ol>
+  </div>
+</section>`;
+
+  // navCurrent: the Hope Coin page isn't one of nav()'s four sections, so
+  // Standings is named explicitly here rather than guessed from the
+  // address's shape - the same reasoning renderPlayer's own call documents
+  // above, on page()'s PageOptions comment.
+  return page(
+    "The Hope Coin", body, "band-dark", "/hope-coin/",
+    "Every stop the K5M Shareholder Poker Hope Coin has made, and who holds it now.",
+    { navCurrent: "/standings/" }
   );
 }
 
