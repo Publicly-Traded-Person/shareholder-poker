@@ -779,3 +779,63 @@ describe("site/standings/index.html links every player on the spine and the Hope
     expect(html).toContain('href="/hope-coin/"');
   });
 });
+
+// 2026-09-04 (Mike): "you should be able to select a card and get a bigger
+// view of it", on the player pages and on the /cards/<set>/ pages. One static
+// script, site/card-zoom.js, enhances every .card-frame img on whatever page
+// loads it; these tests pin that every page showing card frames actually
+// loads it, so a future set page copied from the newest one (docs/
+// publishing.md, "Cards") cannot silently ship without the enlarge.
+// The home page's single foil card is deliberately excluded: Mike scoped the
+// ask to the player and set pages (see the design note in the PR).
+describe("card zoom: every card-frame page loads the enlarge script (2026-09-04)", () => {
+  const pages = [...new Bun.Glob("**/index.html").scanSync({ cwd: SITE })]
+    .map((rel) => join(SITE, rel))
+    .filter((p) => p !== join(SITE, "index.html"))
+    .filter((p) => readPage(p).includes('class="card-frame'));
+  test("the scan finds the two set pages and at least one player page", () => {
+    expect(pages.some((p) => p.endsWith("cards/2026-07/index.html"))).toBe(true);
+    expect(pages.some((p) => p.endsWith("cards/2026-08/index.html"))).toBe(true);
+    expect(pages.some((p) => p.includes("/player/"))).toBe(true);
+  });
+  for (const p of pages) {
+    test(`${p.slice(SITE.length)} loads /card-zoom.js`, () =>
+      expect(readPage(p)).toContain('<script src="/card-zoom.js" defer></script>'));
+  }
+  test("site/card-zoom.js exists, targets .card-frame images, and uses the native dialog", () => {
+    const js = readPage(join(SITE, "card-zoom.js"));
+    expect(js).toContain('"use strict"');
+    expect(js).toContain(".card-frame img");
+    expect(js).toContain("showModal");
+  });
+  test("styles.css styles the enlarge dialog with a paper scrim, never lime", () => {
+    const css = readPage(join(SITE, "styles.css"));
+    expect(css).toContain(".card-zoom");
+    const block = css.slice(css.indexOf(".card-zoom"));
+    expect(block).not.toContain("--lime");
+  });
+});
+
+// 2026-09-04 (Mike): the cards index reads newest set first, with the next
+// unminted set at the very top and a link to RSVP for it. The page is
+// hand-typed (docs/publishing.md, "Cards"), so this pins the order Charlie
+// keeps when the next set ships: unminted row, then newest to oldest.
+describe("cards index order: unminted on top, then newest first (2026-09-04)", () => {
+  const html = readPage(join(SITE, "cards/index.html"));
+  const at = (needle: string) => {
+    const i = html.indexOf(needle);
+    expect(i).toBeGreaterThan(-1);
+    return i;
+  };
+  test("the unminted row sits above every minted set", () => {
+    expect(at('class="card-back"')).toBeLessThan(at('href="/cards/2026-08/"'));
+    expect(at('class="card-back"')).toBeLessThan(at('href="/cards/2026-07/"'));
+  });
+  test("minted sets run newest first", () => {
+    expect(at('href="/cards/2026-08/"')).toBeLessThan(at('href="/cards/2026-07/"'));
+  });
+  test("the unminted row links to the RSVP form as an outlined button, never lime (lime is for felt)", () => {
+    expect(html).toContain('class="btn-secondary" href="/#rsvp-form"');
+    expect(html).not.toContain("btn-primary");
+  });
+});

@@ -691,6 +691,13 @@ ${figures.join("\n")}
   const holoScript = carded.length > 0 && carded[0]!.result.card!.metal === "foil"
     ? "\n<script src=\"/holo.js\" defer></script>"
     : "";
+  // card-zoom.js (2026-09-04, Mike): select a card, see it big. The same
+  // static script the set pages load; every page with a gallery gets it, and
+  // a player with no card pays nothing for it. tools/site.test.ts pins that
+  // every committed page showing card frames loads it.
+  const zoomScript = carded.length > 0
+    ? "\n<script src=\"/card-zoom.js\" defer></script>"
+    : "";
 
   // The trophy case: earned tiles (looked up by id back against the
   // registry for their name and look, since Earned carries only id/dates/
@@ -763,7 +770,7 @@ ${totalsRow}
     </table></div>
     ${bioHtml}
   </div>
-</section>${holoScript}`;
+</section>${holoScript}${zoomScript}`;
 
   // navCurrent: the page's own address (`current`, above) drives og:url, but
   // a player page isn't one of nav()'s four sections, so Standings has to be
