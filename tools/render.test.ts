@@ -650,6 +650,22 @@ describe("renderPlayer", () => {
     expect(nick).toContain("Reach showdown holding 7-2 with five or more players at the table.");
   });
 
+  // 2026-09-05 bug (a visitor, via Mike): an earned tile showed only its
+  // count and date, so nobody could tell what a trophy they HAD was for. The
+  // earn line now appears on every tile, earned or locked, exactly once.
+  test("an earned tile shows the trophy's earn line as well as its date", () => {
+    // Nick won 2026-08-11 in the fixture, so Champion is an earned tile:
+    // class="trophy" with no --locked modifier.
+    const champion = nick.match(/<div class="trophy">\s*<svg[\s\S]*?<h3>Champion<\/h3>[\s\S]*?<\/div>/);
+    expect(champion).not.toBeNull();
+    expect(champion![0]).toContain("Win a game.");
+    expect(champion![0]).toContain("2026-08-11");
+  });
+  test("a locked tile carries its earn line once, not twice", () => {
+    const line = "Reach showdown holding 7-2 with five or more players at the table.";
+    expect(nick.split(line).length - 1).toBe(1);
+  });
+
   test("the Hope Coin can be earned with a count and an empty dates array, and renders no placeholder date", () => {
     // Chris's one stop has no `from`, so trophyCase gives him count 1 with
     // dates: []. The tile must not crash, must not print "x1" (count is
@@ -658,7 +674,12 @@ describe("renderPlayer", () => {
     expect(idx).toBeGreaterThan(-1);
     const tileEnd = chris.indexOf("</div>", idx);
     const tile = chris.slice(idx, tileEnd).trim();
-    expect(tile).toBe("<h3>The Hope Coin</h3>\n        <p></p>");
+    // Since 2026-09-05 every tile carries its earn line, so the text block
+    // is name + earn line and, with no count above one and no date, NO
+    // meta line at all (not an empty one, not a placeholder).
+    expect(tile).toBe('<h3>The Hope Coin</h3>\n          <p class="trophy-earn">Take the Hope Coin.</p>');
+    expect(tile).not.toContain("x1");
+    expect(tile).not.toMatch(/\d{4}-\d{2}-\d{2}/);
   });
 
   test("renders one ledger row per game played, newest first, each linking its game, plus a totals row", () => {
