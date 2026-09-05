@@ -629,6 +629,17 @@ describe("renderPlayer", () => {
     expect(chris).not.toContain("<img");
   });
 
+  // 2026-09-04 (Mike): a card on the player page can be selected for a
+  // bigger view. The enlarge behaviour lives in site/card-zoom.js, the same
+  // script the set pages load; the renderer only has to include it whenever
+  // a gallery is on the page, and pay nothing for it when there is none.
+  test("a carded player page loads the card zoom script", () => {
+    expect(nick).toContain('<script src="/card-zoom.js" defer></script>');
+  });
+  test("an uncarded player page does not load the card zoom script", () => {
+    expect(chris).not.toContain("card-zoom.js");
+  });
+
   test("renders one tile per registry entry, every earned tile before every locked tile", () => {
     const tiles = nick.match(/<div class="trophy( trophy--locked)?">/g) ?? [];
     expect(tiles.length).toBe(TROPHIES.length);

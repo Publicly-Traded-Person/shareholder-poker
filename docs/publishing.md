@@ -176,7 +176,7 @@ Card copy is judgment; it does not automate. Render per
 `munger/ccg/launch-aug-2026/ASSETS.md`, add `site/cards/<YYYY-MM>/`.
 
 Building the set page: copy the NEWEST set page (`site/cards/2026-07/` today)
-into the new directory and swap its content. Four of its choices are
+into the new directory and swap its content. Five of its choices are
 deliberate design rules, not accidents of the July page, so keep them:
 
 - **Captions are one unboxed line** under each card: a drawn gem SVG plus
@@ -193,6 +193,12 @@ deliberate design rules, not accidents of the July page, so keep them:
   the og:/twitter unfurl block with the new set's own og:title and og:url.
   Update the set plate line (cards · minted date · hands) and the footer's
   "game these cards came from" link to the new game.
+- **Keep the `/card-zoom.js` script tag** (it sits next to `/holo.js` at the
+  bottom of the page). It is what lets a visitor select any card and see it
+  big (Mike, 2026-09-04); it needs no markup of its own, it works off the
+  `.card-frame` images already on the page. `bun test tools` fails a set page
+  that shows card frames without loading it, so a copy that dropped the tag
+  cannot merge.
 
 Order matters: create `site/cards/<YYYY-MM>/index.html` BEFORE adding
 `cardSet` to `games.json`, because the data suite fails on a `cardSet` whose
@@ -201,7 +207,12 @@ page directory does not exist yet.
 When the set page ships, add `"cardSet": "YYYY-MM"` to that game's object in
 `site/data/games.json` (after `"pot"`), add the set to the gallery rows in
 `site/cards/index.html`, and re-run `bun tools/render.ts` so the games index
-links it. The data suite checks the referenced page exists. In the same
+links it. The gallery rows read newest first, with the unminted row for the
+NEXT game at the very top (Mike, 2026-09-04): put the new set's row directly
+under that unminted row, above the previous newest set, then roll the
+unminted row forward to the next game (its date in the copy, and the "RSVP
+for <date>" button label, which stays an outlined `btn-secondary`: lime is
+for felt bands only). `bun test tools` pins that order. The data suite checks the referenced page exists. In the same
 change, refresh the home page's "The cards" tile (`site/index.html`) so it
 names the set that just shipped instead of the one still in production; it
 is hand-typed copy, not runtime-filled, so nothing else will catch it going

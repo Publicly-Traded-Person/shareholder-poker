@@ -614,3 +614,36 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
 .trophy-text { display: grid; gap: .15em; min-width: 0; }
 .trophy-earn { line-height: 1.35; }
 .trophy .stat { font-size: .78em; }
+
+/* Card zoom (site/card-zoom.js): select a card, see it big. The script adds
+   .card-frame--zoomable to every frame it wires and appends ONE
+   <dialog class="card-zoom"> to the body. Paper scrim, not a dark room: the
+   page stays light and the card stays the dark object (docs/brand.md). Lime
+   never appears here; the only lime on any page is the RSVP button on felt. */
+.card-frame--zoomable { cursor: zoom-in; }
+.card-frame--zoomable:focus-visible { outline: 3px solid var(--sapphire); outline-offset: 3px; }
+.card-zoom { border: 0; padding: 0; background: transparent; max-width: 100vw; max-height: 100vh; overflow: visible; }
+/* --paper (#fdfcf9) at .93. Written out rather than var(--paper) because
+   ::backdrop sits outside the document tree and older engines do not let it
+   read custom properties; a literal paints the same everywhere. */
+.card-zoom::backdrop { background: rgba(253, 252, 249, .93); }
+/* The art is 676px wide at full resolution, so never scale it past that.
+   Height leaves room for the caption line and the Close button underneath. */
+.card-zoom img {
+  display: block; width: auto; height: auto;
+  max-width: min(92vw, 676px); max-height: calc(100vh - 9rem);
+  border-radius: 12px; box-shadow: 0 24px 64px rgba(26, 28, 32, .32);
+}
+.card-zoom__caption { margin: .75em 0 0; text-align: center; font-size: .9em; color: var(--muted-ink); }
+.card-zoom__close {
+  display: block; margin: .75em auto 0;
+  background: transparent; color: var(--ink); border: 1px solid currentColor;
+  border-radius: 8px; padding: .55em 1.4em; font: inherit; font-weight: 600; cursor: pointer;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .card-zoom[open] { animation: card-zoom-in .18s ease; }
+  @keyframes card-zoom-in { from { opacity: 0; transform: scale(.96); } }
+}
+/* The cards index's unminted row carries the RSVP link (Mike, 2026-09-04);
+   this gives it air under the copy line above it. */
+.set-row .btn-secondary { margin-top: .25em; }

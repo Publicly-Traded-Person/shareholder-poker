@@ -1,0 +1,58 @@
+{
+  "tasks": {
+    "1": {
+      "hash": "764472c8c7f30f301a11f176311138e7ecd45c15b17c2cc38534b5238047b258",
+      "verdict": "pass",
+      "reason": "Registry/pure-function claim proved at the unit layer. M1 table-driven per entry; M2 falsified for multi-id collection, descending-date input, and cross-slug leakage; M3 gives all nine derived rules a positive and a discriminating negative; M4 compares both earned and locked as ordered lists."
+    },
+    "2": {
+      "hash": "d5980add47adeac154e2eb827e5f36a8c8a1329425eab5d774ed6225f581f283",
+      "verdict": "pass",
+      "reason": "Stylesheet-text claim proved against site/styles.css. Every clause carries a negative control on its own matcher (comment-only class, a bad fill, the lime property), so none can pass through a broken predicate."
+    },
+    "3": {
+      "hash": "1d5aeccb52845d10556e651595d399af5285926bad589c68a0bcbb8ae9ea40b0",
+      "verdict": "pass",
+      "reason": "Documentation-text exam over documentation files. M1 falsified in both directions; M3 pinned by backticked tokens, in-slice versus out-of-slice, literal phrases, and word boundary; M4 stronger than the clause."
+    },
+    "4": {
+      "hash": "09c72a6deefaa6692b9ce7c591e44d23d04aa8de35f72ab9ea0eb014edc605a8",
+      "verdict": "pass",
+      "reason": "Halt proved on prepareGame, the same halt point the unknown-handle rule uses. M2 pairs a populated case with the empty case, ruling out both silent-drop and over-eager-throw."
+    },
+    "5": {
+      "hash": "a4ea9776f0a038dbab9975d529d085206a5a1fc160d71f008b1a4e14a93a4295",
+      "verdict": "pass",
+      "reason": "Data and page claims each checked at their own layer. M1 pairs set-equality with a removed-card mutation; M2, M3 and M4 enumerate from the parsed games.json rather than a typed list, so next month's set is covered without editing the test."
+    },
+    "6": {
+      "hash": "3e3005acd370748c9103745c5abf6dded6938bc97b537a06094700db48eef7da",
+      "verdict": "pass",
+      "reason": "Each of M1's five broken chains gets a constructed failing input and an asserted throw; M3 and M4 run against the real committed games.json in data.test.ts, which is what makes the no-silent-break promise hold at suite level."
+    },
+    "7": {
+      "hash": "3f4a2b051332d5062e56d923f2d86cb1c1a13f44b8b44af0ee7efcfaa7e13268",
+      "verdict": "pass",
+      "reason": "All clauses concern renderPlayer's returned document and all legs assert on that string. Negative and universal cases exercised: absent slug, uncarded player, missed game, bio-less player, default og:image branch."
+    },
+    "8": {
+      "hash": "b55d8add0676ddcc4c0574b4a5dd7e28384c88edbe560c1b581a81ce3ba942be",
+      "verdict": "pass",
+      "reason": "Function-level exam for a claim scoped to what renderHopeCoin returns; page existence is Task 10's claim. Order checked positionally, absent place and missing from each exercised, current stop pinned by an exactly-one count."
+    },
+    "9": {
+      "hash": "cd6a0ee61e9ae8f1ccf70213fab017f42c5ed0d84265aff820d5851ade88302a",
+      "verdict": "pass",
+      "reason": "Rendered standings output for the generator and committed index.html for the home page. M1 row-scoped plus a no-plain-text-name universal; M2 counts Trophies cells against row count including a zero-trophy player; M3 exercises the six and seven boundary from both sides."
+    },
+    "10": {
+      "hash": "6919d1158609ca96b03d3bc736d61c003ece6aa78e55f750ebed4efd173ffe20",
+      "verdict": "pass",
+      "reason": "Leg (a) generates into an empty temp tree and compares sets byte for byte, so a committed-but-never-generated page fails where a clean git diff would not. M3 and M5 carry their negative sides (extra page, extra or duplicated link)."
+    }
+  },
+  "tally": {
+    "dispatched": 20,
+    "rejected": 9
+  }
+}
