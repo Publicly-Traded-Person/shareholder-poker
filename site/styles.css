@@ -521,14 +521,14 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
   padding: .8rem 1rem; box-shadow: 0 1px 3px rgba(26, 28, 32, .06);
 }
 .trophy .mark { flex: none; margin-top: .2em; }
-/* These h3/p selectors assume tasks 7-9 mark up a trophy tile's name as an
-   <h3> and its count/date-or-earn-line as a <p>, both direct children of
-   .trophy. That assumption is NOT part of the fixed eleven-name class
-   contract (task-2-brief.md) and nothing enforces it: if a future task
-   marks up the name or meta line with different tags, these rules silently
-   style nothing, no test fails, and the text just renders unstyled inline.
-   If that happens, fix it here by matching the tags that task actually
-   used, not by inventing a new class. */
+/* These h3/p selectors assume tools/render.ts marks up a trophy tile's name
+   as an <h3> and its earn line and count/date line as <p> elements, inside
+   the .trophy-text block (since 2026-09-05; before that they were direct
+   children of .trophy on one row). Nothing enforces the tag choice: if a
+   future change marks up those lines with different tags, these rules
+   silently style nothing, no test fails, and the text just renders unstyled.
+   If that happens, fix it here by matching the tags actually used, not by
+   inventing a new class. */
 .trophy h3, .trophy p { margin: 0; }
 .trophy h3 { font-size: .95em; font-weight: 700; }
 .trophy p { font-size: .85em; color: var(--muted-ink); }
@@ -606,3 +606,11 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
    marks. */
 .route-stop--current { font-weight: 800; }
 .route-stop--current::before { background: var(--foil-deep); border-color: var(--foil-deep); }
+
+/* Trophy tile text block (2026-09-05): a tile is mark + .trophy-text, and the
+   text block stacks name, earn line, and (earned only) the count/date line,
+   so the earn line can show on EVERY tile without crowding the single row
+   the tile used to be. .trophy h3 / .trophy p above still style the lines. */
+.trophy-text { display: grid; gap: .15em; min-width: 0; }
+.trophy-earn { line-height: 1.35; }
+.trophy .stat { font-size: .78em; }

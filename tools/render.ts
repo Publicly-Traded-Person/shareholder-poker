@@ -590,17 +590,26 @@ function earnedTrophyMeta(e: Earned): string {
   return parts.join(" · ");
 }
 
-// One tile in the trophy case: the mark, the trophy's name as a bare <h3>,
-// and `meta` as a bare <p>, both direct children of the .trophy element and
-// nothing else - site/styles.css styles a trophy's name and meta line
-// through exactly that shape (`.trophy h3`, `.trophy p`), so any other
-// nesting renders the text unstyled.
+// One tile in the trophy case: the mark, then a .trophy-text block holding
+// the trophy's name as an <h3>, its earn line as <p class="trophy-earn">,
+// and, when there is one, `meta` (the earned count and latest date) as
+// <p class="stat">. site/styles.css lays the tile out as mark + text block
+// (`.trophy`, `.trophy-text`) and styles the lines through `.trophy h3`,
+// `.trophy p`, `.trophy-earn`; keep that shape.
+//
+// The earn line shows on EVERY tile, earned or locked (2026-09-05, a visitor
+// via Mike): before this, an earned tile carried only its count and date,
+// so a player could see they held a trophy and still not know what it was
+// for. A locked tile passes an empty `meta` and shows the earn line once.
 function trophyTile(trophy: Trophy, meta: string, locked: boolean): string {
   const mark = locked ? trophyMarkLocked(trophy.look) : trophyMarkEarned(trophy.look);
+  const metaLine = meta ? `\n          <p class="stat">${meta}</p>` : "";
   return `      <div class="trophy${locked ? " trophy--locked" : ""}">
         ${mark}
-        <h3>${esc(trophy.name)}</h3>
-        <p>${meta}</p>
+        <div class="trophy-text">
+          <h3>${esc(trophy.name)}</h3>
+          <p class="trophy-earn">${esc(trophy.earn)}</p>${metaLine}
+        </div>
       </div>`;
 }
 
@@ -699,7 +708,7 @@ ${figures.join("\n")}
       if (!trophy) throw new Error(`renderPlayer: trophyCase returned an unknown trophy id "${e.id}"`);
       return trophyTile(trophy, earnedTrophyMeta(e), false);
     }),
-    ...locked.map((t) => trophyTile(t, esc(t.earn), true)),
+    ...locked.map((t) => trophyTile(t, "", true)),
   ].join("\n");
 
   // The record: one row per game played, newest first, linking the game
