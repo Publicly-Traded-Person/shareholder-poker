@@ -409,7 +409,14 @@ sat empty for the site's first two weeks with every page rendering fine
 ```bash
 bun tools/rsvp-status.ts             # roster rows + RSVP count for nextGame
 bun tools/rsvp-status.ts --missing   # who on the roster has not RSVP'd yet
+bun tools/rsvp-status.ts --who Gam   # who RSVP'd under a typed name: email + roster handle
 ```
+
+`--who` answers "who is this?" when an RSVP shows a typed name instead of a
+handle (the email matched no roster row). It prints the email, so run it
+where the scrollback is yours. If the person is a regular, add them to the
+roster with the seed procedure and they will show as their handle from the
+next submit.
 
 Run the counts line at the start of RSVP week (T-7) and before the
 individual-outreach pass (T-4). `roster: 0 rows` means STOP and seed first;

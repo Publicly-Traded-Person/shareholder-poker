@@ -9,21 +9,25 @@
 // Usage:
 //   bun tools/rsvp-status.ts                     # counts: roster rows, RSVPs for nextGame
 //   bun tools/rsvp-status.ts --missing           # who has not RSVP'd for nextGame
-//   bun tools/rsvp-status.ts --game 2026-10-13   # either verb, explicit game date
+//   bun tools/rsvp-status.ts --who Gam           # who RSVP'd under a typed name (email, roster handle)
+//   bun tools/rsvp-status.ts --game 2026-10-13   # any verb, explicit game date
 //   bun tools/rsvp-status.ts --local             # rehearse against local dev D1
 //
-// Output goes to stdout only. --missing prints emails; that is inside the
-// privacy boundary (exports go to stdout, never to files in the repo; see
-// site/schema.sql) but treat the terminal scrollback accordingly.
+// Output goes to stdout only. --missing and --who print emails; that is
+// inside the privacy boundary (exports go to stdout, never to files in the
+// repo; see site/schema.sql) but treat the terminal scrollback accordingly.
 
 import { readFileSync } from "node:fs";
 import {
   countsSql,
   missingSql,
+  whoSql,
   formatCounts,
   formatMissing,
+  formatWho,
   type CountsRow,
   type MissingRow,
+  type WhoRow,
 } from "./lib/rsvp-status";
 import { runWrangler, realWranglerDeps } from "./lib/wrangler";
 
@@ -42,18 +46,33 @@ export type RsvpStatusDeps = {
 };
 
 // Parses argv and runs one verb. Takes the argv tail (after the script
-// path) and deps; prints the report. Throws on a malformed --game date
-// BEFORE any query runs: a bad date would silently count RSVPs for a game
-// that does not exist, which is the same shape of silent-zero this tool
-// exists to prevent. With no --game, the date comes from games.json
-// nextGame, the same source the live RSVP form uses, so the preflight and
-// the form can never disagree about which game is being counted.
+// path) and deps; prints the report. Throws on a malformed --game date, or
+// on --who with no name, BEFORE any query runs: a bad date would silently
+// count RSVPs for a game that does not exist, which is the same shape of
+// silent-zero this tool exists to prevent. With no --game, the date comes
+// from games.json nextGame, the same source the live RSVP form uses, so
+// the preflight and the form can never disagree about which game is being
+// counted.
 export async function run(argv: string[], deps: RsvpStatusDeps): Promise<void> {
   const missing = argv.includes("--missing");
   const gameIdx = argv.indexOf("--game");
   let game = gameIdx >= 0 ? argv[gameIdx + 1] : deps.readGames().nextGame?.date;
   if (!game || !/^\d{4}-\d{2}-\d{2}$/.test(game)) {
     throw new Error(`--game must be YYYY-MM-DD (got: ${game ?? "nothing"})`);
+  }
+
+  // --who <name>: one lookup, no counts. The name is whatever the player
+  // typed on the RSVP form; a missing name (or the next flag mistaken for
+  // one) halts here rather than matching every RSVP with an empty string.
+  const whoIdx = argv.indexOf("--who");
+  if (whoIdx >= 0) {
+    const name = argv[whoIdx + 1];
+    if (!name || name.startsWith("--")) {
+      throw new Error("--who needs a name: the display name as typed on the RSVP form (bun tools/rsvp-status.ts --who Gam)");
+    }
+    const rows = (await deps.d1(whoSql(game, name))).results as WhoRow[];
+    deps.print(formatWho(rows, name, game));
+    return;
   }
 
   const counts = (await deps.d1(countsSql(game))).results[0] as CountsRow;

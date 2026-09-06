@@ -17,6 +17,9 @@ import { sq } from "./portraits";
 // portraits status row is: it crosses the wrangler JSON boundary.
 export type CountsRow = { roster_n: number; rsvps_n: number };
 export type MissingRow = { handle: string; email: string };
+// One row back from whoSql. `handle` is null when the RSVP's email matches
+// no roster row (the site then shows the typed display_name instead).
+export type WhoRow = { display_name: string; handle: string | null; email: string; created_at: string };
 
 // Builds the one-query counts probe: total roster rows plus RSVP rows for
 // the given game (YYYY-MM-DD). Takes the game string, returns SQL. The game
@@ -83,4 +86,39 @@ export function formatMissing(rows: MissingRow[], rosterN: number, game: string)
   }
   const list = rows.map((r) => `${r.handle}  ${r.email}`).join("\n");
   return `${rows.length} of ${rosterN} have not RSVP'd for ${game}:\n${list}`;
+}
+
+// Builds the who-is-this lookup for a game (--who, added 2026-09-05 when an
+// RSVP arrived under a typed name, "Gam", that matched no roster row and
+// the one-off SQL to find it wrapped the terminal). Takes the game
+// (YYYY-MM-DD) and the name as typed on the RSVP form; returns SQL for every
+// RSVP to that game whose display name CONTAINS the name, case-insensitive,
+// with the roster handle joined in (null when the email is not on the
+// roster). Substring via instr() rather than LIKE so a "%" or "_" in a
+// typed name needs no escaping. Case is folded on both sides so "gam" finds
+// "Gam": the column through SQLite's lower(), the typed name here in
+// JavaScript, because SQLite's lower() folds ASCII only and a name with an
+// accented capital would otherwise miss. Both values go through sq(): SQL
+// escaping belongs to the layer that splices the string.
+export function whoSql(game: string, name: string): string {
+  return (
+    `SELECT v.display_name, r.handle, v.email, v.created_at FROM rsvps v ` +
+    `LEFT JOIN roster r ON r.email = v.email ` +
+    `WHERE v.game = ${sq(game)} AND instr(lower(v.display_name), ${sq(name.toLowerCase())}) > 0 ` +
+    `ORDER BY v.created_at`
+  );
+}
+
+// Formats the --who report. Takes the matching rows, the name asked for,
+// and the game date; returns one line per row: typed name, roster handle or
+// "(not on roster)", email, RSVP time (UTC, as D1 stores it). An empty
+// result says so and repeats the name and game, so a typo in either reads
+// as "nothing matched", never as a blank screen. Emails go to stdout by
+// design, the same rule as formatMissing (exports go to stdout, never to
+// files in the repo; see site/schema.sql).
+export function formatWho(rows: WhoRow[], name: string, game: string): string {
+  if (rows.length === 0) return `no RSVP for ${game} matching "${name}".`;
+  return rows
+    .map((r) => `${r.display_name}  ${r.handle ?? "(not on roster)"}  ${r.email}  ${r.created_at}`)
+    .join("\n");
 }

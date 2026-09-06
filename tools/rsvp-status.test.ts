@@ -7,8 +7,10 @@ import { describe, expect, test } from "bun:test";
 import {
   countsSql,
   missingSql,
+  whoSql,
   formatCounts,
   formatMissing,
+  formatWho,
 } from "./lib/rsvp-status";
 import { run, type RsvpStatusDeps } from "./rsvp-status";
 
@@ -77,6 +79,41 @@ describe("formatMissing", () => {
   });
 });
 
+describe("whoSql", () => {
+  test("matches the typed display name case-insensitively as a substring, for one game, roster handle joined in", () => {
+    const sql = whoSql(GAME, "Gam");
+    expect(sql).toContain("FROM rsvps");
+    expect(sql).toContain("LEFT JOIN roster");
+    expect(sql).toContain("'2026-09-08'");
+    expect(sql).toContain("lower(");
+    expect(sql).toContain("'gam'");
+  });
+  test("escapes a quote in the name rather than splicing it", () => {
+    expect(whoSql(GAME, "O'Gam")).toContain("'o''gam'");
+  });
+});
+
+describe("formatWho", () => {
+  test("no rows says so, naming the game and the name asked for", () => {
+    const out = formatWho([], "Gam", GAME);
+    expect(out).toContain("no RSVP");
+    expect(out).toContain("2026-09-08");
+    expect(out).toContain('"Gam"');
+  });
+  test("each row is one line: typed name, roster handle or a not-on-roster marker, email, time", () => {
+    const out = formatWho(
+      [
+        { display_name: "Gam", handle: null, email: "gam@example.com", created_at: "2026-09-05 01:13:31" },
+        { display_name: "gamma", handle: "gamma", email: "gamma@example.com", created_at: "2026-09-01 10:00:00" },
+      ],
+      "Gam",
+      GAME
+    );
+    expect(out).toContain("Gam  (not on roster)  gam@example.com  2026-09-05 01:13:31");
+    expect(out).toContain("gamma  gamma  gamma@example.com  2026-09-01 10:00:00");
+  });
+});
+
 // In-memory deps: records the SQL run() sends to d1 and the lines it prints.
 function recorder(results: unknown[]) {
   const calls: string[] = [];
@@ -121,6 +158,21 @@ describe("run", () => {
     const { calls, deps } = recorder([{ roster_n: 1, rsvps_n: 0 }]);
     await run(["--game", "2026-10-13"], deps);
     expect(calls[0]).toContain("'2026-10-13'");
+  });
+  test("--who runs the one lookup query for nextGame and prints its rows", async () => {
+    const { calls, printed, deps } = recorder([
+      { display_name: "Gam", handle: null, email: "gam@example.com", created_at: "2026-09-05 01:13:31" },
+    ]);
+    await run(["--who", "Gam"], deps);
+    expect(calls.length).toBe(1);
+    expect(calls[0]).toContain("'gam'");
+    expect(calls[0]).toContain("'2026-09-08'");
+    expect(printed.join("\n")).toContain("gam@example.com");
+  });
+  test("--who with no name halts before any query", async () => {
+    const { calls, deps } = recorder([]);
+    await expect(run(["--who"], deps)).rejects.toThrow(/--who/);
+    expect(calls.length).toBe(0);
   });
   test("a malformed --game date halts before any query", async () => {
     const { calls, deps } = recorder([]);
