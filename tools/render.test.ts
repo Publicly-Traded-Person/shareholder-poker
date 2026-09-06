@@ -1841,6 +1841,82 @@ describe("holdersSection: who has held it (Task 8, #48)", () => {
     }
   });
 
+  // Round 1 review (2026-09-05): the donut's box used to be a 200 by 200
+  // square, which left a right-anchored label only 42 units before the edge
+  // - about eight characters at the per-character estimate the renderer
+  // itself measures with. Every real label is 11 to 13 characters, so the
+  // edge clamp dragged them back ON TOP of the ring, and the longest one
+  // ("Chris G. 44%") printed its first characters in ink over its own
+  // full-opacity ink arc: invisible. The fixture below is shaped like the
+  // real chain - six holders, shares near 44/25/10/10/6/5, display names
+  // that make 11 to 13 character labels - and the leg checks the two things
+  // that were broken: every label's estimated span stays inside the box,
+  // and none of it crosses the ring's outer radius at its own baseline.
+  const realShaped: HopeCoinStop[] = [
+    // 10 + 44 + 10 + 6 + 25 + 5 = 100 months, in a chain order that is not
+    // share order, with the current holder (jem-z) holding the smallest.
+    { holder: "fen-o", from: "2017-01", to: "2017-11", place: "Cinder Bend", how: "Won the season." },
+    { holder: "gil-p", from: "2017-11", to: "2021-07", place: "Marrow Gap", how: "Won the season." },
+    { holder: "hax-q", from: "2021-07", to: "2022-05", place: "Ochre Ridge", how: "Won the season." },
+    { holder: "ivy-y", from: "2022-05", to: "2022-11", place: "Salt Pan", how: "Won the season." },
+    { holder: "ash-r", from: "2022-11", to: "2024-12", place: "Cinder Bend", how: "Won the season." },
+    { holder: "jem-z", from: "2024-12", place: "Marrow Gap", how: "Took it on the third skull." },
+  ];
+
+  test("no donut label crosses the ring or runs off the box, at the label lengths the real chain produces", () => {
+    // The shares come out 44%, 25%, 10%, 10%, 6%, 5% - the real chain's own
+    // shape - and these display names make labels 11 to 13 characters long,
+    // the length that used to be clamped back over the ring.
+    const base = heldData(realShaped, ["2025-05-12"]);
+    const html = holdersSection({
+      ...base,
+      players: [
+        { slug: "gil-p", name: "Vesper G.", aka: ["vesperg"] },
+        { slug: "ash-r", name: "Corwin R.", aka: ["corwinr"] },
+        { slug: "fen-o", name: "Isolde O.", aka: ["isoldeo"] },
+        { slug: "hax-q", name: "Bram Q.", aka: ["bramq"] },
+        { slug: "ivy-y", name: "Perrin Y.", aka: ["perriny"] },
+        { slug: "jem-z", name: "Odile Z.", aka: ["odilez"] },
+      ],
+    });
+    expect(legendRows(html).map((r) => r[3])).toEqual(["44%", "25%", "10%", "10%", "6%", "5%"]);
+
+    const box = /<svg class="coin-donut" viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(html);
+    expect(box).not.toBeNull();
+    const boxW = Number.parseFloat(box![1]!);
+    const boxH = Number.parseFloat(box![2]!);
+    const cx = boxW / 2;
+    const cy = boxH / 2;
+    // The same estimate tools/render.ts measures its own labels with, and
+    // the ring's own outer radius. Both are duplicated here on purpose: a
+    // test that imported the renderer's constants could not catch the
+    // renderer changing them out from under the drawing.
+    const CHAR = 4.8;
+    const R_OUT = 52;
+
+    const labels = [...html.matchAll(/<text class="donut-label" x="([\d.-]+)" y="([\d.-]+)" text-anchor="(\w+)">([^<]*)<\/text>/g)];
+    expect(labels.length).toBe(6);
+    for (const [, xAttr, yAttr, anchor, text] of labels) {
+      const x = Number.parseFloat(xAttr!);
+      const y = Number.parseFloat(yAttr!);
+      const w = text!.length * CHAR;
+      expect(text!.length).toBeGreaterThanOrEqual(11);
+      const start = anchor === "start" ? x : anchor === "end" ? x - w : x - w / 2;
+      const end = start + w;
+      // Inside the drawing.
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeLessThanOrEqual(boxW);
+      // Clear of the ring. At this baseline the ring covers the horizontal
+      // span cx +/- half its own chord; the label must not reach into it,
+      // or it prints ink on ink and disappears.
+      const dy = y - cy;
+      const half = Math.abs(dy) >= R_OUT ? 0 : Math.sqrt(R_OUT * R_OUT - dy * dy);
+      const clearsRight = start >= cx + half;
+      const clearsLeft = end <= cx - half;
+      expect(clearsRight || clearsLeft).toBe(true);
+    }
+  });
+
   test("M6 leg (f): the section carries no em dash", () => {
     expect(held363).not.toContain("—");
     expect(heldABA).not.toContain("—");

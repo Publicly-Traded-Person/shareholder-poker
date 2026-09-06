@@ -1225,14 +1225,23 @@ export function routeLoop(stop: HopeCoinStop): string {
 // could see, so a stop is never dropped from the drawing.
 const TENURE_TINTS = ["1", ".8", ".62", ".46", ".32", ".2", ".12"];
 
-// The donut's geometry, in the 200 by 200 viewBox units it is drawn in
-// (the svg itself is sized by CSS, per `.coin-donut` in site/styles.css,
-// so these numbers never change with the screen). The ring runs from
-// radius 32 to 52 and the labels sit at 58, just outside it: labels beside
-// the marks, never inside a wedge, so a thin slice's name is as readable
-// as a fat one's.
-const DONUT_BOX = 200;
-const DONUT_CENTER = 100;
+// The donut's geometry, in the viewBox units it is drawn in (the svg
+// itself is sized by CSS, per `.coin-donut` in site/styles.css, so these
+// numbers never change with the screen). The ring runs from radius 32 to
+// 52 and the labels sit at 58, just outside it: labels beside the marks,
+// never inside a wedge, so a thin slice's name is as readable as a fat
+// one's.
+//
+// The box is 200 units TALL and as wide as the labels actually need, which
+// is why the width is computed in holdersSection rather than fixed here.
+// Round 1 review (2026-09-05): a fixed 200-wide box left a right-hand label
+// forty-odd units before the edge, about eight characters, and every real
+// label runs eleven to thirteen - so the edge clamp dragged them back on
+// top of the ring, where a name in ink over a full-opacity ink arc is
+// simply invisible. Widening the box is what actually fixes that; clamping
+// harder only moves which label disappears.
+const DONUT_HEIGHT = 200;
+const DONUT_CY = 100;
 const DONUT_R_OUT = 52;
 const DONUT_R_IN = 32;
 const DONUT_R_LABEL = 58;
@@ -1266,11 +1275,12 @@ function round2(n: number): number {
 // A point on the donut at `radius` and `angle`, where angle is degrees
 // clockwise from twelve o'clock (spec section 7.2: the donut starts at the
 // top and runs clockwise, largest share first). Returns [x, y] in viewBox
-// units, already rounded. Screen y grows downward, which is why the cosine
-// is subtracted rather than added.
-function donutPoint(radius: number, angle: number): [number, number] {
+// units, already rounded. Takes the ring's centre x, which depends on how
+// wide the labels made the box; the centre y is always DONUT_CY. Screen y
+// grows downward, which is why the cosine is subtracted rather than added.
+function donutPoint(cx: number, radius: number, angle: number): [number, number] {
   const rad = (angle * Math.PI) / 180;
-  return [round2(DONUT_CENTER + radius * Math.sin(rad)), round2(DONUT_CENTER - radius * Math.cos(rad))];
+  return [round2(cx + radius * Math.sin(rad)), round2(DONUT_CY - radius * Math.cos(rad))];
 }
 
 // The `d` for one ring segment of the donut, from `a0` to `a1` degrees
@@ -1283,19 +1293,19 @@ function donutPoint(radius: number, angle: number): [number, number] {
 // empty donut. That case is drawn as two half arcs instead, outer ring
 // clockwise and inner ring counter-clockwise so the nonzero fill rule
 // punches the hole out of the middle.
-function donutSegmentPath(a0: number, a1: number): string {
-  const [ox0, oy0] = donutPoint(DONUT_R_OUT, a0);
-  const [ix0, iy0] = donutPoint(DONUT_R_IN, a0);
+function donutSegmentPath(cx: number, a0: number, a1: number): string {
+  const [ox0, oy0] = donutPoint(cx, DONUT_R_OUT, a0);
+  const [ix0, iy0] = donutPoint(cx, DONUT_R_IN, a0);
   if (a1 - a0 >= 359.99) {
-    const [oxHalf, oyHalf] = donutPoint(DONUT_R_OUT, a0 + 180);
-    const [ixHalf, iyHalf] = donutPoint(DONUT_R_IN, a0 + 180);
+    const [oxHalf, oyHalf] = donutPoint(cx, DONUT_R_OUT, a0 + 180);
+    const [ixHalf, iyHalf] = donutPoint(cx, DONUT_R_IN, a0 + 180);
     return `M ${ox0} ${oy0} A ${DONUT_R_OUT} ${DONUT_R_OUT} 0 1 1 ${oxHalf} ${oyHalf} ` +
       `A ${DONUT_R_OUT} ${DONUT_R_OUT} 0 1 1 ${ox0} ${oy0} Z ` +
       `M ${ix0} ${iy0} A ${DONUT_R_IN} ${DONUT_R_IN} 0 1 0 ${ixHalf} ${iyHalf} ` +
       `A ${DONUT_R_IN} ${DONUT_R_IN} 0 1 0 ${ix0} ${iy0} Z`;
   }
-  const [ox1, oy1] = donutPoint(DONUT_R_OUT, a1);
-  const [ix1, iy1] = donutPoint(DONUT_R_IN, a1);
+  const [ox1, oy1] = donutPoint(cx, DONUT_R_OUT, a1);
+  const [ix1, iy1] = donutPoint(cx, DONUT_R_IN, a1);
   const large = a1 - a0 > 180 ? 1 : 0;
   return `M ${ox0} ${oy0} A ${DONUT_R_OUT} ${DONUT_R_OUT} 0 ${large} 1 ${ox1} ${oy1} ` +
     `L ${ix1} ${iy1} A ${DONUT_R_IN} ${DONUT_R_IN} 0 ${large} 0 ${ix0} ${iy0} Z`;
@@ -1376,36 +1386,46 @@ export function holdersSection(data: GamesData): string {
   // holderShares already guarantees the percents sum to exactly 100 - so
   // the arcs close the circle exactly, and the drawing and the legend can
   // never round to two different stories.
+  //
+  // How wide the box is: the labels decide. A label sits at radius 58 and
+  // reads outward, so the furthest one can ever reach from the ring's
+  // centre is 58 plus its own width, and the box has to be twice that (plus
+  // a unit of air) for the clamp below never to fire and drag a label back
+  // over the ring - which is exactly the bug the round 1 review caught. The
+  // height stays 200 whatever the names are; only the width breathes.
+  const labelTexts = shares.map((share) => `${nameOf.get(share.holder) ?? share.holder} ${share.percent}%`);
+  const widestText = labelTexts.reduce((widest, text) => Math.max(widest, text.length * DONUT_CHAR), 0);
+  const boxWidth = round2(Math.max(DONUT_HEIGHT, 2 * (DONUT_R_LABEL + widestText + 2)));
+  const cx = round2(boxWidth / 2);
+
   let angle = 0;
   const arcs: string[] = [];
   const labels: { text: string; x: number; y: number; anchor: string }[] = [];
-  for (const share of shares) {
+  for (const [i, share] of shares.entries()) {
     const sweep = (share.percent / 100) * 360;
     const a0 = angle;
     const a1 = angle + sweep;
     angle = a1;
     const currentClass = share.holder === current ? " donut-arc--current" : "";
-    arcs.push(`<path class="donut-arc${currentClass}" ${fillOf.get(share.holder)} d="${donutSegmentPath(a0, a1)}"/>`);
+    arcs.push(`<path class="donut-arc${currentClass}" ${fillOf.get(share.holder)} d="${donutSegmentPath(cx, a0, a1)}"/>`);
 
-    const name = nameOf.get(share.holder) ?? share.holder;
-    const text = `${name} ${share.percent}%`;
+    const text = labelTexts[i]!;
     const mid = (a0 + a1) / 2;
-    const [lx, ly] = donutPoint(DONUT_R_LABEL, mid);
+    const [lx, ly] = donutPoint(cx, DONUT_R_LABEL, mid);
     // Which side of the clock the label sits on decides which end of the
     // text touches the ring: a label on the right reads outward from the
     // ring, a label on the left reads inward to it. A label at the very
     // top or bottom straddles the center line and is simply centered.
     const across = Math.sin((mid * Math.PI) / 180);
     const anchor = across > 0.02 ? "start" : across < -0.02 ? "end" : "middle";
-    // Keep it on the drawing. The svg clips at its viewBox, so a long name
-    // on a thin wedge would otherwise lose its last few characters; the
-    // label slides back inside rather than being re-anchored, which would
-    // only trade one overflow for the opposite one (the same reasoning as
-    // routeLoop's own clamp above).
+    // A last belt-and-braces clamp against the viewBox edges. With the box
+    // sized to the widest label above this can no longer fire on any real
+    // chain, and that is the point: the previous cut relied on it, and a
+    // clamp that fires is a label pulled back over the ring.
     const width = text.length * DONUT_CHAR;
     const reach = anchor === "start" ? width : anchor === "end" ? 0 : width / 2;
     const back = anchor === "start" ? 0 : anchor === "end" ? width : width / 2;
-    const x = round2(Math.min(Math.max(lx, back + 1), DONUT_BOX - 1 - reach));
+    const x = round2(Math.min(Math.max(lx, back + 1), boxWidth - 1 - reach));
     labels.push({ text, x, y: ly, anchor });
   }
 
@@ -1424,7 +1444,7 @@ export function holdersSection(data: GamesData): string {
     for (let i = 1; i < column.length; i++) {
       column[i]!.y = Math.max(column[i]!.y, column[i - 1]!.y + DONUT_LABEL_GAP);
     }
-    const overflow = (column[column.length - 1]?.y ?? 0) - (DONUT_BOX - 4);
+    const overflow = (column[column.length - 1]?.y ?? 0) - (DONUT_HEIGHT - 4);
     if (overflow > 0) for (const label of column) label.y = Math.max(round2(label.y - overflow), 8);
   }
 
@@ -1497,7 +1517,7 @@ export function holdersSection(data: GamesData): string {
     <p class="stat">${caption}</p>
     <div class="cols">
       <figure class="donut-figure">
-        <svg class="coin-donut" viewBox="0 0 ${DONUT_BOX} ${DONUT_BOX}"><title>Each holder's share of the coin's recorded life</title>${arcs.join("")}${labelMarkup}</svg>
+        <svg class="coin-donut" viewBox="0 0 ${boxWidth} ${DONUT_HEIGHT}"><title>Each holder's share of the coin's recorded life</title>${arcs.join("")}${labelMarkup}</svg>
       </figure>
       <div>
         <svg class="tenure-strip" viewBox="0 0 ${STRIP_W} ${STRIP_H}"><title>Every stop in order, sized by the months it lasted</title>${segs.join("")}${ticks.join("")}</svg>

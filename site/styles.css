@@ -730,7 +730,11 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
    element, so one change resizes every copy. max-width keeps the donut from
    inflating into a wall decoration on a wide screen and the strip from
    stretching its year labels apart. */
-.coin-donut { display: block; width: 100%; height: auto; max-width: 320px; margin: 0 auto; }
+/* The donut's viewBox is 200 tall and as wide as the labels need (see
+   holdersSection in tools/render.ts), so this max-width is chosen for the
+   labels rather than the ring: at 400px a 13-character name still reads at
+   roughly 10px on screen. */
+.coin-donut { display: block; width: 100%; height: auto; max-width: 400px; margin: 0 auto; }
 .tenure-strip { display: block; width: 100%; height: auto; max-width: 620px; margin: 0 0 .5rem; }
 /* Browser default figure margin (1em 40px) would push the donut off-center
    in its half of the .cols grid, the same reason .coin-figure above sets
