@@ -114,6 +114,37 @@ describe("validateCoinHistory: M2 — well-formed histories return without throw
   });
 });
 
+describe("validateCoinHistory: date format (2026-09-05, Beau's chain of custody)", () => {
+  // Seven of the twelve real handoffs are known only to the month, so a
+  // stop date is YYYY-MM-DD or YYYY-MM and nothing else. The page already
+  // prints month and year, so a month-only value shows exactly like a full
+  // one; what this rule buys is a loud failure on a typo ("2022-4",
+  // "04/2022", "April 2022") that string comparison would otherwise order
+  // wrongly and silently.
+  test("a month-only date is accepted, and handoffs match on the same month string", () => {
+    const history: HopeCoinStop[] = [
+      { holder: "alice", to: "2022-04", how: "started here" },
+      { holder: "bob", from: "2022-04", to: "2022-07-14", how: "season champion" },
+      { holder: "carol", from: "2022-07-14", how: "third skull" },
+    ];
+    expect(() => validateCoinHistory(data("carol", "2022-07-14", history))).not.toThrow();
+  });
+  test("a date that is neither YYYY-MM-DD nor YYYY-MM throws, naming the stop and the value", () => {
+    const history: HopeCoinStop[] = [
+      { holder: "alice", to: "2022-4", how: "started here" },
+      { holder: "bob", from: "2022-4", how: "season champion" },
+    ];
+    expect(() => validateCoinHistory(data("bob", "2022-4", history))).toThrow(/stop 1 \(alice\).*"2022-4"/s);
+  });
+  test("a month-only date with an impossible month throws", () => {
+    const history: HopeCoinStop[] = [
+      { holder: "alice", to: "2022-13", how: "started here" },
+      { holder: "bob", from: "2022-13", how: "season champion" },
+    ];
+    expect(() => validateCoinHistory(data("bob", "2022-13", history))).toThrow(/"2022-13"/);
+  });
+});
+
 describe("validateCoinHistory: the equal-date boundary (deliberate ruling)", () => {
   // The Coin can change hands twice in one game night: a stop whose own
   // `from` equals its own `to` (won and lost the same date), immediately

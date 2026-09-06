@@ -12,12 +12,87 @@
   "hopeCoin": {
     "holder": "nick-m",
     "since": "2026-04-14",
-    "historyPending": true,
     "history": [
+      {
+        "holder": "kmikeym",
+        "to": "2021-07",
+        "place": "Los Angeles",
+        "how": "Where the coin started."
+      },
+      {
+        "holder": "chris-g",
+        "from": "2021-07",
+        "to": "2021-10",
+        "place": "Petaluma",
+        "how": "Mailed from Los Angeles."
+      },
+      {
+        "holder": "beau-g",
+        "from": "2021-10",
+        "to": "2022-01-04",
+        "place": "On the road by RV, Petaluma to San Diego",
+        "how": "Picked up in Petaluma. The RV came to the coin."
+      },
+      {
+        "holder": "josh-b",
+        "from": "2022-01-04",
+        "to": "2022-04",
+        "place": "Portland",
+        "how": "Couriered from San Diego."
+      },
+      {
+        "holder": "drew-a",
+        "from": "2022-04",
+        "to": "2022-07",
+        "place": "Portland",
+        "how": "Season champion."
+      },
+      {
+        "holder": "chris-g",
+        "from": "2022-07",
+        "to": "2022-10",
+        "place": "Petaluma",
+        "how": "Season champion."
+      },
+      {
+        "holder": "josh-b",
+        "from": "2022-10",
+        "to": "2023-01",
+        "place": "Portland",
+        "how": "Season champion."
+      },
+      {
+        "holder": "chris-g",
+        "from": "2023-01",
+        "to": "2023-04-04",
+        "place": "Petaluma",
+        "how": "Season champion."
+      },
+      {
+        "holder": "beau-g",
+        "from": "2023-04-04",
+        "to": "2023-07",
+        "place": "On the road by RV, Seattle to Homer, Alaska, by way of Hope, British Columbia",
+        "how": "Mailed to Seattle."
+      },
+      {
+        "holder": "chris-g",
+        "from": "2023-07",
+        "to": "2025-01-08",
+        "place": "Petaluma",
+        "how": "Mailed from Homer, Alaska."
+      },
+      {
+        "holder": "matt-w",
+        "from": "2025-01-08",
+        "to": "2026-04-14",
+        "place": "Jacksonville, Florida",
+        "how": "Third elimination of the holder. Announced January 8."
+      },
       {
         "holder": "nick-m",
         "from": "2026-04-14",
-        "how": "Third skull on Matt M."
+        "how": "Third skull on Matt W."
       }
     ]
   },
@@ -77,6 +152,18 @@
       "name": "Drew A.",
       "aka": [
         "MoHDI_Drew"
+      ]
+    },
+    {
+      "slug": "josh-b",
+      "name": "Josh B.",
+      "aka": []
+    },
+    {
+      "slug": "matt-w",
+      "name": "Matt W.",
+      "aka": [
+        "MawTTM"
       ]
     }
   ],
