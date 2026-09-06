@@ -623,6 +623,31 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
    none of .route-stop::before's ring on the spine. */
 .route-leg::before { display: none; }
 
+/* The stint loops (Task 7, #48, spec §5): a road trip drawn as a loop off
+   the journey's line, inside the stop it belongs to. Sized here, never by
+   width/height attributes on the svg itself, so every loop on the page
+   changes size together. max-width keeps a nine-name loop from stretching
+   its text into a headline on a wide screen. */
+.route-loop { display: block; width: 100%; height: auto; max-width: 540px; margin: .6rem 0 .2rem; }
+/* The loop itself is a drawn line, never a filled shape: light page, dark
+   objects (docs/brand.md). Pewter, not a rarity metal, for the same reason
+   .route's own spine is a hairline -- this is structure, not a signal. */
+.route-loop-path { fill: none; stroke: var(--pewter-deep); stroke-width: 1.5; }
+/* One filled bead per place the Coin rode through, matching the pewter
+   ring .route-stop::before already draws on the spine. */
+.route-tick circle { fill: var(--pewter-deep); }
+/* The one border crossing. Foil is the page's "this one is different"
+   accent (the coin itself is drawn in foil above), and it is spent on
+   exactly one tick in the whole journey. */
+.route-flag { fill: var(--foil-deep); }
+/* Place names in the same small monospace face .stat uses, at a fixed
+   pixel size: the svg is scaled by its viewBox, so an em-based size here
+   would shrink and grow with the drawing instead of staying legible. */
+.route-tick text { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 11px; fill: var(--ink); }
+/* The stint's mileage, inside the loop at its far end. Same face as the
+   names, muted so the places read first. */
+.route-loop-miles { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 11px; fill: var(--muted-ink); }
+
 /* The coin's own photo frame (Task 5, #48): the hero at the top of
    /hope-coin/ (site/hope-coin/assets/coin.png), and the frame later
    infographics on this page reuse. Copies .card-frame's border and

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import {
   esc, recordQualifier, renderStandings, renderGamesIndex, renderNextGameIcs, secondTuesday,
-  playerSlugs, renderPlayer, renderHopeCoin, coinHero, odometerTiles,
+  playerSlugs, renderPlayer, renderHopeCoin, coinHero, odometerTiles, routeLoop,
 } from "./render";
 import { deriveStandings, type GamesData, type HopeCoinStop } from "./lib/standings";
 import { TROPHIES, displayOrder, visibleTrophies } from "./lib/trophies";
@@ -1313,6 +1313,136 @@ describe("odometerTiles and the leg labels (Task 6, #48)", () => {
   });
 });
 
+// Task 7 (#48): the stint loops. A stop whose holder drove the Coin around
+// carries a `route` (the places it rode through) and `milesHeld`, and that
+// trip is drawn as a loop off the journey's line inside that stop's own
+// <li>. The chain below invents its places, as every fixture in this file
+// does, EXCEPT the border test further down: the flag is keyed on a name
+// containing "British Columbia", so that one leg has to spell a real
+// crossing or it would not be testing the rule the site actually ships.
+//
+// Two routed stops (2 and 4) with three plain stops around and between
+// them, so a renderer that drew only the first routed stop, only the last,
+// or a loop on every stop all fail the placement leg below.
+const loopChain: HopeCoinStop[] = [
+  { holder: "ada-w", to: "2024-01-01", place: "Tumbleweed Flat",
+    how: "Held it since before anyone kept records." },
+  { holder: "bly-r", from: "2024-01-01", to: "2024-03-01", milesIn: 12, milesHeld: 1234,
+    route: ["Cinder Bend", "Marrow Gap", "Ochre Ridge"],
+    how: "Drove it the whole way in the RV." },
+  { holder: "cly-d", from: "2024-03-01", to: "2024-06-01", milesIn: 8, place: "Salt Pan",
+    how: "Kept it on the shelf all spring." },
+  { holder: "dre-k", from: "2024-06-01", to: "2024-09-01", milesIn: 30, milesHeld: 640,
+    route: ["Quarry Row", "Lantern Creek"],
+    how: "Took it out on the second trip." },
+  { holder: "eli-n", from: "2024-09-01", milesIn: 25, place: "Fresno",
+    how: "Took the coin at the final table." },
+];
+
+// The three-name stint the M1 legs measure, pulled out by name so a leg
+// reads as "this stop" rather than "index 1 of the chain".
+const threeNameStop = loopChain[1]!;
+
+// Pulls each `<g class="route-tick">...</g>` group out whole, in document
+// order - the same non-greedy whole-block extraction routeStopBlocks uses
+// above, and exact for the same reason: tick groups never nest, so a match
+// to the next `</g>` cannot bleed into the neighboring tick.
+function tickGroups(svg: string): string[] {
+  return [...svg.matchAll(/<g class="route-tick">[\s\S]*?<\/g>/g)].map((m) => m[0]);
+}
+
+// The text content of one tick group's own `<text>` element (the place
+// name, plus the border sentence on the one crossing). Returns "" when the
+// group carries no text at all, so a leg asserting on the name fails on the
+// name rather than on a thrown match error.
+function tickText(group: string): string {
+  return /<text[^>]*>([\s\S]*?)<\/text>/.exec(group)?.[1] ?? "";
+}
+
+describe("routeLoop and the stint loops (Task 7, #48)", () => {
+  const loop = routeLoop(threeNameStop);
+
+  test("M1 leg (a): the loop is an <svg class=\"route-loop\"> carrying a viewBox and exactly one route-loop-path", () => {
+    expect(loop).toStartWith('<svg class="route-loop" viewBox="');
+    expect(loop).toMatch(/^<svg class="route-loop" viewBox="[\d .]+"/);
+    expect(loop.match(/class="route-loop-path"/g)?.length).toBe(1);
+  });
+
+  test("M1 leg (a): exactly three tick groups, their texts the three place names in route order, no fourth", () => {
+    const groups = tickGroups(loop);
+    expect(groups.length).toBe(3);
+    expect(groups.map(tickText)).toEqual(["Cinder Bend", "Marrow Gap", "Ochre Ridge"]);
+  });
+
+  test("M1 leg (a): each tick group holds exactly one <circle>", () => {
+    for (const group of tickGroups(loop)) {
+      expect(group.match(/<circle\b/g)?.length).toBe(1);
+    }
+  });
+
+  test('M1 leg (a): exactly one miles text, reading the formatted milesHeld plus " miles on the road"', () => {
+    const miles = [...loop.matchAll(/<text class="route-loop-miles"[^>]*>([\s\S]*?)<\/text>/g)];
+    expect(miles.length).toBe(1);
+    expect(miles[0]![1]).toBe("1,234 miles on the road");
+  });
+
+  test("M2 leg (b): a stop with no route renders exactly the empty string", () => {
+    const parked: HopeCoinStop = {
+      holder: "cly-d", from: "2024-03-01", to: "2024-06-01", place: "Salt Pan",
+      how: "Kept it on the shelf all spring.",
+    };
+    expect(routeLoop(parked)).toBe("");
+  });
+
+  test("M2 leg (b): renderHopeCoin draws a loop inside each routed stop's own <li>, after its how paragraph, and nowhere else", () => {
+    const full = renderHopeCoin(odoData(loopChain));
+    expect(full.match(/<svg class="route-loop"/g)?.length).toBe(2);
+
+    const blocks = routeStopBlocks(full);
+    expect(blocks.length).toBe(5);
+    for (const [i, how] of [[1, "Drove it the whole way in the RV."], [3, "Took it out on the second trip."]] as const) {
+      const block = blocks[i]!;
+      const howHtml = `<p>${how}</p>`;
+      expect(block).toContain(howHtml);
+      // The loop lands AFTER the how sentence, inside the same stop's <li>.
+      expect(block.indexOf('<svg class="route-loop"')).toBeGreaterThan(block.indexOf(howHtml));
+    }
+    for (const i of [0, 2, 4]) {
+      expect(blocks[i]!).not.toContain("route-loop");
+    }
+  });
+
+  const borderStop: HopeCoinStop = {
+    holder: "bly-r", from: "2024-01-01", to: "2024-03-01", milesIn: 12, milesHeld: 2400,
+    route: ["Cinder Bend", "Hope, British Columbia", "Marrow Gap"],
+    how: "Drove it north and back.",
+  };
+  const borderLoop = routeLoop(borderStop);
+
+  test("M3 leg (c): exactly one route-flag, inside the British Columbia tick, whose text names the crossing", () => {
+    expect(borderLoop.match(/class="route-flag"/g)?.length).toBe(1);
+    const groups = tickGroups(borderLoop);
+    expect(groups.length).toBe(3);
+    const flagged = groups.filter((g) => g.includes("route-flag"));
+    expect(flagged.length).toBe(1);
+    expect(tickText(flagged[0]!)).toBe("Hope, British Columbia, the coin's one border crossing");
+  });
+
+  test("M3 leg (c): the other two ticks carry neither the flag nor the border sentence", () => {
+    const plain = tickGroups(borderLoop).filter((g) => !g.includes("British Columbia"));
+    expect(plain.length).toBe(2);
+    for (const group of plain) {
+      expect(group).not.toContain("route-flag");
+      expect(group).not.toContain("border crossing");
+    }
+  });
+
+  test("M5 leg (e): neither loop carries an em dash", () => {
+    expect(loop).not.toContain("—");
+    expect(borderLoop).not.toContain("—");
+  });
+});
+
 // Task 6 (#48), M4: site/styles.css guards for .tiles--4 and the two
 // .route-leg rules. tools/styles.test.ts already owns a general rule finder
 // for the eleven trophy-era classes, but this task's own Files list names
@@ -1394,5 +1524,50 @@ describe("site/styles.css: .tiles--4 and .route-leg (Task 6, #48, M4)", () => {
     const rule = cssRules(css).find((r) => r.selector === ".route-leg::before");
     expect(rule).toBeDefined();
     expect(declValue(rule!.body, "display")).toBe("none");
+  });
+});
+
+// Task 7 (#48), M4: site/styles.css guards for the five stint-loop rules.
+// Each declaration gets its own check, by name, so a loop that lost its
+// stroke, its fill, or its small monospace face fails on the declaration
+// that went missing rather than on a vague "the rule changed."
+describe("site/styles.css: the stint loop (Task 7, #48, M4)", () => {
+  const css = stripCssComments(readFileSync(CSS_PATH, "utf8"));
+  const ruleFor = (selector: string) => cssRules(css).find((r) => r.selector === selector);
+
+  test(".route-loop is sized by CSS: width 100%, height auto, and a max-width", () => {
+    const rule = ruleFor(".route-loop");
+    expect(rule).toBeDefined();
+    expect(declValue(rule!.body, "width")).toBe("100%");
+    expect(declValue(rule!.body, "height")).toBe("auto");
+    expect(declValue(rule!.body, "max-width")).not.toBeNull();
+  });
+
+  test(".route-loop-path is a drawn pewter line, never a filled shape", () => {
+    const rule = ruleFor(".route-loop-path");
+    expect(rule).toBeDefined();
+    expect(declValue(rule!.body, "stroke")).toBe("var(--pewter-deep)");
+    expect(declValue(rule!.body, "fill")).toBe("none");
+  });
+
+  test(".route-tick circle is filled pewter", () => {
+    const rule = ruleFor(".route-tick circle");
+    expect(rule).toBeDefined();
+    expect(declValue(rule!.body, "fill")).toBe("var(--pewter-deep)");
+  });
+
+  test(".route-flag is filled foil, the one accent on the loop", () => {
+    const rule = ruleFor(".route-flag");
+    expect(rule).toBeDefined();
+    expect(declValue(rule!.body, "fill")).toBe("var(--foil-deep)");
+  });
+
+  test(".route-tick text carries a font-family and a font-size of at most 11px", () => {
+    const rule = ruleFor(".route-tick text");
+    expect(rule).toBeDefined();
+    expect(declValue(rule!.body, "font-family")).not.toBeNull();
+    const size = declValue(rule!.body, "font-size");
+    expect(size).toMatch(/^\d+(\.\d+)?px$/);
+    expect(Number.parseFloat(size!)).toBeLessThanOrEqual(11);
   });
 });

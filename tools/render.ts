@@ -1062,6 +1062,117 @@ export function odometerTiles(data: GamesData): string {
     </div>`;
 }
 
+// routeLoop draws one stop's road trip as a loop hanging off the journey's
+// line (Task 7, #48, spec §5): a thin pewter path leaving the stop and
+// returning to it, one tick per place the Coin actually rode through, the
+// place names beside the ticks, the stint's mileage inside the loop, and a
+// small drawn flag on the one tick that crossed a border. Takes a single
+// HopeCoinStop; returns the `<svg>` markup alone, which renderHopeCoin
+// splices inside that stop's own `<li>` after its `how` sentence - or the
+// empty string for a stop with no `route`, which is most of them, so the
+// caller can splice the result unconditionally instead of branching.
+// Throws nothing: a `route` never arrives without `milesHeld` (see the
+// field's own comment in tools/lib/standings.ts), and a stop that somehow
+// had one would draw "0 miles on the road" rather than crash, because a
+// visible zero is a bug someone reports and a crash on publish night is not
+// a bug Charlie can fix at 10pm.
+//
+// This is geometry, not a map. The ticks sit at even spacing whatever the
+// real distances between the places, because the record carries ONE figure
+// for the whole stint (`milesHeld`) and no per-leg distances at all:
+// spacing the ticks by distance would mean inventing the numbers that
+// spacing implies. Half the names run left to right along the loop's top
+// edge and the rest run right to left along the bottom, so reading order
+// follows the drive out and the drive back.
+//
+// The size: 90 viewBox units per tick, with the path inset 20 units at each
+// end, so Beau's six-name and nine-name routes each get the same room per
+// name and neither crowds its text. The svg carries no width or height
+// attributes on purpose - `.route-loop` in site/styles.css sizes it, so one
+// CSS change resizes every loop on the page and none of them can drift
+// apart.
+//
+// The border flag is drawn (a small foil triangle inside the loop), never
+// an emoji, and it keys on the place name containing "British Columbia":
+// the Coin has crossed exactly one border, into Canada, and the place name
+// is the only thing the record carries that says so. If the Coin ever
+// crosses a second border, that becomes a field on the stop - a second
+// hardcoded country name here would be a guess about data that does not
+// exist yet.
+export function routeLoop(stop: HopeCoinStop): string {
+  const route = stop.route;
+  if (!route || route.length === 0) return "";
+
+  // The frame. Width grows with the tick count (90 units each) so the
+  // drawing gets wider, never denser, as a route gets longer; height is
+  // fixed, because the loop is always one lane out and one lane back.
+  const width = 90 * route.length + 40;
+  const height = 150;
+  const left = 20;
+  const right = width - 20;
+  const top = 44;
+  const bottom = 104;
+  // The end caps are exact semicircles (the radius spans the full height
+  // between the two edges), which is what makes the path read as a loop
+  // drawn in one stroke rather than as a box with rounded corners.
+  const rx = (bottom - top) / 2;
+  // Ticks live only on the straight runs, never on a cap, so a name is
+  // never labeling a curve.
+  const runStart = left + rx;
+  const runEnd = right - rx;
+
+  const topCount = Math.ceil(route.length / 2);
+  const bottomCount = route.length - topCount;
+  const round = (n: number) => Number(n.toFixed(1));
+
+  const ticks = route.map((name, i) => {
+    const onTop = i < topCount;
+    // The return leg reads right to left: the last name on the route is the
+    // one closest to the stop the loop leaves from, which is where the
+    // Coin came back to.
+    const slot = onTop ? i : bottomCount - 1 - (i - topCount);
+    const count = onTop ? topCount : bottomCount;
+    const x = round(runStart + (runEnd - runStart) * ((slot + 0.5) / count));
+    const y = onTop ? top : bottom;
+
+    const isBorder = name.includes("British Columbia");
+    // Names sit outside the loop (above the top run, below the bottom run)
+    // so they never collide with the path or with the mileage inside it.
+    // The border tick's label carries a whole sentence, so it sits one row
+    // further out than its neighbors rather than running through them.
+    const labelY = onTop
+      ? top - (isBorder ? 26 : 12)
+      : bottom + (isBorder ? 29 : 15);
+    // Keeping the label inside the frame: an svg clips at its own viewBox,
+    // so a long name centered on a tick near either end would simply lose
+    // its tail. 6.6 units per character is the monospace face's advance at
+    // this size, near enough to decide which end to hang the text from.
+    const halfLabel = (name.length + (isBorder ? 32 : 0)) * 3.3;
+    const anchor = x - halfLabel < 2 ? "start" : x + halfLabel > width - 2 ? "end" : "middle";
+    const labelX = anchor === "start" ? 2 : anchor === "end" ? width - 2 : x;
+    // The flag points into the loop, where nothing else is drawn at this
+    // end, rather than out into the name's own space.
+    const flag = isBorder
+      ? (onTop
+        ? `<path class="route-flag" d="M ${x} ${y + 2} L ${x + 11} ${y + 7} L ${x} ${y + 12} Z"/>`
+        : `<path class="route-flag" d="M ${x} ${y - 2} L ${x + 11} ${y - 7} L ${x} ${y - 12} Z"/>`)
+      : "";
+    // The border sentence is appended outside esc() on purpose: it is this
+    // file's own copy, not data, and esc() leaves the apostrophe alone
+    // anyway (see its comment at the top of this file).
+    const label = esc(name) + (isBorder ? ", the coin's one border crossing" : "");
+
+    return `<g class="route-tick"><circle cx="${x}" cy="${y}" r="3.5"/>${flag}<text x="${labelX}" y="${labelY}" text-anchor="${anchor}">${label}</text></g>`;
+  }).join("");
+
+  const path = `<path class="route-loop-path" d="M ${runStart} ${top} H ${runEnd} A ${rx} ${rx} 0 0 1 ${runEnd} ${bottom} H ${runStart} A ${rx} ${rx} 0 0 1 ${runStart} ${top} Z"/>`;
+  // The mileage sits inside the loop at its far end, the one part of the
+  // drawing with empty room at every route length.
+  const miles = `<text class="route-loop-miles" x="${right - rx - 6}" y="${(top + bottom) / 2 + 4}" text-anchor="end">${formatMiles(stop.milesHeld ?? 0)} miles on the road</text>`;
+
+  return `<svg class="route-loop" viewBox="0 0 ${width} ${height}">${path}${ticks}${miles}</svg>`;
+}
+
 // Renders the Hope Coin's own page: the hero grid coinHero() builds (the
 // coin's photo and the "what is the Coin" copy, side by side), the four
 // odometer tiles odometerTiles() builds (Task 6, #48) directly beneath it,
@@ -1118,9 +1229,16 @@ export function renderHopeCoin(data: GamesData): string {
       stopBlocks.push(`      <li class="route-leg"><span class="stat">${esc(legText)}</span></li>`);
     }
 
+    // The stint loop (Task 7, #48): a stop whose holder drove the Coin
+    // around gets that trip drawn inside its own <li>, under the sentence
+    // that says what happened. routeLoop() returns "" for every other stop,
+    // which is why this splices unconditionally rather than branching here.
+    const loop = routeLoop(stop);
+    const loopHtml = loop ? `\n        ${loop}` : "";
+
     stopBlocks.push(`      <li class="route-stop${isCurrent ? " route-stop--current" : ""}">
         <p><strong>${name}</strong>${dateHtml}</p>${placeHtml}
-        <p>${esc(stop.how)}</p>
+        <p>${esc(stop.how)}</p>${loopHtml}
       </li>`);
   }
   const stops = stopBlocks.join("\n");
