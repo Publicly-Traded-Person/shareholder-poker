@@ -69,13 +69,32 @@ export function prepareGame(
   // someone asks where it went. The lookup is built from TROPHIES itself,
   // never a second list of ids typed out here, because a second list is
   // exactly the kind of thing this registry exists to make unnecessary.
-  const knownTrophyIds = new Set(TROPHIES.map(t => t.id));
+  const trophyById = new Map(TROPHIES.map(t => [t.id, t]));
   for (const r of results) {
     for (const id of r.trophies) {
-      if (!knownTrophyIds.has(id)) {
+      if (!trophyById.has(id)) {
         throw new Error(
           `unknown trophy id "${id}" on ${r.handle}'s result: tools/lib/trophies.ts has no entry ` +
           `for it. Fix results.json (or add the trophy to trophies.ts if it is genuinely new); do not publish.`
+        );
+      }
+    }
+  }
+
+  // Handles resolve to slugs here, before the audience check below, because
+  // that check compares slugs: a trophy marked `only` for one player
+  // (Abel's Triumph is Gene's alone) recorded on anybody else is the same
+  // kind of silent loss as an unknown id. trophyCase() hides an `only`
+  // trophy from every other page, so the misfiled row would award a trophy
+  // nobody could ever see. Refuse; fix results.json.
+  const resolved = results.map(r => ({ ...r, slug: resolveSlug(r.handle, data.players) }));  // throws UnknownHandleError
+  for (const r of resolved) {
+    for (const id of r.trophies) {
+      const only = trophyById.get(id)!.only;
+      if (only !== undefined && only !== r.slug) {
+        throw new Error(
+          `trophy "${id}" belongs only to ${only}, but results.json records it on ${r.handle} (${r.slug}). ` +
+          `Move it to the right row or remove it; do not publish.`
         );
       }
     }
@@ -88,9 +107,7 @@ export function prepareGame(
     buyIn: opts.buyIn,
     entries,
     pot,
-    results: results
-      .map(r => ({ ...r, slug: resolveSlug(r.handle, data.players) }))  // throws UnknownHandleError
-      .sort((a, b) => a.finish - b.finish),
+    results: resolved.sort((a, b) => a.finish - b.finish),
   };
 }
 
