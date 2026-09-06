@@ -33,6 +33,9 @@ export type HopeCoinStop = {
   to?: string;      // absent only on the last stop, which is current
   place?: string;   // optional; a place name, never coordinates
   how: string;      // one plain sentence
+  milesIn?: number;    // miles of the leg that brought the coin here; Beau's figure; absent on the first stop and wherever the figure rests on an assumption
+  milesHeld?: number;  // miles the coin traveled while at this stop; only Beau's RV stints have one
+  route?: string[];    // the places it passed through while held, in order, as names; present only with milesHeld
 };
 
 // A player on the roster. `bio` is Charlie's paragraph for the player page

@@ -161,3 +161,123 @@ describe("validateCoinHistory: the equal-date boundary (deliberate ruling)", () 
     expect(() => validateCoinHistory(data("carol", "2026-03-01", history))).not.toThrow();
   });
 });
+
+describe("validateCoinHistory: rule 5, milesIn, milesHeld, and route (2026-09-05, the odometer and route graphic)", () => {
+  // [a] M1: a chain that uses all three fields correctly, plus milesIn
+  // alone on the stops around it, passes with no throw. milesIn is put on
+  // the first and last stops here purely to prove the rule accepts it in
+  // both positions; the HopeCoinStop comment's usual guidance (absent on
+  // the first stop) is about what real data looks like, not something this
+  // rule enforces.
+  test("[a] milesIn, milesHeld, and a route on the middle stop, plus milesIn on the others, does not throw", () => {
+    const history: HopeCoinStop[] = [
+      { holder: "alice", to: "2026-01-01", how: "found it", milesIn: 0 },
+      {
+        holder: "bob",
+        from: "2026-01-01",
+        to: "2026-03-01",
+        how: "drove it around in the RV",
+        milesIn: 648,
+        milesHeld: 4454,
+        route: ["Seattle", "Portland"],
+      },
+      { holder: "carol", from: "2026-03-01", how: "took it", milesIn: 12 },
+    ];
+    expect(() => validateCoinHistory(data("carol", "2026-03-01", history))).not.toThrow();
+  });
+
+  // [b] through [i] all put the one bad value on stop 2, held by the
+  // invented slug "bob", and check the thrown message names both the
+  // 1-based position and the holder.
+  test("[b] a negative milesIn throws, naming the stop and holder", () => {
+    const history: HopeCoinStop[] = [
+      { holder: "alice", to: "2026-01-01", how: "found it" },
+      { holder: "bob", from: "2026-01-01", to: "2026-03-01", how: "drove it", milesIn: -1 },
+      { holder: "carol", from: "2026-03-01", how: "took it" },
+    ];
+    expect(() => validateCoinHistory(data("carol", "2026-03-01", history))).toThrow(/stop 2 \(bob\)/);
+  });
+
+  test("[c] a non-integer milesIn throws, naming the stop and holder", () => {
+    const history: HopeCoinStop[] = [
+      { holder: "alice", to: "2026-01-01", how: "found it" },
+      { holder: "bob", from: "2026-01-01", to: "2026-03-01", how: "drove it", milesIn: 1.5 },
+      { holder: "carol", from: "2026-03-01", how: "took it" },
+    ];
+    expect(() => validateCoinHistory(data("carol", "2026-03-01", history))).toThrow(/stop 2 \(bob\)/);
+  });
+
+  test("[d] a milesHeld of zero throws, naming the stop and holder", () => {
+    const history: HopeCoinStop[] = [
+      { holder: "alice", to: "2026-01-01", how: "found it" },
+      { holder: "bob", from: "2026-01-01", to: "2026-03-01", how: "drove it", milesHeld: 0 },
+      { holder: "carol", from: "2026-03-01", how: "took it" },
+    ];
+    expect(() => validateCoinHistory(data("carol", "2026-03-01", history))).toThrow(/stop 2 \(bob\)/);
+  });
+
+  test("[e] a negative milesHeld throws, naming the stop and holder", () => {
+    const history: HopeCoinStop[] = [
+      { holder: "alice", to: "2026-01-01", how: "found it" },
+      { holder: "bob", from: "2026-01-01", to: "2026-03-01", how: "drove it", milesHeld: -5 },
+      { holder: "carol", from: "2026-03-01", how: "took it" },
+    ];
+    expect(() => validateCoinHistory(data("carol", "2026-03-01", history))).toThrow(/stop 2 \(bob\)/);
+  });
+
+  test("[f] a route with no milesHeld on the same stop throws, naming the stop and holder", () => {
+    const history: HopeCoinStop[] = [
+      { holder: "alice", to: "2026-01-01", how: "found it" },
+      { holder: "bob", from: "2026-01-01", to: "2026-03-01", how: "drove it", route: ["Seattle"] },
+      { holder: "carol", from: "2026-03-01", how: "took it" },
+    ];
+    expect(() => validateCoinHistory(data("carol", "2026-03-01", history))).toThrow(/stop 2 \(bob\)/);
+  });
+
+  test("[g] an empty route array throws, naming the stop and holder", () => {
+    const history: HopeCoinStop[] = [
+      { holder: "alice", to: "2026-01-01", how: "found it" },
+      { holder: "bob", from: "2026-01-01", to: "2026-03-01", how: "drove it", milesHeld: 10, route: [] },
+      { holder: "carol", from: "2026-03-01", how: "took it" },
+    ];
+    expect(() => validateCoinHistory(data("carol", "2026-03-01", history))).toThrow(/stop 2 \(bob\)/);
+  });
+
+  test("[h] a route containing an empty string throws, naming the stop and holder", () => {
+    const history: HopeCoinStop[] = [
+      { holder: "alice", to: "2026-01-01", how: "found it" },
+      {
+        holder: "bob",
+        from: "2026-01-01",
+        to: "2026-03-01",
+        how: "drove it",
+        milesHeld: 10,
+        route: ["Seattle", ""],
+      },
+      { holder: "carol", from: "2026-03-01", how: "took it" },
+    ];
+    expect(() => validateCoinHistory(data("carol", "2026-03-01", history))).toThrow(/stop 2 \(bob\)/);
+  });
+
+  test("[i] a route name containing an em dash throws, naming the stop and holder", () => {
+    const history: HopeCoinStop[] = [
+      { holder: "alice", to: "2026-01-01", how: "found it" },
+      {
+        holder: "bob",
+        from: "2026-01-01",
+        to: "2026-03-01",
+        how: "drove it",
+        milesHeld: 10,
+        route: ["Seattle—ish"],
+      },
+      { holder: "carol", from: "2026-03-01", how: "took it" },
+    ];
+    expect(() => validateCoinHistory(data("carol", "2026-03-01", history))).toThrow(/stop 2 \(bob\)/);
+  });
+
+  // [j] M3: nothing above touches the describe blocks earlier in this file.
+  // None of their fixtures set milesIn, milesHeld, or route, so rule 5
+  // never fires for them, and every existing assertion in this file (both
+  // the throws and the not.toThrow() calls) still holds unchanged. Not
+  // duplicated here; see the earlier describe blocks in this same file.
+});

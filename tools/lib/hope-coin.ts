@@ -76,6 +76,20 @@ import type { GamesData } from "./standings";
 //    that disagrees with them would make the coin page and the standings
 //    tile tell two different stories about who holds the Coin today.
 //
+// 5. Miles and route (2026-09-05, the odometer and route graphic): on each
+//    stop, in this order, `milesIn`, when present, must be a whole number
+//    of zero or more (zero is a real hand-to-hand pass, no driving in
+//    between, so it is not an error); `milesHeld`, when present, must be a
+//    whole number of one or more (a stop with no miles held omits the
+//    field rather than setting it to zero); `route`, when present, must
+//    have `milesHeld` on the same stop (a route only makes sense for a
+//    stop the Coin actually traveled during), must be a non-empty array,
+//    and none of its names may be an empty string or contain an em dash
+//    (the character U+2014), matching the no-em-dash rule that applies to
+//    everything else the site prints. See the HopeCoinStop comment in
+//    standings.ts for what the three fields themselves mean; this rule
+//    only checks their shape.
+//
 // Throws: Error, with a message naming the specific stop(s) involved (by
 // 1-based position and holder) and the dates in conflict, matching the
 // refuse-to-publish voice in tools/publish-game.ts — this message is what
@@ -160,5 +174,56 @@ export function validateCoinHistory(data: GamesData): void {
       `hopeCoin.since is "${data.hopeCoin.since}" but the last stop's "from" is "${last.from}". They ` +
       `must agree: update hopeCoin.since to match the newest stop's start date.`
     );
+  }
+
+  // 5. Miles and route (see the function comment above for the full rule).
+  for (let i = 0; i < history.length; i++) {
+    const stop = history[i];
+
+    if (stop.milesIn !== undefined && (!Number.isInteger(stop.milesIn) || stop.milesIn < 0)) {
+      throw new Error(
+        `hopeCoin.history stop ${i + 1} (${stop.holder}) has a "milesIn" of ${stop.milesIn}. It must be ` +
+        `a whole number of zero or more (zero is a real hand-to-hand pass, no driving in between). Fix ` +
+        `the value.`
+      );
+    }
+
+    if (stop.milesHeld !== undefined && (!Number.isInteger(stop.milesHeld) || stop.milesHeld < 1)) {
+      throw new Error(
+        `hopeCoin.history stop ${i + 1} (${stop.holder}) has a "milesHeld" of ${stop.milesHeld}. It ` +
+        `must be a whole number of one or more; a stop with no miles held should omit the field, not ` +
+        `set it to zero. Fix the value.`
+      );
+    }
+
+    if (stop.route !== undefined) {
+      if (stop.milesHeld === undefined) {
+        throw new Error(
+          `hopeCoin.history stop ${i + 1} (${stop.holder}) has a "route" but no "milesHeld". A route ` +
+          `only makes sense for a stop the Coin actually traveled during: add "milesHeld", or remove ` +
+          `the route.`
+        );
+      }
+      if (stop.route.length === 0) {
+        throw new Error(
+          `hopeCoin.history stop ${i + 1} (${stop.holder}) has an empty "route" array. Either list the ` +
+          `places it passed through, or omit the field entirely.`
+        );
+      }
+      for (const place of stop.route) {
+        if (place === "") {
+          throw new Error(
+            `hopeCoin.history stop ${i + 1} (${stop.holder}) has an empty string in its "route". Every ` +
+            `place name must be non-empty. Fix or remove the entry.`
+          );
+        }
+        if (place.includes("\u2014")) {
+          throw new Error(
+            `hopeCoin.history stop ${i + 1} (${stop.holder}) has a "route" name of "${place}" ` +
+            `containing an em dash. Site copy never uses one: use a comma, "to", or rewrite the name.`
+          );
+        }
+      }
+    }
   }
 }
