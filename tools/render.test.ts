@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import {
   esc, recordQualifier, renderStandings, renderGamesIndex, renderNextGameIcs, secondTuesday,
-  playerSlugs, renderPlayer, renderHopeCoin, coinHero,
+  playerSlugs, renderPlayer, renderHopeCoin, coinHero, odometerTiles,
 } from "./render";
-import { deriveStandings, type GamesData } from "./lib/standings";
+import { deriveStandings, type GamesData, type HopeCoinStop } from "./lib/standings";
 import { TROPHIES, displayOrder, visibleTrophies } from "./lib/trophies";
 
 const data: GamesData = {
@@ -1135,5 +1136,263 @@ describe("coinHero (Task 5, #48)", () => {
   test("M5: the grid's own markup carries no em dash and no btn-primary", () => {
     expect(hero).not.toContain("—");
     expect(hero).not.toContain("btn-primary");
+  });
+});
+
+// Task 6 (#48): odometerTiles(data) and the leg labels in the journey list.
+// A synthetic five-stop chain of its own, per the task brief (invented
+// slugs, small integers for miles, one stop with a two-name route), rather
+// than reusing hcData above - these tests need small, exact numbers whose
+// sums and maxima are easy to hand-check, and a route/place overlap hcData
+// does not carry.
+//
+//   ada-w - first stop, no milesIn (nobody remembers what leg brought the
+//           Coin here in the first place - see the HopeCoinStop comment in
+//           lib/standings.ts), place "Anchorage".
+//   bly-r - milesIn 12, place "Yukon" - the SAME name as one of cly-d's
+//           route waypoints below, on purpose: the Places tile must count
+//           it once, not twice.
+//   cly-d - milesIn 8, milesHeld 40 with a two-name route ["Yukon",
+//           "Cassiar Highway"] - the RV stint, and (with every milesIn kept
+//           small) the fixture's single longest leg.
+//   dre-k - no milesIn at all: the fixture's one unmeasured leg. Its own
+//           place, "On the road to Reno", begins "On the road" and must
+//           not count toward the Places tile.
+//   eli-n - milesIn 25, place "Fresno", the current stop.
+const odoChain: HopeCoinStop[] = [
+  { holder: "ada-w", to: "2024-01-01", place: "Anchorage",
+    how: "Held it since before anyone kept records." },
+  { holder: "bly-r", from: "2024-01-01", to: "2024-03-01", place: "Yukon", milesIn: 12,
+    how: "Handed it off on the road north." },
+  { holder: "cly-d", from: "2024-03-01", to: "2024-06-01", milesIn: 8, milesHeld: 40,
+    route: ["Yukon", "Cassiar Highway"], how: "Drove it the whole way in the RV." },
+  { holder: "dre-k", from: "2024-06-01", to: "2024-09-01", place: "On the road to Reno",
+    how: "Passed it at a rest stop." },
+  { holder: "eli-n", from: "2024-09-01", milesIn: 25,
+    how: "Took the coin at the final table.", place: "Fresno" },
+];
+
+const odoPlayers = [
+  { slug: "ada-w", name: "Ada W.", aka: ["adaw"] },
+  { slug: "bly-r", name: "Bly R.", aka: ["blyr"] },
+  { slug: "cly-d", name: "Cly D.", aka: ["clyd"] },
+  { slug: "dre-k", name: "Dre K.", aka: ["drek"] },
+  { slug: "eli-n", name: "Eli N.", aka: ["elin"] },
+];
+
+// Wraps one history array in the rest of the GamesData shape odometerTiles
+// and renderHopeCoin both need. A function, not a single constant, because
+// several legs below build a small variant of odoChain (one field on one
+// stop changed) and need a fresh GamesData around it each time.
+function odoData(history: HopeCoinStop[]): GamesData {
+  const last = history[history.length - 1];
+  return {
+    nextGame: { date: "2026-10-13", time: "7:00pm PT" },
+    hopeCoin: { holder: last.holder, since: last.from ?? "2024-09-01", history },
+    players: odoPlayers,
+    games: [],
+  };
+}
+
+// Pulls one tile's whole `<div class="tile">...</div>` block out by its
+// `<h3>` text, so a test can check what lands INSIDE that one tile without
+// a stray match from a neighboring tile - safe because no tile's own body
+// ever nests a further `<div>` for this fixture's markup.
+function tileFor(html: string, heading: string): string {
+  const re = new RegExp(`<div class="tile">\\s*<h3>${heading}</h3>[\\s\\S]*?</div>`);
+  return re.exec(html)?.[0] ?? "";
+}
+
+describe("odometerTiles and the leg labels (Task 6, #48)", () => {
+  const html = odometerTiles(odoData(odoChain));
+
+  // M1 leg (a): the shared five-stop chain has milesIn on stops 2 (12), 3
+  // (8), and 5 (25), milesHeld 40 with a two-name route on stop 3, and
+  // stop 4 unmeasured. onRecord = 12 + (8 + 40) + 25 = 85; the one
+  // unmeasured leg (stop 4 - stop 1 is never counted, see odometer()'s own
+  // comment) reads "plus one leg still unmeasured."
+  test('M1 leg (a): the Miles tile\'s <p class="stat"> is the formatted sum plus " miles on record", second line names the one unmeasured leg', () => {
+    const tile = tileFor(html, "Miles");
+    expect(tile).toContain('<p class="stat">85 miles on record</p>');
+    expect(tile).toContain("<p>by Beau's count, plus one leg still unmeasured</p>");
+  });
+
+  test('M1 leg (a): giving stop 4 a milesIn leaves every leg measured, so the second line reads "by Beau\'s count" alone', () => {
+    const measured = odoChain.map((s, i) => (i === 3 ? { ...s, milesIn: 5 } : s));
+    const tile = tileFor(odometerTiles(odoData(measured)), "Miles");
+    expect(tile).toContain("<p>by Beau's count</p>");
+    expect(tile).not.toContain("unmeasured");
+  });
+
+  test('M1 leg (a): a second unmeasured leg (stop 5, alongside stop 4) reads "plus 2 legs still unmeasured"', () => {
+    const twoUnmeasured = odoChain.map((s, i) => (i === 4 ? { ...s, milesIn: undefined } : s));
+    const tile = tileFor(odometerTiles(odoData(twoUnmeasured)), "Miles");
+    expect(tile).toContain("<p>by Beau's count, plus 2 legs still unmeasured</p>");
+  });
+
+  test("M1 leg (b): the markup is exactly four tiles, Miles/Stops/Places/Longest leg in that order, no fifth", () => {
+    expect(html).toStartWith('<div class="tiles tiles--4">');
+    const headings = [...html.matchAll(/<div class="tile">\s*<h3>([^<]+)<\/h3>/g)].map((m) => m[1]);
+    expect(headings).toEqual(["Miles", "Stops", "Places", "Longest leg"]);
+  });
+
+  test("M1 leg (b): the Stops tile reads the plain stop count", () => {
+    expect(tileFor(html, "Stops")).toContain('<p class="stat">5</p>');
+  });
+
+  // Places: {Anchorage, Yukon, Cassiar Highway, Fresno} = 4 distinct names.
+  // bly-r's place "Yukon" duplicates cly-d's route waypoint "Yukon" (must
+  // collapse to one), and dre-k's "On the road to Reno" must not count at
+  // all. A non-deduplicating implementation would read 5 (3 places outside
+  // "On the road" + 2 route names, not collapsed); a road-counting
+  // implementation would also read 5 (4 correctly-deduplicated names plus
+  // the road entry). Only the correct implementation reads 4.
+  test("M1 leg (b): the Places tile reads the deduplicated, road-excluded count", () => {
+    expect(tileFor(html, "Places")).toContain('<p class="stat">4</p>');
+  });
+
+  test("M1 leg (b): the Longest leg tile shows the fixture's 40-mile route stop, its holder, and the on-the-road suffix", () => {
+    expect(tileFor(html, "Longest leg")).toContain('<p class="stat">40 miles, Cly D., on the road</p>');
+  });
+
+  test("M1 leg (b): the on-the-road suffix is absent when a milesIn figure (1,200) is the largest instead", () => {
+    const bigLeg = odoChain.map((s, i) => (i === 1 ? { ...s, milesIn: 1200 } : s));
+    const tile = tileFor(odometerTiles(odoData(bigLeg)), "Longest leg");
+    expect(tile).toContain('<p class="stat">1,200 miles, Bly R.</p>');
+    expect(tile).not.toContain("on the road");
+  });
+
+  test("M2 leg (c): in renderHopeCoin, odometerTiles lands at or after coinHero's own markup ends, and before The journey heading", () => {
+    const data = odoData(odoChain);
+    const full = renderHopeCoin(data);
+    const hero = coinHero(data);
+    const heroIdx = full.indexOf(hero);
+    expect(heroIdx).toBeGreaterThan(-1);
+    const tilesIdx = full.indexOf(odometerTiles(data));
+    const journeyIdx = full.indexOf("The journey");
+    expect(tilesIdx).toBeGreaterThanOrEqual(heroIdx + hero.length);
+    expect(tilesIdx).toBeLessThan(journeyIdx);
+  });
+
+  test("M3 leg (d): exactly stopCount-1 route-leg items, none before the first stop, each a bare stat span", () => {
+    const full = renderHopeCoin(odoData(odoChain));
+    const legOpenTags = full.match(/<li class="route-leg">/g) ?? [];
+    expect(legOpenTags.length).toBe(4);
+
+    const legMatches = [...full.matchAll(/<li class="route-leg"><span class="stat">([^<]*)<\/span><\/li>/g)];
+    expect(legMatches.length).toBe(4);
+    // Stop 2 through 5's own figures, in order: 12, 8, unmeasured, 25.
+    expect(legMatches.map((m) => m[1])).toEqual(["12 miles", "8 miles", "unmeasured", "25 miles"]);
+
+    // The very first <li> inside the <ol> is a route-stop, not a leg: no
+    // leg precedes the first stop.
+    const olIdx = full.indexOf('<ol class="route">');
+    const firstLiIdx = full.indexOf("<li", olIdx);
+    expect(full.startsWith('<li class="route-stop', firstLiIdx)).toBe(true);
+
+    // For stops 2 through 5, the gap between that stop's own leg's closing
+    // </li> and the stop's opening <li class="route-stop is whitespace
+    // only - the leg sits immediately ahead of its own stop, not batched
+    // as a block elsewhere in the list.
+    const stopOpenTags = [...full.matchAll(/<li class="route-stop[^"]*">/g)];
+    expect(stopOpenTags.length).toBe(5);
+    for (let i = 0; i < legMatches.length; i++) {
+      const legEnd = legMatches[i].index! + legMatches[i][0].length;
+      const stopStart = stopOpenTags[i + 1].index!;
+      expect(full.slice(legEnd, stopStart).trim()).toBe("");
+    }
+  });
+
+  test("M5 leg (f): the tiles and the leg labels carry no em dash, \"about,\" or \"roughly\"", () => {
+    const full = renderHopeCoin(odoData(odoChain));
+    const legsHtml = (full.match(/<li class="route-leg">[\s\S]*?<\/li>/g) ?? []).join("\n");
+    for (const forbidden of ["—", "about", "roughly"]) {
+      expect(html).not.toContain(forbidden);
+      expect(legsHtml).not.toContain(forbidden);
+    }
+  });
+});
+
+// Task 6 (#48), M4: site/styles.css guards for .tiles--4 and the two
+// .route-leg rules. tools/styles.test.ts already owns a general rule finder
+// for the eleven trophy-era classes, but this task's own Files list names
+// only this file, so a second, small copy lives here rather than reaching
+// into that sibling file's unexported internals.
+const CSS_PATH = new URL("../site/styles.css", import.meta.url).pathname;
+
+// Strips /* ... */ comments before any rule extraction runs, matching
+// tools/styles.test.ts's own stripComments - a class or declaration spelled
+// only inside a comment must never read as a real rule.
+function stripCssComments(css: string): string {
+  return css.replace(/\/\*[\s\S]*?\*\//g, "");
+}
+
+// Splits (already comment-free) CSS text into its leaf-level rules --
+// {selector, body} pairs whose body holds no nested braces. Because the
+// regex only matches an innermost `{...}`, a rule nested inside an @media
+// wrapper comes out with the exact same selector and body a top-level rule
+// would - which is why the 900px check below extracts each @media block's
+// own text FIRST and only then runs this over that inner text alone.
+function cssRules(css: string): { selector: string; body: string }[] {
+  const out: { selector: string; body: string }[] = [];
+  const re = /([^{}]+)\{([^{}]*)\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(css))) out.push({ selector: m[1].trim(), body: m[2].trim() });
+  return out;
+}
+
+// Every `@media (min-width: 900px) { ... }` block's own inner text, brace-
+// balanced by hand (a plain regex cannot count nested braces, and a 900px
+// block always holds at least one nested rule). Takes comment-free CSS;
+// returns one string per matching block, in file order.
+function mediaBlocks900(css: string): string[] {
+  const out: string[] = [];
+  const re = /@media \(min-width: 900px\)\s*\{/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(css))) {
+    let depth = 1;
+    let i = re.lastIndex;
+    const start = i;
+    while (depth > 0 && i < css.length) {
+      if (css[i] === "{") depth++;
+      else if (css[i] === "}") depth--;
+      i++;
+    }
+    out.push(css.slice(start, i - 1));
+  }
+  return out;
+}
+
+// The trimmed value of one declaration inside a rule body (matched right
+// after the body's start or a preceding `;`, so searching for "left" can
+// never match inside "padding-left"). Returns null when the body carries
+// no such declaration at all.
+function declValue(body: string, prop: string): string | null {
+  const re = new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`);
+  return re.exec(body)?.[1]?.trim() ?? null;
+}
+
+describe("site/styles.css: .tiles--4 and .route-leg (Task 6, #48, M4)", () => {
+  const css = stripCssComments(readFileSync(CSS_PATH, "utf8"));
+
+  test(".tiles--4 sits inside a 900px media query, with four grid-template-columns tracks", () => {
+    const rule = mediaBlocks900(css).flatMap(cssRules).find((r) => r.selector === ".tiles--4");
+    expect(rule).toBeDefined();
+    const value = declValue(rule!.body, "grid-template-columns");
+    expect(value).not.toBeNull();
+    expect(value!.split(/\s+/).filter(Boolean).length).toBe(4);
+  });
+
+  test(".route-leg carries padding-left: 2rem and margin: -0.75rem 0 0.75rem", () => {
+    const rule = cssRules(css).find((r) => r.selector === ".route-leg");
+    expect(rule).toBeDefined();
+    expect(declValue(rule!.body, "padding-left")).toBe("2rem");
+    expect(declValue(rule!.body, "margin")).toBe("-0.75rem 0 0.75rem");
+  });
+
+  test(".route-leg::before draws no bead: display: none", () => {
+    const rule = cssRules(css).find((r) => r.selector === ".route-leg::before");
+    expect(rule).toBeDefined();
+    expect(declValue(rule!.body, "display")).toBe("none");
   });
 });

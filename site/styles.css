@@ -403,6 +403,11 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
 /* News tiles: the standings tile grammar at three-up on desktop. */
 @media (min-width: 900px) { .tiles--3 { grid-template-columns: 1fr 1fr 1fr; } }
 
+/* The Hope Coin's odometer tiles (/hope-coin/, Task 6, #48): the same
+   .tiles grammar at four-up on desktop, same modifier pattern as
+   .tiles--3 above. */
+@media (min-width: 900px) { .tiles--4 { grid-template-columns: 1fr 1fr 1fr 1fr; } }
+
 /* Eyebrow label, shared voice with .tile h3 and the table headers. */
 .eyebrow {
   margin: 0 0 .4em; text-transform: uppercase; font-size: .72em;
@@ -606,6 +611,17 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
    marks. */
 .route-stop--current { font-weight: 800; }
 .route-stop--current::before { background: var(--foil-deep); border-color: var(--foil-deep); }
+
+/* Leg labels between journey stops (Task 6, #48, M3): a distance line, not
+   another stop on the route. padding-left matches .route-stop's own so the
+   figure's text lines up with stop text on the same spine; the negative
+   top margin pulls it in close under the stop above rather than reading as
+   its own paragraph-spaced row, and the positive bottom margin keeps the
+   stop below it at the route's normal 1.5rem rhythm. */
+.route-leg { padding-left: 2rem; margin: -0.75rem 0 0.75rem; }
+/* No bead: a leg is a distance, not a place the Coin stopped, so it draws
+   none of .route-stop::before's ring on the spine. */
+.route-leg::before { display: none; }
 
 /* The coin's own photo frame (Task 5, #48): the hero at the top of
    /hope-coin/ (site/hope-coin/assets/coin.png), and the frame later

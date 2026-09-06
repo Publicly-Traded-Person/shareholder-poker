@@ -5,6 +5,7 @@ import {
   deriveStandings, type GamesData, type Game, type GameResult, type CardRef, type HopeCoinStop,
 } from "./lib/standings";
 import { trophyCase, TROPHIES, displayOrder, type Trophy, type Look, type Earned } from "./lib/trophies";
+import { odometer, formatMiles } from "./lib/hope-coin";
 
 // HTML-escapes a string for use in text content OR inside a double-quoted
 // attribute. Takes any string; returns it with & < > and " replaced by their
@@ -947,18 +948,135 @@ export function coinHero(data: GamesData): string {
     </div>`;
 }
 
+// odometerTiles renders the four stat tiles between coinHero()'s grid and
+// "The journey" heading (Task 6, #48, M1, spec §6): a running mileage total
+// in Beau's own count, the stop count, how many distinct places the Coin
+// has actually been, and the single longest leg on record. Takes the
+// parsed games.json; returns the `<div class="tiles tiles--4">` markup
+// alone, the same "fragment only, not a section" contract coinHero() keeps
+// (see that function's own comment) - renderHopeCoin splices this directly
+// after coinHero()'s own markup, per M2 below.
+//
+// Computes its own history and name map from `data` rather than taking
+// them as arguments: this is a second, independent read of the same chain
+// renderHopeCoin's journey list also reads below, and the small
+// duplication is cheaper than a wider signature only one caller would ever
+// fill in (the same trade-off coinHero() itself already makes - see its
+// own comment on recomputing deriveStandings() and its name map).
+//
+// The four tiles, always in this order:
+//   Miles       - odometer()'s onRecord (Beau's own count, never a figure
+//                 this function computes itself), captioned with how many
+//                 legs after the first have no milesIn at all: "by Beau's
+//                 count" alone when every leg is measured, "...plus one leg
+//                 still unmeasured" for exactly one, "...plus N legs still
+//                 unmeasured" for more - never "about" or "roughly," because
+//                 every number here is either Beau's own figure or plainly
+//                 marked as missing, not estimated.
+//   Stops       - the plain stop count (history.length).
+//   Places      - the number of distinct names the Coin has actually
+//                 stopped at: every stop's own `place` EXCEPT one starting
+//                 "On the road" (a stop mid-transit is not a place - see
+//                 the HopeCoinStop comment in lib/standings.ts), unioned
+//                 with every name in every stop's `route` (a route waypoint
+//                 counts the same as a stop's own place - the Yukon is a
+//                 place the Coin was, whether it is named as a stop or as a
+//                 leg of one). A name appearing both ways (a stop's place
+//                 that is also a route waypoint) counts once: this tile
+//                 counts places, not lines of text that mention one.
+//   Longest leg - the single largest figure on the whole chain, whichever
+//                 stop and whichever field (`milesIn` or `milesHeld`) it
+//                 came from - a stop's arrival leg and its own parked
+//                 mileage are two different legs, never summed as one for
+//                 this comparison - with the holder's display name, and
+//                 ", on the road" appended only when that figure came from
+//                 `milesHeld` (a stint the Coin spent traveling WHILE held,
+//                 not the leg that brought it there).
+//
+// Throws nothing: an absent history renders every tile at zero (0 miles, 0
+// stops, 0 places) and the Longest leg tile at "0 miles, " with no holder
+// name, rather than guessing - the real chain always has stops before this
+// ever ships, so this shape only matters for not crashing on a fixture that
+// tries it.
+export function odometerTiles(data: GamesData): string {
+  const history = data.hopeCoin.history ?? [];
+  const nameOf = new Map(data.players.map((p) => [p.slug, p.name]));
+  const { onRecord, unmeasuredLegs } = odometer(history);
+
+  const milesCaption =
+    unmeasuredLegs === 0 ? "by Beau's count" :
+    unmeasuredLegs === 1 ? "by Beau's count, plus one leg still unmeasured" :
+    `by Beau's count, plus ${unmeasuredLegs} legs still unmeasured`;
+
+  // Places: every stop's own place (skipping one that starts "On the
+  // road" - mid-transit, not a place), union every name in every stop's
+  // route. A Set is what actually does the deduplication: a name that is
+  // both a stop's place and a route waypoint (the Yukon, say) lands in the
+  // set once, the same as if it only appeared one of those two ways.
+  const places = new Set<string>();
+  for (const stop of history) {
+    if (stop.place !== undefined && !stop.place.startsWith("On the road")) places.add(stop.place);
+    for (const waypoint of stop.route ?? []) places.add(waypoint);
+  }
+
+  // Longest leg: the single largest figure on the chain, comparing a
+  // stop's milesIn and its milesHeld as two separate candidates, never a
+  // stop's own sum of the two (that sum is what the Miles tile's total is
+  // for; this tile shows one leg, not one stop).
+  let max = 0;
+  let maxHolder = "";
+  let maxIsHeld = false;
+  for (const stop of history) {
+    if (stop.milesIn !== undefined && stop.milesIn > max) {
+      max = stop.milesIn;
+      maxHolder = stop.holder;
+      maxIsHeld = false;
+    }
+    if (stop.milesHeld !== undefined && stop.milesHeld > max) {
+      max = stop.milesHeld;
+      maxHolder = stop.holder;
+      maxIsHeld = true;
+    }
+  }
+  const maxName = esc(nameOf.get(maxHolder) ?? maxHolder);
+  const onRoadSuffix = maxIsHeld ? ", on the road" : "";
+
+  return `<div class="tiles tiles--4">
+      <div class="tile">
+        <h3>Miles</h3>
+        <p class="stat">${formatMiles(onRecord)} miles on record</p>
+        <p>${milesCaption}</p>
+      </div>
+      <div class="tile">
+        <h3>Stops</h3>
+        <p class="stat">${history.length}</p>
+      </div>
+      <div class="tile">
+        <h3>Places</h3>
+        <p class="stat">${places.size}</p>
+      </div>
+      <div class="tile">
+        <h3>Longest leg</h3>
+        <p class="stat">${formatMiles(max)} miles, ${maxName}${onRoadSuffix}</p>
+      </div>
+    </div>`;
+}
+
 // Renders the Hope Coin's own page: the hero grid coinHero() builds (the
-// coin's photo and the "what is the Coin" copy, side by side), and the
-// journey: one `.route-stop` per hopeCoin.history entry, oldest first, the
-// last one marked `.route-stop--current`. While data.hopeCoin.historyPending
-// is true, one more sentence lands under "The journey" heading, above the
-// route, saying the record's earliest datable stop is not the Coin's actual
-// first stop (see journeyIncompleteHtml below); the sentence is absent
-// entirely once that flag is gone. Takes the parsed games.json; returns the
-// full document. Throws nothing of its own: an absent history (the rollout
-// state before any stops existed - see the comment on
-// GamesData.hopeCoin.history) renders a journey with zero rows, and a
-// malformed chain is caught upstream by validateCoinHistory, not here.
+// coin's photo and the "what is the Coin" copy, side by side), the four
+// odometer tiles odometerTiles() builds (Task 6, #48) directly beneath it,
+// and the journey: one `.route-stop` per hopeCoin.history entry, oldest
+// first, the last one marked `.route-stop--current`, with a `.route-leg`
+// distance label of its own ahead of every stop after the first (Task 6,
+// M3). While data.hopeCoin.historyPending is true, one more sentence lands
+// under "The journey" heading, above the route, saying the record's
+// earliest datable stop is not the Coin's actual first stop (see
+// journeyIncompleteHtml below); the sentence is absent entirely once that
+// flag is gone. Takes the parsed games.json; returns the full document.
+// Throws nothing of its own: an absent history (the rollout state before
+// any stops existed - see the comment on GamesData.hopeCoin.history)
+// renders a journey with zero rows and no leg labels, and a malformed
+// chain is caught upstream by validateCoinHistory, not here.
 export function renderHopeCoin(data: GamesData): string {
   const nameOf = new Map(data.players.map((p) => [p.slug, p.name]));
 
@@ -967,7 +1085,14 @@ export function renderHopeCoin(data: GamesData): string {
   // validateCoinHistory should have caught instead of rendering something
   // wrong. An absent history maps to an empty list, which renders zero rows.
   const history = data.hopeCoin.history ?? [];
-  const stops = history.map((stop, i) => {
+  // Built as a flat array of `<li>` blocks, not a plain history.map(), so a
+  // leg label (Task 6, #48, M3) can be pushed as ITS OWN separate <li>
+  // ahead of every stop after the first, inside the same <ol> - one array
+  // entry per <li> the page actually renders, in the exact order they
+  // print: stop 1, leg, stop 2, leg, stop 3, and so on.
+  const stopBlocks: string[] = [];
+  for (let i = 0; i < history.length; i++) {
+    const stop = history[i];
     const isCurrent = i === history.length - 1;
     const name = esc(nameOf.get(stop.holder) ?? stop.holder);
     const dateText = hopeCoinStopDate(history, i);
@@ -980,11 +1105,25 @@ export function renderHopeCoin(data: GamesData): string {
     // name, because either alternative would read as the site claiming to
     // know something it does not.
     const placeHtml = stop.place ? `\n        <p class="stat">${esc(stop.place)}</p>` : "";
-    return `      <li class="route-stop${isCurrent ? " route-stop--current" : ""}">
+
+    // The leg label (M3): the distance of the leg that brought THIS stop's
+    // holder the Coin, printed just ahead of their own stop - never before
+    // the first stop, which has no incoming leg to name (see the
+    // HopeCoinStop comment in lib/standings.ts on why `milesIn` is absent
+    // there). "unmeasured" - never a made-up figure, never "about" or
+    // "roughly" - is exactly what a missing `milesIn` says: Beau does not
+    // have a number for this leg, not that the leg was short.
+    if (i > 0) {
+      const legText = stop.milesIn !== undefined ? `${formatMiles(stop.milesIn)} miles` : "unmeasured";
+      stopBlocks.push(`      <li class="route-leg"><span class="stat">${esc(legText)}</span></li>`);
+    }
+
+    stopBlocks.push(`      <li class="route-stop${isCurrent ? " route-stop--current" : ""}">
         <p><strong>${name}</strong>${dateHtml}</p>${placeHtml}
         <p>${esc(stop.how)}</p>
-      </li>`;
-  }).join("\n");
+      </li>`);
+  }
+  const stops = stopBlocks.join("\n");
 
   // The incomplete-journey note (spec follow-up 2026-09-03). While
   // hopeCoin.historyPending is true, the earliest stop above is only the
@@ -1015,6 +1154,7 @@ export function renderHopeCoin(data: GamesData): string {
 <section class="band-light">
   <div class="band-inner">
     ${coinHero(data)}
+    ${odometerTiles(data)}
     <h2 class="rule-label">The journey</h2>${journeyIncompleteHtml}
     <ol class="route">
 ${stops}
