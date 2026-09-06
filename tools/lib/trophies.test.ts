@@ -7,7 +7,7 @@
 // Run: bun test tools/lib/trophies.test.ts
 
 import { describe, expect, test } from "bun:test";
-import { TROPHIES, trophyCase } from "./trophies";
+import { TROPHIES, trophyCase, visibleTrophies } from "./trophies";
 import type { Game, GameResult, GamesData } from "./standings";
 
 // --- fixture builders -------------------------------------------------
@@ -58,10 +58,18 @@ function data(games: Game[], overrides: Partial<GamesData> = {}): GamesData {
 // metal. Legs (m) and (n) both check against slices of this.
 const DISPLAY_ORDER_IDS = [
   "hope-slayer", "champion", "hope-coin",
-  "two-seven-showdown", "final-countdown", "cain-and-abel", "abel-stands", "kevin-deuce",
+  "two-seven-showdown", "final-countdown", "cain-and-abel", "abels-triumph", "kevin-deuce",
   "podium", "cashed", "clean-night", "comeback",
-  "regular", "founders-table", "the-bubble",
+  "regular", "chip-and-a-chair", "the-bubble",
 ];
+
+// Gene's slug. Two registry entries name him: cain-and-abel is hidden from
+// his own page (except) and abels-triumph is shown on nobody else's (only),
+// per Mike's 2026-09-05 call. Every slug therefore sees exactly 14 of the 15
+// entries, and which 14 depends only on whether the slug is Gene's.
+const GENE = "webvee";
+const EVERYONE_ELSE_IDS = DISPLAY_ORDER_IDS.filter((id) => id !== "abels-triumph");
+const GENE_IDS = DISPLAY_ORDER_IDS.filter((id) => id !== "cain-and-abel");
 
 // --- M1: the registry itself -------------------------------------------
 
@@ -87,8 +95,50 @@ describe("TROPHIES", () => {
       // straight off a result's own trophies array and have nothing to
       // derive.
       expect(trophy.rule !== undefined).toBe(trophy.kind === "derived");
+      // An audience is at most one of `only` / `except`, and names a slug.
+      // Both at once would be a contradiction (shown to one slug only, and
+      // to everyone but another) that trophyCase could resolve either way.
+      expect(trophy.only !== undefined && trophy.except !== undefined).toBe(false);
+      for (const slug of [trophy.only, trophy.except]) {
+        if (slug !== undefined) expect(slug).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
+      }
     });
   }
+
+  test("cain-and-abel is hidden from Gene, abels-triumph is shown to Gene alone [a2]", () => {
+    expect(TROPHIES.find((t) => t.id === "cain-and-abel")?.except).toBe(GENE);
+    expect(TROPHIES.find((t) => t.id === "abels-triumph")?.only).toBe(GENE);
+  });
+});
+
+// --- M1b: the audience rule ---------------------------------------------
+
+describe("visibleTrophies", () => {
+  test("everyone but Gene sees the registry minus abels-triumph, in display order [a3]", () => {
+    expect(visibleTrophies("p").map((t) => t.id)).toEqual(EVERYONE_ELSE_IDS);
+  });
+  test("Gene sees the registry minus cain-and-abel, in display order [a3]", () => {
+    expect(visibleTrophies(GENE).map((t) => t.id)).toEqual(GENE_IDS);
+  });
+});
+
+describe("trophyCase: audience", () => {
+  test("Gene's case never lists cain-and-abel, earned or locked, even when his own result carries it [a4]", () => {
+    const d = data([game("2026-03-01", [result({ slug: GENE, trophies: ["cain-and-abel"] })])]);
+    const { earned, locked } = trophyCase(d, GENE);
+    expect(earned.some((e) => e.id === "cain-and-abel")).toBe(false);
+    expect(locked.some((t) => t.id === "cain-and-abel")).toBe(false);
+  });
+  test("another player's case never lists abels-triumph, earned or locked, even when their result carries it [a4]", () => {
+    const d = data([game("2026-03-01", [result({ slug: "p", trophies: ["abels-triumph"] })])]);
+    const { earned, locked } = trophyCase(d, "p");
+    expect(earned.some((e) => e.id === "abels-triumph")).toBe(false);
+    expect(locked.some((t) => t.id === "abels-triumph")).toBe(false);
+  });
+  test("Gene earns abels-triumph off his own result, like any judged id [a4]", () => {
+    const d = data([game("2026-03-01", [result({ slug: GENE, trophies: ["abels-triumph"] })])]);
+    expect(trophyCase(d, GENE).earned.find((e) => e.id === "abels-triumph")?.count).toBe(1);
+  });
 });
 
 // --- M2: the judged path -------------------------------------------------
@@ -263,13 +313,20 @@ describe("trophyCase: regular", () => {
   });
 });
 
-describe("trophyCase: founders-table", () => {
-  test("earned in the 2026-07-14 game, still absent for a 2020 backfill alone [j]", () => {
-    const founding = data([game("2026-07-14", [result({ slug: "p" })])]);
-    expect(trophyCase(founding, "p").earned.some((e) => e.id === "founders-table")).toBe(true);
-
-    const backfilled = data([game("2020-06-09", [result({ slug: "p" })])]);
-    expect(trophyCase(backfilled, "p").locked.some((t) => t.id === "founders-table")).toBe(true);
+describe("trophyCase: chip-and-a-chair", () => {
+  test("earned once per game played, so count is nights at the table and dates are every one of them [j]", () => {
+    const d = data([
+      game("2026-08-11", [result({ slug: "p", finish: 6, rebuys: 2 })]),
+      game("2026-07-14", [result({ slug: "p", finish: 5 })]),
+    ]);
+    const chip = trophyCase(d, "p").earned.find((e) => e.id === "chip-and-a-chair");
+    // A rebuy is the same night, not a second showing-up: count stays 2.
+    expect(chip?.count).toBe(2);
+    expect(chip?.dates).toEqual(["2026-07-14", "2026-08-11"]);
+  });
+  test("locked for a slug with no result anywhere on the spine [j]", () => {
+    const d = data([game("2026-07-14", [result({ slug: "other" })])]);
+    expect(trophyCase(d, "p").locked.some((t) => t.id === "chip-and-a-chair")).toBe(true);
   });
 });
 
@@ -332,21 +389,22 @@ describe("trophyCase: earned/locked partition and display order", () => {
     const earnedIds = earned.map((e) => e.id);
     const lockedIds = locked.map((t) => t.id);
     expect(earnedIds.filter((id) => lockedIds.includes(id))).toEqual([]);
-    expect(earnedIds.length + lockedIds.length).toBe(15);
-    expect(new Set([...earnedIds, ...lockedIds])).toEqual(new Set(TROPHIES.map((t) => t.id)));
+    // 14, not 15: abels-triumph is Gene's alone and "p" is not Gene.
+    expect(earnedIds.length + lockedIds.length).toBe(14);
+    expect(new Set([...earnedIds, ...lockedIds])).toEqual(new Set(EVERYONE_ELSE_IDS));
   });
 
-  test("locked is the full registry, in display order, for a player who earns nothing [m]", () => {
+  test("locked is the whole visible registry, in display order, for a player who earns nothing [m]", () => {
     const d = data([game("2026-01-01", [result({ slug: "other", finish: 1, payout: 100 })])]);
     const locked = trophyCase(d, "ghost").locked;
-    expect(locked.map((t) => t.id)).toEqual(DISPLAY_ORDER_IDS);
+    expect(locked.map((t) => t.id)).toEqual(EVERYONE_ELSE_IDS);
   });
 
   test("earned comes back in display order across all four metals, not match order [n]", () => {
     // One game gives "p" a trophy from every metal: champion is foil,
     // cain-and-abel is sapphire, podium/cashed/clean-night are copper
-    // (finish 1 with no rebuy pays for all three), and the game's own date
-    // earns founders-table, pewter. Raw registry order would put
+    // (finish 1 with no rebuy pays for all three), and showing up at all
+    // earns chip-and-a-chair, pewter. Raw registry order would put
     // cain-and-abel before champion; display order (this test's point)
     // does not.
     const d = data([
@@ -362,7 +420,7 @@ describe("trophyCase: earned/locked partition and display order", () => {
       "podium",
       "cashed",
       "clean-night",
-      "founders-table",
+      "chip-and-a-chair",
     ]);
   });
 });

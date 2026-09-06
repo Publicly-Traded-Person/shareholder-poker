@@ -269,6 +269,20 @@ After adding an entry, run the suite (`bun test tools`). It rejects a
 malformed entry, such as a missing field or a rule left off a trophy that
 needs one, before it can reach a page.
 
+Two entries carry an audience, and a new one may too. A trophy with
+`only` set to a player's slug appears on that player's page and nobody
+else's; one with `except` set appears on every page but that player's. The
+Cain and Abel bounty is the reason both exist: "knock out Gene" is hidden
+from Gene, and its reverse, Abel's Triumph, is shown to Gene alone. An entry
+never carries both (the suite rejects that), and an entry with neither is
+shown to everyone. At publish time, `publish-game` halts if `results.json`
+records an `only` trophy on any player but its own, the same way it halts on
+an unknown id: fix the row, never the check.
+
+Chip and a Chair is earned again every game a player appears in, so its
+count on a player page is their nights at the table ("x3" after three).
+Nothing records it; it is derived from the results like Champion is.
+
 ## Portrait consent (per set, Tier 2b)
 
 Card portraits ship only with the player's yes, given on a private page that

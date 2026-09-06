@@ -85,6 +85,33 @@ describe("prepareGame", () => {
     const g = prepareGame(csv, withTrophies, data, { date: "2026-01-01", buyIn: 50 });
     expect(g.results.find(r => r.slug === "alice")!.trophies).toEqual(["hope-slayer", "cain-and-abel"]);
   });
+  // Abel's Triumph is Gene's alone (tools/lib/trophies.ts, `only`). A
+  // results.json that hands it to anyone else is a typo in the wrong row,
+  // and trophyCase would silently hide it on that player's page: they would
+  // be recorded as earning a trophy nobody could ever see. Halt instead.
+  const withGene: GamesData = {
+    ...data,
+    players: [...data.players.slice(0, 2), { slug: "webvee", name: "Gene", aka: ["webvee"] }],
+  };
+  test("halts on an only-for-one-player trophy recorded on anyone else", () => {
+    const misfiled = [
+      { handle: "alice", finish: 1, payout: 105, rebuys: 0, trophies: ["abels-triumph"] },
+      { handle: "bob", finish: 2, payout: 45, rebuys: 0, trophies: [] },
+      { handle: "webvee", finish: 3, payout: 0, rebuys: 0, trophies: [] },
+    ];
+    expect(() => prepareGame(csv, misfiled, withGene, { date: "2026-01-01", buyIn: 50 })).toThrow(
+      /abels-triumph.*webvee.*alice/s
+    );
+  });
+  test("accepts that same trophy on the one player it belongs to", () => {
+    const genesNight = [
+      { handle: "webvee", finish: 1, payout: 105, rebuys: 0, trophies: ["abels-triumph"] },
+      { handle: "alice", finish: 2, payout: 45, rebuys: 0, trophies: [] },
+      { handle: "bob", finish: 3, payout: 0, rebuys: 0, trophies: [] },
+    ];
+    const g = prepareGame(csv, genesNight, withGene, { date: "2026-01-01", buyIn: 50 });
+    expect(g.results.find(r => r.slug === "webvee")!.trophies).toEqual(["abels-triumph"]);
+  });
   test("accepts a game where every result's trophies is empty (the happy path, unchanged by the new check)", () => {
     const g = prepareGame(csv, results, data, { date: "2026-01-01", buyIn: 50 });
     expect(g.entries).toBe(3);

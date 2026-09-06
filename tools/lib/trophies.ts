@@ -57,6 +57,17 @@ export type DerivedRule = (data: GamesData, slug: string) => Earned | null;
 // every time trophyCase runs. A judged entry never carries a rule (there is
 // nothing to derive) and a derived entry always does (there is nothing else
 // that could tell trophyCase when it is earned).
+//
+// `only` / `except` are the trophy's AUDIENCE (Mike, 2026-09-05): which
+// player pages the trophy appears on at all, earned or locked. `only: slug`
+// means that one player and nobody else; `except: slug` means everybody but
+// that one player. Both exist for the same reason: the Cain and Abel bounty
+// is "knock out Gene", which Gene cannot earn and should never be told to
+// try, while its reverse, Abel's Triumph, is Gene's alone. visibleTrophies()
+// below is the one place these are read; the registry test rejects an entry
+// carrying both, because "one player only" and "everyone but one player"
+// cannot both be true. A trophy with neither is shown to everyone, which is
+// every other entry in the list.
 export type Trophy = {
   id: string; // kebab-case; the literal string results.json carries for judged ids
   name: string;
@@ -64,6 +75,8 @@ export type Trophy = {
   kind: "judged" | "derived";
   look: Look;
   rule?: DerivedRule;
+  only?: string; // slug: shown on this player's page and no other
+  except?: string; // slug: shown on every page but this player's
 };
 
 // gather() is the shared shape behind every "some of this player's results
@@ -159,17 +172,16 @@ const regularRule: DerivedRule = (data, slug) => {
   return { id: "regular", dates: bestRun.map((g) => g.date), count: bestRun.length };
 };
 
-// The Founder's Table trophy's rule: played in the game dated the literal
-// string "2026-07-14", the first game on the data spine. Pinned to that
-// exact date rather than "the earliest game on the spine" on purpose — the
-// spec calls this out because a later backfill of an older season (2020,
-// tracked on #3) must never make an already-awarded Founder's Table move to
-// a different game or a different set of players. Takes the data and slug;
-// returns null when the slug has no result in that game.
-const foundersTableRule: DerivedRule = fromResults(
-  "founders-table",
-  (_result, game) => game.date === "2026-07-14"
-);
+// The Chip and a Chair trophy's rule: every game the player has a result
+// in, no other condition. It replaced Founder's Table (played in the first
+// spine game) on Mike's 2026-09-05 call: a trophy for showing up, earned
+// again every night, so its count is the player's nights at the table and
+// the tile reads "x3" after three. A rebuy is not a second showing-up (one
+// result per player per game, however many buy-ins), so rebuys never
+// inflate it. Takes the data and slug; returns null only for a slug with no
+// result anywhere on the spine, which is also the only kind of player who
+// has no page.
+const chipAndAChairRule: DerivedRule = fromResults("chip-and-a-chair", () => true);
 
 // The Bubble trophy's rule: finished exactly one place worse than the last
 // paid spot. "Paid spots" is read from the game itself (how many of its own
@@ -232,19 +244,27 @@ export const TROPHIES: Trophy[] = [
     kind: "judged",
     look: { shape: "shield", metal: "sapphire" },
   },
+  // Cain and Abel and Abel's Triumph are one bounty seen from two seats
+  // (README.md, "Bonus Achievements"): a share for knocking out Gene, five
+  // shares to Gene for winning without ever being knocked out. Gene's slug
+  // is webvee (site/data/games.json, players). His page shows only the
+  // second; every other page shows only the first. See `only` / `except`
+  // on the Trophy type above.
   {
     id: "cain-and-abel",
     name: "Cain and Abel",
     earn: "Knock out Gene.",
     kind: "judged",
     look: { shape: "shield", metal: "sapphire" },
+    except: "webvee",
   },
   {
-    id: "abel-stands",
-    name: "Abel Stands",
+    id: "abels-triumph",
+    name: "Abel's Triumph",
     earn: "Win the tournament as Gene, never knocked out, not even during the rebuy window.",
     kind: "judged",
     look: { shape: "shield", metal: "sapphire" },
+    only: "webvee",
   },
   {
     id: "kevin-deuce",
@@ -313,12 +333,12 @@ export const TROPHIES: Trophy[] = [
     rule: regularRule,
   },
   {
-    id: "founders-table",
-    name: "Founder's Table",
-    earn: "Play at the founding table.",
+    id: "chip-and-a-chair",
+    name: "Chip and a Chair",
+    earn: "Play a game.",
     kind: "derived",
     look: { shape: "ribbon", metal: "pewter" },
-    rule: foundersTableRule,
+    rule: chipAndAChairRule,
   },
   {
     id: "the-bubble",
@@ -353,12 +373,35 @@ export function displayOrder(): Trophy[] {
   return [...TROPHIES].sort((a, b) => METAL_RANK[a.look.metal] - METAL_RANK[b.look.metal]);
 }
 
+// Whether one trophy appears on this slug's page at all (see `only` /
+// `except` on the Trophy type). Takes the trophy and the slug; returns true
+// for every trophy with no audience set, which is all but two.
+function shownTo(trophy: Trophy, slug: string): boolean {
+  if (trophy.only !== undefined) return trophy.only === slug;
+  if (trophy.except !== undefined) return trophy.except !== slug;
+  return true;
+}
+
+// The registry as one player sees it: displayOrder() with the audience
+// rule applied. Takes a slug; returns the trophies that slug's page can
+// show, earned or locked, in display order. Throws nothing. This is what
+// trophyCase() iterates, so an audience decision is made in exactly one
+// place; a render test that wants "how many tiles does this page have"
+// reads this rather than TROPHIES.length, which counts the two entries no
+// single player ever sees both of. The standings legend deliberately does
+// NOT use this: it explains every mark a visitor could meet on any page,
+// so it reads displayOrder() whole.
+export function visibleTrophies(slug: string): Trophy[] {
+  return displayOrder().filter((trophy) => shownTo(trophy, slug));
+}
+
 // The one function every page that shows trophies calls. Takes the parsed
 // games.json and a player's slug; returns every trophy that slug has
 // earned (judged ids their own results carry, plus every derived rule that
-// matches) and every trophy they have not, both in display order. Throws
-// nothing: a slug with no games at all simply earns none and has the full
-// registry locked.
+// matches) and every trophy they have not, both in display order and both
+// limited to the trophies this slug's page shows (visibleTrophies). Throws
+// nothing: a slug with no games at all simply earns none and has the whole
+// visible registry locked.
 //
 // Why one function: the standings shelf, the player page's case, and the
 // locked-tile grid all call this instead of each re-implementing "what has
@@ -366,7 +409,7 @@ export function displayOrder(): Trophy[] {
 export function trophyCase(data: GamesData, slug: string): { earned: Earned[]; locked: Trophy[] } {
   const earned: Earned[] = [];
   const locked: Trophy[] = [];
-  for (const trophy of displayOrder()) {
+  for (const trophy of visibleTrophies(slug)) {
     const result =
       trophy.kind === "judged" ? judgedEarned(data, slug, trophy.id) : trophy.rule!(data, slug);
     if (result) earned.push(result);

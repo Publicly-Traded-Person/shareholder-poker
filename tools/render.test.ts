@@ -4,7 +4,7 @@ import {
   playerSlugs, renderPlayer, renderHopeCoin,
 } from "./render";
 import { deriveStandings, type GamesData } from "./lib/standings";
-import { TROPHIES, displayOrder } from "./lib/trophies";
+import { TROPHIES, displayOrder, visibleTrophies } from "./lib/trophies";
 
 const data: GamesData = {
   nextGame: { date: "2026-09-08", time: "7:00pm PT" },
@@ -161,8 +161,13 @@ describe("renderStandings", () => {
 // cashed/clean-night/comeback (all three require payout > 0) - the point of
 // each row is to earn EXACTLY the trophies this comment says it earns, not
 // whatever a more realistic-looking game would also throw in.
-const SIX_JUDGED_IDS = [
-  "hope-slayer", "two-seven-showdown", "final-countdown", "cain-and-abel", "abel-stands", "kevin-deuce",
+// Five, not six: the sixth judged id, abels-triumph, is shown to Gene's
+// slug alone (tools/lib/trophies.ts, `only`), so on any fixture player it
+// would neither earn nor lock. And since 2026-09-05 every player who has a
+// result at all earns chip-and-a-chair, so every fixture row below carries
+// one more earned trophy than its judged ids alone would give.
+const FIVE_JUDGED_IDS = [
+  "hope-slayer", "two-seven-showdown", "final-countdown", "cain-and-abel", "kevin-deuce",
 ];
 const shelfData: GamesData = {
   nextGame: { date: "2026-09-08", time: "7:00pm PT" },
@@ -175,35 +180,34 @@ const shelfData: GamesData = {
     { slug: "shelf-eight", name: "Eight E.", aka: ["eight"] },
   ],
   games: [
-    // Founder's Table date: shelf-three and shelf-seven both get
-    // founders-table from being here, on top of whatever judged ids their
-    // own result carries.
     { date: "2026-07-14", hands: 100, startingStack: 5000, buyIn: 50, entries: 2, pot: 100,
       results: [
-        // 2 judged ids + founders-table (game date) = 3 earned.
+        // 2 judged ids + chip-and-a-chair (played) = 3 earned.
         { slug: "shelf-three", handle: "three", finish: 4, payout: 0, rebuys: 0,
           trophies: ["hope-slayer", "two-seven-showdown"] },
-        // 6 judged ids + founders-table (game date) = 7 earned.
-        { slug: "shelf-seven", handle: "seven", finish: 5, payout: 0, rebuys: 0, trophies: SIX_JUDGED_IDS },
+        // 5 judged ids + podium (finish 3) + chip-and-a-chair = 7 earned.
+        { slug: "shelf-seven", handle: "seven", finish: 3, payout: 0, rebuys: 0, trophies: FIVE_JUDGED_IDS },
       ] },
     // shelf-zero: no judged ids, finish outside the podium/champion/bubble
-    // thresholds, no rebuy, no payout - earns nothing at all.
+    // thresholds, no rebuy, no payout - earns chip-and-a-chair and nothing
+    // else, the least any player with a standings row can hold.
     { date: "2026-07-21", hands: 100, startingStack: 5000, buyIn: 50, entries: 1, pot: 0,
       results: [
         { slug: "shelf-zero", handle: "zero", finish: 4, payout: 0, rebuys: 0, trophies: [] },
       ] },
-    // 6 judged ids, no founders-table (wrong date), no champion/podium
-    // (finish 5) = exactly 6 earned - the cap's own boundary from below.
+    // 5 judged ids + chip-and-a-chair, no champion/podium (finish 5) =
+    // exactly 6 earned - the cap's own boundary from below.
     { date: "2026-07-28", hands: 100, startingStack: 5000, buyIn: 50, entries: 1, pot: 0,
       results: [
-        { slug: "shelf-six", handle: "six", finish: 5, payout: 0, rebuys: 0, trophies: SIX_JUDGED_IDS },
+        { slug: "shelf-six", handle: "six", finish: 5, payout: 0, rebuys: 0, trophies: FIVE_JUDGED_IDS },
       ] },
     // The spine's latest game, so this is also where renderStandings finds
     // its reigning champion. finish 1 earns BOTH champion and podium, so
-    // 6 judged ids + champion + podium = exactly 8 earned - two past the cap.
+    // 5 judged ids + champion + podium + chip-and-a-chair = exactly 8
+    // earned - two past the cap.
     { date: "2026-08-04", hands: 100, startingStack: 5000, buyIn: 50, entries: 1, pot: 0,
       results: [
-        { slug: "shelf-eight", handle: "eight", finish: 1, payout: 0, rebuys: 0, trophies: SIX_JUDGED_IDS },
+        { slug: "shelf-eight", handle: "eight", finish: 1, payout: 0, rebuys: 0, trophies: FIVE_JUDGED_IDS },
       ] },
   ],
 };
@@ -217,7 +221,7 @@ describe("renderStandings trophy shelf (Task 9, spec §5.3)", () => {
     expect((shelf!.match(/<svg class="mark/g) ?? []).length).toBe(3);
     // Display order (metal foil, sapphire, copper, pewter; registry order
     // within a metal): hope-slayer (skull/foil), two-seven-showdown
-    // (shield/sapphire), founders-table (ribbon/pewter).
+    // (shield/sapphire), chip-and-a-chair (ribbon/pewter).
     const iSkull = shelf!.indexOf('mark--skull"');
     const iShield = shelf!.indexOf("mark--shield mark--sapphire");
     const iRibbon = shelf!.indexOf("mark--ribbon mark--pewter");
@@ -226,13 +230,18 @@ describe("renderStandings trophy shelf (Task 9, spec §5.3)", () => {
     expect(iRibbon).toBeGreaterThan(iShield);
   });
 
-  test("a player who has earned nothing still gets a present, empty Trophies cell (M2)", () => {
+  // Since 2026-09-05 no standings row can be empty: a row exists only for a
+  // player with a result, and every result earns Chip and a Chair. The
+  // floor is one pewter ribbon, and the cell is still always present.
+  test("a player who earned nothing but Chip and a Chair gets a present cell with exactly that one mark (M2)", () => {
     const rows = standingsRowBlocks(html);
     expect(rows.length).toBe(5); // one per player on this fixture's roster
     for (const row of rows) expect(bareCells(row).length).toBe(2);
     const zeroRow = rowFor(html, "Zero Z.");
     const [, shelf] = bareCells(zeroRow);
-    expect(shelf).toBe("");
+    expect((shelf!.match(/<svg class="mark/g) ?? []).length).toBe(1);
+    expect(shelf).toContain("mark--ribbon mark--pewter");
+    expect(shelf).toContain('aria-label="Chip and a Chair"');
   });
 
   test("eight earned trophies renders six marks and a +2, three renders three marks and no + at all (M3)", () => {
@@ -263,12 +272,12 @@ describe("renderStandings trophy shelf (Task 9, spec §5.3)", () => {
   // Final fix wave, item 5: every shelf mark used to be aria-hidden, so a
   // screen reader landed on the Trophies column and heard an empty cell
   // under a header that plainly is not empty. Three T.'s shelf (hope-slayer,
-  // two-seven-showdown, founders-table) exercises three different registry
+  // two-seven-showdown, chip-and-a-chair) exercises three different registry
   // names in one cell.
   test("each shelf mark carries an accessible name from the registry, and a matching title", () => {
     const shelf = bareCells(rowFor(html, "Three T."))[1]!;
     expect(shelf).not.toContain("aria-hidden");
-    for (const name of ["Hope Slayer", "2-7 Showdown", "Founder's Table"]) {
+    for (const name of ["Hope Slayer", "2-7 Showdown", "Chip and a Chair"]) {
       expect(shelf).toContain(`role="img" aria-label="${name}" title="${name}"`);
     }
     // The prefix Task 9's own mark-counting and mark-ordering tests above
@@ -524,18 +533,19 @@ describe("recordQualifier", () => {
 //   (finished top 3 all three times, count 3), cashed (07-14 and 08-11,
 //   count 2), clean-night (07-14, no rebuy, count 1), comeback (08-11, one
 //   rebuy, count 1), regular (played all three spine games back to back,
-//   count 3), founders-table (played 07-14, count 1) - 8 earned, 7 locked
-//   (hope-slayer and the five judged shield trophies, plus the-bubble,
-//   since neither game he cashed in had a bubble seat and 09-08 has zero
-//   paid spots).
+//   count 3), chip-and-a-chair (played all three, count 3) - 8 earned, 6
+//   locked (hope-slayer and the four judged shield trophies he can see,
+//   plus the-bubble, since neither game he cashed in had a bubble seat and
+//   09-08 has zero paid spots). 14 tiles, not 15: abels-triumph is Gene's
+//   alone and never appears on another player's page.
 //   chris-g played 07-14 and 08-11 only (missed 09-08): earns hope-slayer
 //   (judged, on his 07-14 result), champion (won 07-14, count 1), hope-coin
 //   (his one stop has no `from`, so count 1 with an EMPTY dates array),
 //   podium (top 3 both games, count 2), cashed (07-14 only, count 1),
-//   clean-night (07-14, count 1), founders-table (07-14, count 1) - 7
-//   earned, 8 locked (the five judged shield trophies, comeback since he
-//   never rebought into a cash, regular since his run is only two games,
-//   and the-bubble since neither game put him one out).
+//   clean-night (07-14, count 1), chip-and-a-chair (both games, count 2) -
+//   7 earned, 7 locked (the four judged shield trophies he can see,
+//   comeback since he never rebought into a cash, regular since his run is
+//   only two games, and the-bubble since neither game put him one out).
 const pdata: GamesData = {
   nextGame: { date: "2026-10-13", time: "7:00pm PT" },
   hopeCoin: {
@@ -640,9 +650,12 @@ describe("renderPlayer", () => {
     expect(chris).not.toContain("card-zoom.js");
   });
 
-  test("renders one tile per registry entry, every earned tile before every locked tile", () => {
+  test("renders one tile per registry entry this player can see, every earned tile before every locked tile", () => {
     const tiles = nick.match(/<div class="trophy( trophy--locked)?">/g) ?? [];
-    expect(tiles.length).toBe(TROPHIES.length);
+    expect(tiles.length).toBe(visibleTrophies("nick-m").length);
+    expect(tiles.length).toBe(TROPHIES.length - 1); // abels-triumph is Gene's alone
+    expect(nick).not.toContain("Abel's Triumph");
+    expect(nick).toContain("<h3>Cain and Abel</h3>");
     const lastEarned = nick.lastIndexOf('<div class="trophy">');
     const firstLocked = nick.indexOf('<div class="trophy trophy--locked">');
     expect(lastEarned).toBeGreaterThan(-1);
@@ -653,6 +666,8 @@ describe("renderPlayer", () => {
   test("an earned count above one renders xN; a count of one renders no x marker", () => {
     expect(nick).toContain("<h3>Cashed</h3>"); // cashed twice (07-14, 08-11)
     expect(nick).toContain("x2 · 2026-08-11");
+    expect(nick).toContain("<h3>Chip and a Chair</h3>"); // played all three nights
+    expect(nick).toContain("x3 · 2026-09-08");
     expect(nick).toContain("<h3>Champion</h3>"); // won once
     expect(nick).not.toContain("x1"); // never renders for a count of one, anywhere on the page
   });

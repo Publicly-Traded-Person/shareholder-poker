@@ -136,6 +136,16 @@ The registry is a single exported array. Display order is the array order after 
 | `founders-table` | Founder's Table | ribbon, pewter | played the 2026-07-14 game, pinned to that date so nothing older moves it |
 | `the-bubble` | The Bubble | ribbon, pewter | finished one place outside the paid spots, where paid spots are the results with payout above zero in that game (`entries` counts buy-ins including rebuys and is never used here) |
 
+> **Superseded in part, 2026-09-05 (Mike's live review).** Two rows above
+> changed after this spec shipped; the registry in `tools/lib/trophies.ts`
+> is the truth. Abel Stands is now **Abel's Triumph** (new id) and is shown
+> on Gene's page alone, while Cain and Abel is hidden from Gene's page: a
+> registry entry can carry an `only` or `except` slug, and `trophyCase()`
+> applies it. Founder's Table is now **Chip and a Chair**, earned every
+> game a player appears in, so its count is nights at the table; the
+> "pinned to 2026-07-14" rule no longer exists. Every player page shows 14
+> tiles, not 15. The standings legend still lists all 15 entries.
+
 The Hope Coin entry is listed as derived because its rule reads `hopeCoin.history`, not `results.json`. A past holder keeps the award with their own dates.
 
 ### 4.2 The one function
