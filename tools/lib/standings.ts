@@ -79,30 +79,25 @@ export type Game = {
 
 export type GamesData = {
   nextGame: { date: string; time: string };
-  // Seasons that are real games but not yet on this spine, as they should
-  // read on the page ("2020", "April 2026"). Drives the "being backfilled"
-  // sentence in tools/render.ts recordQualifier(); remove an entry in the
-  // same commit as the game it names. Absent or empty once nothing is
-  // missing, and the sentence disappears with it.
-  backfillPending?: string[];
   hopeCoin: {
     holder: string;
     since: string;
     // True while the Coin's stops before the earliest one hopeCoin.history
     // can date are still being reconstructed from memory (the Coin is older
     // than the record; see the HopeCoinStop comment above on why the first
-    // stop may omit `from`). Mirrors backfillPending's own contract just
-    // above on this type: drives one derived sentence on the Hope Coin page
-    // (tools/render.ts renderHopeCoin) instead of anyone hand-typing it
+    // stop may omit `from`). Drives one derived sentence on the Hope Coin
+    // page (tools/render.ts renderHopeCoin) instead of anyone hand-typing it
     // there, so the sentence cannot survive on the page after the data it
-    // describes has changed underneath it - the exact failure backfillPending
-    // was built to prevent for the standings/games-index "record starts
-    // with..." line (see recordQualifier's own comment in tools/render.ts).
+    // describes has changed underneath it - the exact failure recordQualifier
+    // was already built to prevent for the standings/games-index "record
+    // starts with..." line, which links the archive page instead of naming
+    // any season by hand (see recordQualifier's own comment in
+    // tools/render.ts).
     // Remove this field entirely - never just flip it to `false` - in the
     // same commit that appends the last recovered stop (docs/publishing.md,
     // "Hope Coin handoff"): an absent field is the one state a reader never
-    // has to guess about, the same reason backfillPending's own entries are
-    // deleted, not toggled, once a season is no longer missing.
+    // has to guess about, the same reason nothing on the record line needs
+    // manual cleanup once a season lands on the spine.
     historyPending?: boolean;
     // Every handoff on record, oldest first. Optional and may be absent
     // entirely while Mike is still assembling the list (spec open question);

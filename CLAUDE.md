@@ -45,8 +45,8 @@ D1 `poker-rsvp-db`). Spec: `docs/superpowers/specs/2026-08-17-poker-quarterly-sy
 ## Commands
 
 ```bash
-bun test tools          # the suite (710 tests as of the Hope Coin page build, 2026-09-05). Green before any commit, EXCEPT the regeneration commit a publish itself requires: the suite's own drift check re-runs `bun tools/render.ts` and refuses on a dirty generated path, so during a publish the order is regenerate, commit the generated pages, THEN run the suite (docs/publishing.md).
-bun tools/render.ts     # regenerate site/standings/, site/games/, site/next-game.ics, one site/player/<slug>/ per player on the spine, and site/hope-coin/ from games.json
+bun test tools          # the suite (818 tests as of the archive page review fixes, 2026-09-06). Green before any commit, EXCEPT the regeneration commit a publish itself requires: the suite's own drift check re-runs `bun tools/render.ts` and refuses on a dirty generated path, so during a publish the order is regenerate, commit the generated pages, THEN run the suite (docs/publishing.md).
+bun tools/render.ts     # regenerate site/standings/, site/games/, site/next-game.ics, one site/player/<slug>/ per player on the spine, site/hope-coin/, and site/archive/ from games.json and site/data/archive.json
 bun tools/publish-game.ts <log.csv> --date YYYY-MM-DD --results results.json
 bun tools/chip-race.ts <log.csv> --date YYYY-MM-DD --start 5000 --inject site/games/<date>/index.html
 python3 -m http.server -d site   # local preview
@@ -89,11 +89,10 @@ Export log → write `results.json` → `bun tools/publish-game.ts` → write th
 narrative page → update `nextGame` in `games.json` → review the whole diff →
 **Mike's explicit go** → merge to `main` (deploys) → board hygiene.
 
-## Known open items (as of 2026-08-18)
+## Known open items (as of 2026-09-06)
 
-- April + June 2026 and the 2020 season are not yet in `games.json` (needs
-  Mike's payout/rebuy records). They are listed in `backfillPending` at the
-  top of `games.json`; the "This record starts with ..." line on standings
-  and the games index derives from the earliest game plus that list, so a
-  backfilled season is removed from the list in the same commit as its game
-  (docs/publishing.md step 5). Nothing about the record's span is typed.
+- Games before July 2026 (the 2020 season, and any other pre-spine games)
+  live on the archive page at `/archive/`, sourced from
+  `site/data/archive.json`. They feed nothing on the spine (standings,
+  trophies, and the Hope Coin tally all derive only from `site/data/games.json`).
+  Tracked on #39.

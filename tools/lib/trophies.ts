@@ -194,11 +194,11 @@ const chipAndAChairRule: DerivedRule = fromResults("chip-and-a-chair", () => tru
 // guard below is not defensive filler, it is load-bearing. Without it,
 // `finish === paidSpots + 1` matches finish 1 — the outright winner — on
 // any game where nobody was recorded as paid. That is a real path, not a
-// hypothetical: the 2020 season is a live backfill item (see
-// backfillPending in games.json) and README.md notes its buy-ins and
-// winnings are not shown, so a backfilled 2020 game could legitimately
-// carry payout: 0 on every result. Awarding The Bubble to that game's
-// champion would be inventing an award nobody earned.
+// hypothetical: the 2020 season predates this spine (see "Known open
+// items" in CLAUDE.md) and README.md notes its buy-ins and winnings are
+// not shown, so a game from that season could legitimately carry
+// payout: 0 on every result. Awarding The Bubble to that game's champion
+// would be inventing an award nobody earned.
 const theBubbleRule: DerivedRule = fromResults("the-bubble", (result, game) => {
   const paidSpots = game.results.filter((r) => r.payout > 0).length;
   if (paidSpots === 0) return false; // no paid spots: there is no bubble to be on

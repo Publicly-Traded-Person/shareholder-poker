@@ -6,11 +6,13 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import {
   copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync,
+  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import type { CardRef, GamesData } from "./lib/standings";
+import type { ArchiveData } from "./lib/archive";
 import { playerSlugs } from "./render";
 
 // Recursively lists every committed .html file under site/.
@@ -611,22 +613,23 @@ describe("the generator, run into an empty directory, produces exactly what's co
   let tempRoot: string;
 
   // Renders into a directory that starts completely empty apart from a
-  // copied site/data/games.json (the renderer's one input) - `mkdtempSync`
-  // guarantees the directory it hands back did not exist a moment ago, so
-  // two `bun test tools` runs in flight on the same machine can never share
-  // a path. tools/render.ts is spawned as its OWN process (matching the
-  // real `bun tools/render.ts` Charlie runs), with `tempRoot` as that
-  // process's working directory: render.ts reads and writes plain relative
-  // paths ("site/data/games.json", "site/player/<slug>/index.html", ...)
-  // resolved against its own cwd, so pointing that cwd at the temp root is
-  // what makes every write land inside it instead of the real site/.
-  // `process.execPath` (the bun binary currently running this suite) is
-  // used instead of the bare string "bun" so this does not depend on PATH
-  // resolution inside the child process.
+  // copied site/data/games.json and site/data/archive.json (the renderer's
+  // two inputs, #39) - `mkdtempSync` guarantees the directory it hands back
+  // did not exist a moment ago, so two `bun test tools` runs in flight on
+  // the same machine can never share a path. tools/render.ts is spawned as
+  // its OWN process (matching the real `bun tools/render.ts` Charlie runs),
+  // with `tempRoot` as that process's working directory: render.ts reads
+  // and writes plain relative paths ("site/data/games.json",
+  // "site/player/<slug>/index.html", ...) resolved against its own cwd, so
+  // pointing that cwd at the temp root is what makes every write land
+  // inside it instead of the real site/. `process.execPath` (the bun binary
+  // currently running this suite) is used instead of the bare string "bun"
+  // so this does not depend on PATH resolution inside the child process.
   beforeAll(() => {
     tempRoot = mkdtempSync(join(tmpdir(), "poker-render-drift-"));
     mkdirSync(join(tempRoot, "site", "data"), { recursive: true });
     copyFileSync(join(SITE, "data", "games.json"), join(tempRoot, "site", "data", "games.json"));
+    copyFileSync(join(SITE, "data", "archive.json"), join(tempRoot, "site", "data", "archive.json"));
     const renderTs = join(SITE, "..", "tools", "render.ts");
     execFileSync(process.execPath, [renderTs], { cwd: tempRoot, stdio: "pipe" });
   });
@@ -638,7 +641,15 @@ describe("the generator, run into an empty directory, produces exactly what's co
     rmSync(tempRoot, { recursive: true, force: true });
   });
 
-  for (const sub of ["player", "hope-coin"] as const) {
+  // "archive" added by Task 5 (#39): site/archive/ is a single committed
+  // page (no per-item subdirectories the way player/ has one per slug), but
+  // it goes through the exact same two checks - a file-set match (does
+  // site/archive/index.html exist on both sides) and a byte-identical
+  // compare - as player/ and hope-coin/ already get. excludeAssets() is a
+  // no-op for this root (the archive page has no assets/ directory of its
+  // own to skip) but is left in the loop rather than special-cased away, so
+  // adding an assets/ directory here later needs no test change either.
+  for (const sub of ["player", "hope-coin", "archive"] as const) {
     test(`site/${sub}/: the generated file set matches the committed one`, () => {
       const committedRoot = join(SITE, sub);
       const generatedRoot = join(tempRoot, "site", sub);
@@ -657,8 +668,97 @@ describe("the generator, run into an empty directory, produces exactly what's co
       for (const rel of rels) {
         const committedBytes = readFileSync(join(committedRoot, rel), "utf8");
         const generatedBytes = readFileSync(join(generatedRoot, rel), "utf8");
-        expect(generatedBytes, `${sub}/${rel} differs from the generator's output`).toBe(committedBytes);
+        // Compared directly rather than through a boolean helper: on a
+        // failure Charlie needs to see WHICH bytes differ, and a helper
+        // returning true/false reduces the report to "expected true, got
+        // false" with the diff thrown away.
+        expect(
+          generatedBytes,
+          `${sub}/${rel} differs from the generator's output`
+        ).toBe(committedBytes);
       }
+    });
+  }
+});
+
+describe("a malformed archive.json halts the run before anything is written (#39, Task 5, M1)", () => {
+  // Same temp-directory pattern as "the generator, run into an empty
+  // directory" block above, with one difference on purpose: the archive.json
+  // this copies in is NOT the committed one. It has a single game whose
+  // podium names a slug ("nobody") that plays no game anywhere on the real
+  // spine - a fault only validateArchive's rule (b) can see, since it has to
+  // cross-reference the games data to know that. A renderer that called
+  // validateArchive(archive) without the games argument (or skipped the call
+  // entirely, or wrote pages before calling it) would not catch this, which
+  // is the whole reason this fixture is shaped this way rather than, say, a
+  // structurally empty archive.json a schema check alone would reject.
+  const BAD_GAME_DATE = "2020-01-01"; // before every real spine game, so rule (e) never fires first
+  let tempRoot: string;
+  let result: { status: number | null; stderr: string };
+
+  beforeAll(() => {
+    tempRoot = mkdtempSync(join(tmpdir(), "poker-render-archive-halt-"));
+    mkdirSync(join(tempRoot, "site", "data"), { recursive: true });
+    copyFileSync(join(SITE, "data", "games.json"), join(tempRoot, "site", "data", "games.json"));
+    const badArchive: ArchiveData = {
+      seasons: [
+        {
+          id: "halt-test",
+          title: "Halt Test",
+          games: [
+            {
+              date: BAD_GAME_DATE,
+              podium: [{ place: 1, name: "Nobody N.", slug: "nobody" }],
+              bounties: [],
+            },
+          ],
+        },
+      ],
+    };
+    writeFileSync(join(tempRoot, "site", "data", "archive.json"), JSON.stringify(badArchive, null, 2));
+    const renderTs = join(SITE, "..", "tools", "render.ts");
+    try {
+      execFileSync(process.execPath, [renderTs], { cwd: tempRoot, stdio: "pipe" });
+      // If the render call above did not throw, the run "succeeded" (exit
+      // 0) on data that should have halted it - recorded as status 0 here
+      // so the assertions below fail with a clear message instead of this
+      // beforeAll itself throwing past them.
+      result = { status: 0, stderr: "" };
+    } catch (err) {
+      const e = err as { status: number | null; stderr: Buffer | string };
+      result = { status: e.status, stderr: e.stderr.toString() };
+    }
+  });
+
+  afterAll(() => {
+    rmSync(tempRoot, { recursive: true, force: true });
+  });
+
+  test("exits non-zero", () => {
+    expect(result.status).not.toBe(0);
+  });
+
+  test("stderr names the offending game's date", () => {
+    expect(result.stderr).toContain(BAD_GAME_DATE);
+  });
+
+  // None of the six paths render.ts owns exist in the copy afterwards - not
+  // just the archive page, but the five that have nothing to do with the
+  // archive either. This is what actually proves validation ran BEFORE any
+  // write, not merely before the archive write: a renderer that validated
+  // only immediately before its own site/archive/index.html write (after
+  // already writing the other five pages) would pass every check above and
+  // still fail this one.
+  for (const rel of [
+    "site/standings/index.html",
+    "site/games/index.html",
+    "site/next-game.ics",
+    "site/player",
+    "site/hope-coin/index.html",
+    "site/archive/index.html",
+  ]) {
+    test(`${rel} was not written`, () => {
+      expect(existsSync(join(tempRoot, rel))).toBe(false);
     });
   }
 });
@@ -666,12 +766,13 @@ describe("the generator, run into an empty directory, produces exactly what's co
 describe("running the real renderer leaves the generated paths clean (#27, Task 10, M2)", () => {
   // This is docs/publishing.md's "pre-merge drift check", finally an actual
   // test rather than a step Charlie has to remember to run by hand: it
-  // regenerates the five paths render.ts owns, in place, against the real
-  // committed site/data/games.json, then asks git whether anything moved.
-  // Unlike the M1 block above, this exercises the REAL site/ tree - it is
-  // what would catch a hand-edit to a generated page, or a data change
-  // whose regeneration got skipped before commit.
-  test("git status --porcelain reports no change under the five generated paths", () => {
+  // regenerates the six paths render.ts owns (the archive page joined the
+  // other five in Task 5, #39), in place, against the real committed
+  // site/data/games.json and site/data/archive.json, then asks git whether
+  // anything moved. Unlike the M1 block above, this exercises the REAL
+  // site/ tree - it is what would catch a hand-edit to a generated page, or
+  // a data change whose regeneration got skipped before commit.
+  test("git status --porcelain reports no change under the six generated paths", () => {
     const repoRoot = join(SITE, "..");
     const renderTs = join(repoRoot, "tools", "render.ts");
     const watched = [
@@ -680,6 +781,7 @@ describe("running the real renderer leaves the generated paths clean (#27, Task 
       "site/next-game.ics",
       "site/player/",
       "site/hope-coin/",
+      "site/archive/",
     ];
 
     // GUARD - DO NOT REMOVE (round 1 review, coordinator ruling: silent data
@@ -692,7 +794,7 @@ describe("running the real renderer leaves the generated paths clean (#27, Task 
     // prove the committed bytes agree with the generator (M2). But
     // `Bun.write` has no concept of "something was already sitting here
     // that I should not clobber": it just overwrites. If Charlie has an
-    // UNCOMMITTED hand-edit to any of the five watched paths when he runs
+    // UNCOMMITTED hand-edit to any of the six watched paths when he runs
     // `bun test tools` - for some completely unrelated reason, a month from
     // now, at night, having not written this file - this test would
     // silently regenerate over that edit, destroy it, and then report
@@ -765,6 +867,64 @@ describe("site/hope-coin/index.html exists and carries its own unfurl tags (#27,
     expect(metaProp(html, "og:url")).toBe(`${ORIGIN}/hope-coin/`);
     expect(metaProp(html, "og:type")).toBe("website");
   });
+});
+
+// The archive page (#39, Task 5, M3). Reads the committed bytes straight
+// off disk, the same "read the real page, not a fixture" contract every
+// other describe block in this section keeps - these numbers (three season
+// headings, forty-four season cards) are exact counts against the real
+// site/data/archive.json (three seasons of 4, 10, and 30 games: 4 + 10 + 30
+// = 44), not "at least" checks, because a season silently dropped or a
+// duplicated card is a content bug a ">=" check would let straight through.
+describe("site/archive/index.html carries every season and every game, once each (#39, Task 5, M3)", () => {
+  const pagePath = join(SITE, "archive", "index.html");
+  const html = readPage(pagePath);
+
+  test("exists, links the favicon, and carries its own og:url and og:type=website", () => {
+    expect(existsSync(pagePath), "site/archive/index.html is missing").toBe(true);
+    expect(html).toContain('href="/favicon.svg"');
+    expect(metaProp(html, "og:url")).toBe(`${ORIGIN}/archive/`);
+    expect(metaProp(html, "og:type")).toBe("website");
+  });
+
+  test("has exactly three season headings (<h2 class=\"display\">)", () => {
+    const matches = html.match(/<h2 class="display">/g) ?? [];
+    expect(matches.length).toBe(3);
+  });
+
+  test("has exactly forty-four season cards (<li class=\"season-card\">)", () => {
+    const matches = html.match(/<li class="season-card">/g) ?? [];
+    expect(matches.length).toBe(44);
+  });
+
+  test("carries no em dash", () => {
+    expect(html.includes("—")).toBe(false);
+  });
+
+  // The archive is a read-only record of games already played - nothing on
+  // it is an action a visitor takes, so it never carries the site's one
+  // lime call-to-action button (docs/brand.md's "exactly one lime CTA per
+  // page" rule already scopes that CTA to the RSVP form alone).
+  test("carries no btn-primary", () => {
+    expect(html).not.toContain("btn-primary");
+  });
+});
+
+// M3 also requires standings and games to link the archive and drop the
+// retired "being backfilled" copy - tools/docs.test.ts's "retired
+// pending-seasons key" describe block already checks the runbook prose
+// side of this; these two checks are the committed-page side, read straight
+// off disk like every other check in this section.
+describe("standings and games link the archive and drop the retired copy (#39, Task 5, M3)", () => {
+  for (const rel of ["standings", "games"]) {
+    const html = readPage(join(SITE, rel, "index.html"));
+    test(`site/${rel}/index.html links href="/archive/"`, () => {
+      expect(html).toContain('href="/archive/"');
+    });
+    test(`site/${rel}/index.html no longer says "being backfilled"`, () => {
+      expect(html).not.toContain("being backfilled");
+    });
+  }
 });
 
 // Task 9 (#48, 2026-09-05-hope-coin-infographics plan; spec §9, §10). The

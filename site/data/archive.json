@@ -1,0 +1,1083 @@
+{
+  "seasons": [
+    {
+      "id": "2026-pre",
+      "title": "2026, before the cards",
+      "note": "No result was recorded for January. May was a cash game, not a tournament.",
+      "games": [
+        {
+          "date": "2026-02-10",
+          "entrants": 11,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Thomas D.",
+              "handle": "spladow",
+              "slug": "thomas-d"
+            },
+            {
+              "place": 2,
+              "name": "K5M Guy",
+              "handle": "K5M Guy"
+            },
+            {
+              "place": 3,
+              "name": "Mike M.",
+              "handle": "kmikeym",
+              "slug": "kmikeym"
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2026-03-10",
+          "podium": [
+            {
+              "place": 1,
+              "name": "Beau G.",
+              "handle": "bg",
+              "slug": "beau-g"
+            },
+            {
+              "place": 1,
+              "name": "Matt W.",
+              "handle": "mawgators"
+            }
+          ],
+          "bounties": [],
+          "note": "Beau G. and Matt W. chopped."
+        },
+        {
+          "date": "2026-04-14",
+          "entrants": 9,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Beau G.",
+              "handle": "bg",
+              "slug": "beau-g"
+            },
+            {
+              "place": 2,
+              "name": "Drew A.",
+              "handle": "MoHDI_Drew",
+              "slug": "drew-a"
+            },
+            {
+              "place": 3,
+              "name": "Mike M.",
+              "handle": "kmikeym",
+              "slug": "kmikeym"
+            }
+          ],
+          "bounties": [
+            {
+              "kind": "bubble",
+              "name": "Michael Z.",
+              "handle": "pokermichi"
+            },
+            {
+              "kind": "hope-slayer",
+              "name": "Nick M.",
+              "handle": "nickmershon",
+              "slug": "nick-m"
+            }
+          ]
+        },
+        {
+          "date": "2026-06-09",
+          "entrants": 7,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Nick M.",
+              "slug": "nick-m"
+            },
+            {
+              "place": 2,
+              "name": "Chris G.",
+              "slug": "chris-g"
+            },
+            {
+              "place": 3,
+              "name": "Beau G.",
+              "slug": "beau-g"
+            }
+          ],
+          "bounties": []
+        }
+      ]
+    },
+    {
+      "id": "2025",
+      "title": "2025",
+      "note": "November was not recorded. December's result never reached the notes.",
+      "games": [
+        {
+          "date": "2025-01-14",
+          "entrants": 7,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Chris G.",
+              "slug": "chris-g"
+            },
+            {
+              "place": 2,
+              "name": "Josh B."
+            },
+            {
+              "place": 3,
+              "name": "Amy M.",
+              "slug": "amy-m"
+            }
+          ],
+          "bounties": [
+            {
+              "kind": "hope-slayer",
+              "name": "Chris G.",
+              "slug": "chris-g"
+            },
+            {
+              "kind": "cain",
+              "name": "Josh B."
+            },
+            {
+              "kind": "bubble",
+              "name": "Mike M.",
+              "slug": "kmikeym"
+            },
+            {
+              "kind": "seven-deuce",
+              "name": "Matt W."
+            },
+            {
+              "kind": "seven-deuce",
+              "name": "Beau G.",
+              "slug": "beau-g"
+            },
+            {
+              "kind": "seven-deuce",
+              "name": "jfe",
+              "handle": "jfe"
+            }
+          ]
+        },
+        {
+          "date": "2025-02-11",
+          "entrants": 12,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Drew A.",
+              "slug": "drew-a"
+            },
+            {
+              "place": 2,
+              "name": "Mike M.",
+              "slug": "kmikeym"
+            },
+            {
+              "place": 3,
+              "name": "Tatiana P."
+            }
+          ],
+          "bounties": [
+            {
+              "kind": "seven-deuce",
+              "name": "Tatiana P."
+            },
+            {
+              "kind": "bubble",
+              "name": "Amy M.",
+              "slug": "amy-m"
+            },
+            {
+              "kind": "cain",
+              "name": "Will L."
+            },
+            {
+              "kind": "hope-slayer",
+              "name": "Will L."
+            }
+          ]
+        },
+        {
+          "date": "2025-03-11",
+          "entrants": 8,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Nick M.",
+              "slug": "nick-m"
+            },
+            {
+              "place": 2,
+              "name": "Drew A.",
+              "slug": "drew-a"
+            }
+          ],
+          "bounties": [
+            {
+              "kind": "hope-slayer",
+              "name": "Nick M.",
+              "slug": "nick-m"
+            },
+            {
+              "kind": "seven-deuce",
+              "name": "Drew A.",
+              "slug": "drew-a"
+            },
+            {
+              "kind": "bubble",
+              "name": "Beau G.",
+              "slug": "beau-g"
+            }
+          ]
+        },
+        {
+          "date": "2025-04-08",
+          "entrants": 6,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Nick M.",
+              "slug": "nick-m"
+            },
+            {
+              "place": 2,
+              "name": "Amy M.",
+              "slug": "amy-m"
+            }
+          ],
+          "bounties": [
+            {
+              "kind": "bubble",
+              "name": "Mike M.",
+              "slug": "kmikeym"
+            },
+            {
+              "kind": "hope-slayer",
+              "name": "Mike M.",
+              "slug": "kmikeym"
+            }
+          ]
+        },
+        {
+          "date": "2025-05-13",
+          "entrants": 8,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Beau G.",
+              "slug": "beau-g"
+            },
+            {
+              "place": 2,
+              "name": "Nick M.",
+              "slug": "nick-m"
+            }
+          ],
+          "bounties": [
+            {
+              "kind": "cain",
+              "name": "Beau G.",
+              "slug": "beau-g"
+            },
+            {
+              "kind": "hope-slayer",
+              "name": "Nick M.",
+              "slug": "nick-m"
+            },
+            {
+              "kind": "bubble",
+              "name": "Amy M.",
+              "slug": "amy-m"
+            },
+            {
+              "kind": "kevin-deuce",
+              "name": "Will L."
+            }
+          ]
+        },
+        {
+          "date": "2025-06-10",
+          "entrants": 10,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Chris G.",
+              "slug": "chris-g"
+            },
+            {
+              "place": 2,
+              "name": "jfe",
+              "handle": "jfe"
+            },
+            {
+              "place": 3,
+              "name": "Amy M.",
+              "slug": "amy-m"
+            }
+          ],
+          "bounties": [
+            {
+              "kind": "seven-deuce",
+              "name": "Chris G.",
+              "slug": "chris-g"
+            },
+            {
+              "kind": "bubble",
+              "name": "Thomas D.",
+              "slug": "thomas-d"
+            },
+            {
+              "kind": "hope-slayer",
+              "name": "Beau G.",
+              "slug": "beau-g"
+            },
+            {
+              "kind": "seven-deuce",
+              "name": "Matt W."
+            }
+          ]
+        },
+        {
+          "date": "2025-07-08",
+          "entrants": 7,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Beau G.",
+              "slug": "beau-g"
+            },
+            {
+              "place": 2,
+              "name": "Matt W."
+            }
+          ],
+          "bounties": [
+            {
+              "kind": "bubble",
+              "name": "Amy M.",
+              "slug": "amy-m"
+            }
+          ]
+        },
+        {
+          "date": "2025-08-12",
+          "entrants": 7,
+          "podium": [
+            {
+              "place": 1,
+              "name": "jfe",
+              "handle": "jfe"
+            },
+            {
+              "place": 2,
+              "name": "Chris G.",
+              "slug": "chris-g"
+            },
+            {
+              "place": 3,
+              "name": "Mike M.",
+              "slug": "kmikeym"
+            }
+          ],
+          "bounties": [
+            {
+              "kind": "bubble",
+              "name": "Tatiana P."
+            },
+            {
+              "kind": "seven-deuce",
+              "name": "Tatiana P."
+            }
+          ]
+        },
+        {
+          "date": "2025-09-09",
+          "entrants": 8,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Thomas D.",
+              "slug": "thomas-d"
+            },
+            {
+              "place": 2,
+              "name": "Chris G.",
+              "slug": "chris-g"
+            },
+            {
+              "place": 3,
+              "name": "Amy M.",
+              "slug": "amy-m"
+            }
+          ],
+          "bounties": [
+            {
+              "kind": "hope-slayer",
+              "name": "Thomas D.",
+              "slug": "thomas-d"
+            },
+            {
+              "kind": "bubble",
+              "name": "Mike M.",
+              "slug": "kmikeym"
+            },
+            {
+              "kind": "cain",
+              "name": "Nick M.",
+              "slug": "nick-m"
+            }
+          ]
+        },
+        {
+          "date": "2025-10-14",
+          "entrants": 9,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Mike M.",
+              "slug": "kmikeym"
+            },
+            {
+              "place": 2,
+              "name": "Nick M.",
+              "slug": "nick-m"
+            },
+            {
+              "place": 3,
+              "name": "Gene",
+              "slug": "webvee"
+            }
+          ],
+          "bounties": [
+            {
+              "kind": "bubble",
+              "name": "Amy M.",
+              "slug": "amy-m"
+            },
+            {
+              "kind": "hope-slayer",
+              "name": "Amy M.",
+              "slug": "amy-m"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2020",
+      "title": "2020",
+      "note": "PokerStars, twenty-dollar buy-ins, points seasons. These are the games the record holds.",
+      "games": [
+        {
+          "date": "2020-04-21",
+          "entrants": 6,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Drew A.",
+              "slug": "drew-a"
+            },
+            {
+              "place": 2,
+              "name": "Gene",
+              "slug": "webvee"
+            },
+            {
+              "place": 3,
+              "name": "Beau G.",
+              "slug": "beau-g"
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-04-23",
+          "entrants": 7,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Alex P."
+            },
+            {
+              "place": 2,
+              "name": "Beau G.",
+              "slug": "beau-g"
+            },
+            {
+              "place": 3,
+              "name": "Jordan D."
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-05-06",
+          "entrants": 9,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Drew A.",
+              "slug": "drew-a"
+            },
+            {
+              "place": 2,
+              "name": "Beau G.",
+              "slug": "beau-g"
+            },
+            {
+              "place": 3,
+              "name": "Jordan D."
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-05-12",
+          "entrants": 6,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Drew A.",
+              "slug": "drew-a"
+            },
+            {
+              "place": 2,
+              "name": "Josh B."
+            },
+            {
+              "place": 3,
+              "name": "Chris G.",
+              "slug": "chris-g"
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-05-22",
+          "entrants": 6,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Drew A.",
+              "slug": "drew-a"
+            },
+            {
+              "place": 2,
+              "name": "Mike M.",
+              "slug": "kmikeym"
+            },
+            {
+              "place": 3,
+              "name": "Chris G.",
+              "slug": "chris-g"
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-05-26",
+          "entrants": 9,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Chris G.",
+              "slug": "chris-g"
+            },
+            {
+              "place": 2,
+              "name": "Drew A.",
+              "slug": "drew-a"
+            },
+            {
+              "place": 3,
+              "name": "Mike M.",
+              "slug": "kmikeym"
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-06-09",
+          "entrants": 9,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Alex B."
+            },
+            {
+              "place": 2,
+              "name": "Chris G.",
+              "slug": "chris-g"
+            },
+            {
+              "place": 3,
+              "name": "Josh B."
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-06-16",
+          "entrants": 8,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Joshua J."
+            },
+            {
+              "place": 2,
+              "name": "Mike M.",
+              "slug": "kmikeym"
+            },
+            {
+              "place": 3,
+              "name": "Chris G.",
+              "slug": "chris-g"
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-06-23",
+          "entrants": 6,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Jordan D."
+            },
+            {
+              "place": 2,
+              "name": "Josh B."
+            },
+            {
+              "place": 3,
+              "name": "Beau G.",
+              "slug": "beau-g"
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-06-30",
+          "entrants": 10,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Drew A.",
+              "slug": "drew-a"
+            },
+            {
+              "place": 2,
+              "name": "Alex B."
+            },
+            {
+              "place": 3,
+              "name": "Jordan D."
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-07-07",
+          "entrants": 10,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Drew A.",
+              "slug": "drew-a"
+            },
+            {
+              "place": 2,
+              "name": "Kevin L."
+            },
+            {
+              "place": 3,
+              "name": "Beau G.",
+              "slug": "beau-g"
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-07-14",
+          "entrants": 9,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Josh B."
+            },
+            {
+              "place": 2,
+              "name": "Chris G.",
+              "slug": "chris-g"
+            },
+            {
+              "place": 3,
+              "name": "Jordan D."
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-07-21",
+          "entrants": 10,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Drew A.",
+              "slug": "drew-a"
+            },
+            {
+              "place": 2,
+              "name": "Chris G.",
+              "slug": "chris-g"
+            },
+            {
+              "place": 3,
+              "name": "Kevin L."
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-07-28",
+          "entrants": 10,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Drew A.",
+              "slug": "drew-a"
+            },
+            {
+              "place": 2,
+              "name": "Chris G.",
+              "slug": "chris-g"
+            },
+            {
+              "place": 3,
+              "name": "Mike M.",
+              "slug": "kmikeym"
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-08-04",
+          "entrants": 8,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Jordan D."
+            },
+            {
+              "place": 2,
+              "name": "Gene",
+              "slug": "webvee"
+            },
+            {
+              "place": 3,
+              "name": "Lenny C."
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-08-11",
+          "entrants": 10,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Josh B."
+            },
+            {
+              "place": 2,
+              "name": "Gene",
+              "slug": "webvee"
+            },
+            {
+              "place": 3,
+              "name": "Chris G.",
+              "slug": "chris-g"
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-08-18",
+          "entrants": 9,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Kevin L."
+            },
+            {
+              "place": 2,
+              "name": "Lenny C."
+            },
+            {
+              "place": 3,
+              "name": "Chris G.",
+              "slug": "chris-g"
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-08-25",
+          "entrants": 11,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Josh B."
+            },
+            {
+              "place": 2,
+              "name": "Joshua J."
+            },
+            {
+              "place": 3,
+              "name": "Jordan D."
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-09-01",
+          "entrants": 12,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Gene",
+              "slug": "webvee"
+            },
+            {
+              "place": 2,
+              "name": "Alex B."
+            },
+            {
+              "place": 3,
+              "name": "Beau G.",
+              "slug": "beau-g"
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-09-08",
+          "entrants": 11,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Lenny C."
+            },
+            {
+              "place": 2,
+              "name": "Nick M.",
+              "slug": "nick-m"
+            },
+            {
+              "place": 3,
+              "name": "Mike M.",
+              "slug": "kmikeym"
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-09-15",
+          "entrants": 12,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Lenny C."
+            },
+            {
+              "place": 2,
+              "name": "Josh B."
+            },
+            {
+              "place": 3,
+              "name": "Drew A.",
+              "slug": "drew-a"
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-09-22",
+          "entrants": 8,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Nick M.",
+              "slug": "nick-m"
+            },
+            {
+              "place": 2,
+              "name": "Beau G.",
+              "slug": "beau-g"
+            },
+            {
+              "place": 3,
+              "name": "Josh B."
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-09-29",
+          "entrants": 8,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Josh B."
+            },
+            {
+              "place": 2,
+              "name": "Mike M.",
+              "slug": "kmikeym"
+            },
+            {
+              "place": 3,
+              "name": "Lenny C."
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-10-06",
+          "entrants": 7,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Beau G.",
+              "slug": "beau-g"
+            },
+            {
+              "place": 2,
+              "name": "Kevin L."
+            },
+            {
+              "place": 3,
+              "name": "Joshua J."
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-10-13",
+          "entrants": 9,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Beau G.",
+              "slug": "beau-g"
+            },
+            {
+              "place": 2,
+              "name": "Kevin L."
+            },
+            {
+              "place": 3,
+              "name": "Nick M.",
+              "slug": "nick-m"
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-10-20",
+          "entrants": 10,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Beau G.",
+              "slug": "beau-g"
+            },
+            {
+              "place": 2,
+              "name": "Lenny C."
+            },
+            {
+              "place": 3,
+              "name": "Mike M.",
+              "slug": "kmikeym"
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-10-27",
+          "entrants": 8,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Drew A.",
+              "slug": "drew-a"
+            },
+            {
+              "place": 2,
+              "name": "Beau G.",
+              "slug": "beau-g"
+            },
+            {
+              "place": 3,
+              "name": "Nick M.",
+              "slug": "nick-m"
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-11-04",
+          "entrants": 6,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Kevin L."
+            },
+            {
+              "place": 2,
+              "name": "Nick M.",
+              "slug": "nick-m"
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-11-10",
+          "entrants": 11,
+          "podium": [
+            {
+              "place": 1,
+              "name": "Gene",
+              "slug": "webvee"
+            },
+            {
+              "place": 2,
+              "name": "Alex B."
+            },
+            {
+              "place": 3,
+              "name": "Drew A.",
+              "slug": "drew-a"
+            }
+          ],
+          "bounties": []
+        },
+        {
+          "date": "2020-11-17",
+          "entrants": 5,
+          "podium": [],
+          "bounties": [],
+          "note": "Result not recorded."
+        }
+      ]
+    }
+  ]
+}

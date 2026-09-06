@@ -173,14 +173,50 @@ describe("CLAUDE.md no longer parks the trophies/rarity-ladder bullet [M4]", () 
     expect(offending).toEqual([]);
   });
 
-  // This plan does not touch the 2020 / April+June 2026 backfill item, and
-  // the brief is explicit that bullet "stays exactly as it is" — so its
-  // continued presence is part of what this test protects, not just an
-  // absence of the other one.
-  test("the 2020 / April+June 2026 backfill bullet is untouched", () => {
-    expect(claudeMd).toContain(
+  // Issue #39 (archive page): the old bullet promised a manual backfill of
+  // April + June 2026 and the 2020 season into games.json. That promise is
+  // retired - those games live on the archive page instead, permanently, and
+  // never join the spine - so the bullet naming them "not yet in games.json"
+  // must be gone, replaced by one naming where they actually live. Scoped to
+  // the "Known open items" section so a mention of archive.json elsewhere in
+  // the file (for example, in this describe's own comments) could not
+  // accidentally satisfy the assertion.
+  test("the backfill bullet is replaced by one pointing at the archive", () => {
+    const openItems = sectionByHeading(claudeMd, "Known open items");
+    expect(openItems.body).not.toContain(
       "April + June 2026 and the 2020 season are not yet in `games.json`"
     );
+    expect(openItems.body).toContain("site/data/archive.json");
+    expect(openItems.body).toContain("#39");
+  });
+});
+
+// Issue #39: recordQualifier's old "being backfilled" sentence read a
+// pending-seasons list (games.json's retired key, named below only as two
+// concatenated halves) that Charlie trimmed by hand; both are retired in
+// favor of a permanent link to the archive page. This guards the runbook
+// prose that used to explain the old mechanism - the Coin's own "gap at its
+// start again" section modeled its historyPending field on that same key
+// twice - so a rewrite that updated only one of the two sentences still
+// fails here.
+describe("docs/publishing.md: the retired pending-seasons key is gone in favor of the archive link [M4, #39]", () => {
+  // Spelled as two concatenated halves on purpose: a grep for the retired
+  // key's literal name over tools/ must find nothing, and a literal copy of
+  // it sitting right here in its own guard would defeat that grep.
+  const RETIRED_KEY = "backfill" + "Pending";
+
+  test('step 5 no longer carries the "Backfilling an old season" paragraph', () => {
+    expect(docs).not.toContain("Backfilling an old season");
+  });
+
+  test('the runbook never says "being backfilled"', () => {
+    expect(docs).not.toContain("being backfilled");
+  });
+
+  test("the Coin gap section drops the retired key and cites the archive instead", () => {
+    const gapSection = sectionByHeading(docs, "gap at its start again");
+    expect(gapSection.body.split(RETIRED_KEY).length - 1).toBe(0);
+    expect(gapSection.body.split("archive").length - 1).toBeGreaterThanOrEqual(2);
   });
 });
 
@@ -206,5 +242,43 @@ describe("docs/publishing.md: The Hope Coin page section [Task 5, #48, M4]", () 
   // "repo input" would actually find.
   test("states the original photograph is not a repo input", () => {
     expect(coinPageStep.body).toContain("not a repo input");
+  });
+});
+
+// Task 5 of the archive-page plan (#39, spec 2026-09-05-archive-page-design
+// §9, M4). Charlie's only way to add a pre-spine game the club's notes turn
+// up later is by hand-editing site/data/archive.json; this section is his
+// only instructions for that, so it has to name every field the shape
+// actually has (tools/lib/archive.ts's own field comments are the source of
+// truth this prose paraphrases) and the two commands that come after. Located
+// by its own heading, per M4's exact required title, the same
+// sectionByHeading pattern every other step in this file already uses.
+describe("docs/publishing.md: adding an archived game step [Task 5, #39, M4]", () => {
+  // sectionByHeading throws if the heading is missing or matches more than
+  // once - that throw IS the "exists exactly once" assertion, the same
+  // pattern the "adding a trophy step" describe block above uses for its own
+  // heading.
+  const archiveStep = sectionByHeading(docs, "adding an archived game");
+
+  // The seven strings M4 names, checked as plain substrings (not backtick-
+  // scoped like the trophy-registry-id check above): none of these seven
+  // words is a registry id some OTHER part of the runbook could accidentally
+  // already contain, so there is no false-positive to guard against the way
+  // there is for a copied trophy list.
+  for (const token of ["archive.json", "date", "entrants", "podium", "bounties", "absent"] as const) {
+    test(`names \`${token}\` inside the step`, () => {
+      expect(archiveStep.body).toContain(token);
+    });
+  }
+
+  // The two commands, in the order Charlie actually has to run them: render
+  // first (it is what turns a hand-edited archive.json into the regenerated
+  // site/archive/index.html, or halts loudly on a bad entry), then the full
+  // suite, same as any other change to a generated page.
+  test("names `bun tools/render.ts` before `bun test tools`", () => {
+    const renderAt = archiveStep.body.indexOf("bun tools/render.ts");
+    const testAt = archiveStep.body.indexOf("bun test tools");
+    expect(renderAt).toBeGreaterThanOrEqual(0);
+    expect(testAt).toBeGreaterThan(renderAt);
   });
 });

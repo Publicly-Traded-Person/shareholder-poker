@@ -3,13 +3,14 @@ import { readFileSync } from "node:fs";
 import {
   esc, recordQualifier, renderStandings, renderGamesIndex, renderNextGameIcs, secondTuesday,
   playerSlugs, renderPlayer, renderHopeCoin, coinHero, odometerTiles, routeLoop, holdersSection,
+  renderArchive,
 } from "./render";
 import { deriveStandings, type GamesData, type HopeCoinStop } from "./lib/standings";
 import { TROPHIES, displayOrder, visibleTrophies } from "./lib/trophies";
+import type { ArchiveData, ArchiveGame } from "./lib/archive";
 
 const data: GamesData = {
   nextGame: { date: "2026-09-08", time: "7:00pm PT" },
-  backfillPending: ["2020", "April 2026", "June 2026"],
   hopeCoin: { holder: "nick-m", since: "2026-04-14" },
   players: [
     { slug: "nick-m", name: "Nick M.", aka: ["nickmershon"] },
@@ -69,9 +70,10 @@ describe("renderStandings", () => {
     expect(html).toContain("Hope Coin");
     expect(html).toContain("1 of 3");
   });
-  test("states the record starts with its earliest game and names the seasons still pending", () => {
-    expect(html).toContain("This record starts with July 2026.");
-    expect(html).toContain("Earlier seasons (2020, April 2026, and June 2026) predate the data spine and are being backfilled.");
+  test("states the record starts with its earliest game and links the archive", () => {
+    expect(html).toContain(
+      'This record starts with July 2026. Earlier games are in <a href="/archive/">the archive</a>.'
+    );
   });
   test("contains no em dash", () => {
     expect(html).not.toContain("—");
@@ -394,9 +396,10 @@ describe("renderGamesIndex", () => {
   test("names the winner", () => {
     expect(html).toContain("Chris G.");
   });
-  test("states the record starts with its earliest game and names the seasons still pending", () => {
-    expect(html).toContain("This record starts with July 2026.");
-    expect(html).toContain("Earlier seasons (2020, April 2026, and June 2026) predate the data spine and are being backfilled.");
+  test("states the record starts with its earliest game and links the archive", () => {
+    expect(html).toContain(
+      'This record starts with July 2026. Earlier games are in <a href="/archive/">the archive</a>.'
+    );
   });
   test("contains no em dash", () => {
     expect(html).not.toContain("—");
@@ -479,42 +482,57 @@ describe("esc", () => {
   });
 });
 
-// Issue #3: the "record starts with" line used to be a hardcoded string, so a
-// backfill that added 2020 games would have left the standings page claiming
-// the record starts in July 2026 while displaying 2020. Both halves now come
-// from games.json: the month from the earliest game on the spine, the
-// pending list from backfillPending, which Charlie trims in the same commit
-// as each backfilled game.
+// Issue #3 / issue #39: the "record starts with" line used to be a hardcoded
+// string, so adding an earlier game to the spine would have left the
+// standings page claiming the record starts later than it actually does. The
+// month comes from the earliest game on the spine, whatever order games.json
+// lists them in. It used to also carry a second sentence naming seasons a
+// pending-seasons list said were still missing, trimmed by hand in the same
+// commit as each such season's game; that list is retired in favor of a
+// permanent link to the archive page, so the sentence never goes stale.
 describe("recordQualifier", () => {
-  const april: GamesData = {
+  // Three games in date order 2026-08-11, 2026-04-14, 2026-07-14 - the
+  // earliest is neither first nor last in the array - so a reader of
+  // games[0] or games[games.length - 1] fails this.
+  const shuffled: GamesData = {
     ...data,
     games: [
-      ...data.games,
+      { date: "2026-08-11", hands: 150, startingStack: 5000, buyIn: 50, entries: 2, pot: 100,
+        results: [
+          { slug: "nick-m", handle: "nickmershon", finish: 1, payout: 100, rebuys: 0, trophies: [] },
+          { slug: "chris-g", handle: "LEWD", finish: 2, payout: 0, rebuys: 0, trophies: [] },
+        ] },
       { date: "2026-04-14", hands: 150, startingStack: 5000, buyIn: 50, entries: 2, pot: 100,
         results: [
           { slug: "nick-m", handle: "nickmershon", finish: 1, payout: 100, rebuys: 0, trophies: [] },
           { slug: "chris-g", handle: "LEWD", finish: 2, payout: 0, rebuys: 0, trophies: [] },
         ] },
+      { date: "2026-07-14", hands: 201, startingStack: 5000, buyIn: 50, entries: 3, pot: 150,
+        cardSet: "2026-07",
+        results: [
+          { slug: "chris-g", handle: "LEWD", finish: 1, payout: 105, rebuys: 0, trophies: ["hope-slayer"] },
+          { slug: "nick-m", handle: "nickmershon", finish: 2, payout: 45, rebuys: 2, trophies: [] },
+        ] },
     ],
-    backfillPending: ["2020", "June 2026"],
   };
+
   test("takes the start month from the earliest game, whatever order games.json lists them in", () => {
-    expect(recordQualifier(april)).toStartWith("This record starts with April 2026.");
+    expect(recordQualifier(shuffled)).toBe(
+      'This record starts with April 2026. Earlier games are in <a href="/archive/">the archive</a>.'
+    );
   });
-  test("lists the pending seasons with an Oxford comma", () => {
-    expect(recordQualifier(april)).toContain("Earlier seasons (2020 and June 2026) predate the data spine and are being backfilled.");
-    expect(recordQualifier(data)).toContain("(2020, April 2026, and June 2026)");
+  test("a single game on the spine names its own month", () => {
+    expect(recordQualifier(data)).toBe(
+      'This record starts with July 2026. Earlier games are in <a href="/archive/">the archive</a>.'
+    );
   });
-  test("a single pending season reads as one, not a list", () => {
-    expect(recordQualifier({ ...data, backfillPending: ["2020"] }))
-      .toContain("Earlier seasons (2020) predate the data spine and are being backfilled.");
+  test("throws when the spine has no games", () => {
+    expect(() => recordQualifier({ ...data, games: [] })).toThrow();
   });
-  test("drops the backfill sentence entirely once nothing is pending", () => {
-    for (const pending of [[], undefined]) {
-      const q = recordQualifier({ ...data, backfillPending: pending });
-      expect(q).toBe("This record starts with July 2026.");
-      expect(q).not.toContain("backfilled");
-    }
+  test("never says backfilled and links the archive exactly once", () => {
+    const q = recordQualifier(shuffled);
+    expect(q).not.toContain("backfilled");
+    expect(q.split('<a href="/archive/">').length - 1).toBe(1);
   });
 });
 
@@ -1034,9 +1052,9 @@ describe("renderHopeCoin", () => {
   // real hopeCoin.history's earliest stop is the only one the record can
   // currently date, but the Coin is older than that - Mike is reconstructing
   // its earlier stops from memory. This flag is the ONLY thing that puts a
-  // sentence saying so on the page, mirroring recordQualifier's own
-  // backfillPending-driven sentence (top of this file) so a hardcoded line
-  // can never survive on the page after the data underneath it changes.
+  // sentence saying so on the page, mirroring recordQualifier's own derived
+  // sentence (top of this file) so a hardcoded line can never survive on the
+  // page after the data underneath it changes.
   // hcData itself carries no historyPending, so `html` (already built above,
   // from hcData) is this test's "flag absent" case; only the "flag true"
   // case below needs its own variant.
@@ -2081,5 +2099,463 @@ describe("holdersSection: who has held it (Task 8, #48)", () => {
     // Two adjacent bands never share a tone (docs/brand.md), and the new
     // section is the last thing above the footer.
     expect(full).toContain('<footer class="band-light"');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// renderArchive (#39, task 2 of the 2026-09-06 archive-page plan). Every
+// fixture below is synthetic - invented names, invented slugs, invented
+// dates - and none of it reads site/data/archive.json or games.json: the
+// brief is explicit that renderArchive itself never reads the spine (the
+// validator, a sibling task, is what checks a slug against it before
+// tools/render.ts ever calls this function). Names mostly follow the site's
+// "First L." pattern the same way tools/lib/archive.test.ts's own fixtures
+// do (Ada W. / ada-w, Bly R. / bly-r, Cy T. / cyt); the one fixture built to
+// exercise esc() necessarily breaks that pattern on purpose, since testing
+// escaping requires characters the pattern forbids.
+
+// A minimal ArchiveGame: podium and bounties default to empty so a test
+// only has to spell out the field it cares about, matching the same
+// game() helper tools/lib/archive.test.ts already uses for the same reason.
+function archiveGame(overrides: Partial<ArchiveGame> & { date: string }): ArchiveGame {
+  return { podium: [], bounties: [], ...overrides };
+}
+
+// Pulls out every top-level <section class="band-light|band-dark">...
+// </section> block whole, in document order, the same non-greedy
+// whole-block extraction pattern standingsRowBlocks and routeStopBlocks
+// above use. The intro section renderArchive always writes first is
+// element 0; every season section follows in render order.
+function sectionBlocks(html: string): string[] {
+  return [...html.matchAll(/<section class="band-(?:light|dark)">[\s\S]*?<\/section>/g)].map((m) => m[0]);
+}
+
+// Pulls out every <li class="season-card">...</li> block whole, in
+// document order, across the whole document (a test that wants only one
+// season's cards filters the result itself, the same way rowFor above
+// searches standingsRowBlocks by content rather than this helper knowing
+// about seasons at all). The closing tag must match "\n    </li>" - four
+// spaces, on its own line - rather than a bare "</li>", because a card's
+// own podium is itself a list of plain <li> elements nested inside it
+// (renderArchiveGame writes those inline, same-line open-and-close, at
+// eight spaces of indent); a bare "</li>" would stop this match at the
+// FIRST podium row's own closing tag instead of the card's.
+function seasonCardBlocks(html: string): string[] {
+  return [...html.matchAll(/<li class="season-card">[\s\S]*?\n    <\/li>/g)].map((m) => m[0]);
+}
+
+// The <li> rows inside one season-card's own <ol class="podium">, whole,
+// in document order. Takes one season-card block (from seasonCardBlocks
+// above); throws if that block has no podium list, which would mean the
+// fixture or the renderer is broken in a way no assertion further down
+// could meaningfully explain.
+function podiumItems(cardHtml: string): string[] {
+  const ol = /<ol class="podium">([\s\S]*?)<\/ol>/.exec(cardHtml);
+  if (!ol) throw new Error("podiumItems: no <ol class=\"podium\"> found in this season-card");
+  return [...ol[1]!.matchAll(/<li>[\s\S]*?<\/li>/g)].map((m) => m[0]);
+}
+
+// GEM("foil")'s own markup, inlined, since GEM is not exported - the same
+// approach the standings test file above already uses (see its comment at
+// the Foil tile test) for the identical reason.
+const FOIL_GEM =
+  '<svg class="mark mark--foil" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M6 0 12 6 6 12 0 6Z"/></svg>';
+
+describe("renderArchive", () => {
+  // [a, M2] Three seasons, deliberately listed 2025, 2020, 2026-pre in the
+  // fixture's own array order - an order that is neither newest-first nor
+  // oldest-first - so a renderer that merely preserved file order would
+  // fail every assertion below. Each season's title is set to its own id
+  // so the rendered order can be read straight off the <h2> text. Only the
+  // "2025" season carries a note, so the same fixture also proves a season
+  // without one renders no <p class="stat"> between its heading and its
+  // game list.
+  describe("M2: season order, band tones, and the season note", () => {
+    const fixture: ArchiveData = {
+      seasons: [
+        {
+          id: "2025", title: "2025", note: "Before results were logged in full.",
+          games: [archiveGame({ date: "2025-06-01" })],
+        },
+        { id: "2020", title: "2020", games: [archiveGame({ date: "2020-06-01" })] },
+        { id: "2026-pre", title: "2026-pre", games: [archiveGame({ date: "2026-01-01" })] },
+      ],
+    };
+    const html = renderArchive(fixture);
+    // Element 0 is the intro band; the season sections follow it.
+    const seasons = sectionBlocks(html).slice(1);
+
+    test("orders seasons by each one's earliest game date, newest first", () => {
+      const titles = seasons.map((s) => /<h2 class="display">([^<]*)<\/h2>/.exec(s)?.[1]);
+      expect(titles).toEqual(["2026-pre", "2025", "2020"]);
+    });
+
+    test("the first season section is band-dark and tones alternate from there", () => {
+      expect(seasons[0]).toStartWith('<section class="band-dark">');
+      expect(seasons[1]).toStartWith('<section class="band-light">');
+      expect(seasons[2]).toStartWith('<section class="band-dark">');
+    });
+
+    test("prints a season's note as a stat paragraph between its heading and its game list", () => {
+      const withNote = seasons[1]!; // "2025", reordered to the middle slot
+      const between = withNote.slice(
+        withNote.indexOf("</h2>") + "</h2>".length,
+        withNote.indexOf('<ol class="season">')
+      );
+      expect(between).toContain('<p class="stat">Before results were logged in full.</p>');
+    });
+
+    test("omits the stat paragraph entirely when a season has no note", () => {
+      const noNote = seasons[0]!; // "2026-pre", carries no note
+      const between = noNote.slice(
+        noNote.indexOf("</h2>") + "</h2>".length,
+        noNote.indexOf('<ol class="season">')
+      );
+      expect(between).not.toContain('class="stat"');
+    });
+  });
+
+  // [b, M3] One season whose file lists three games dated 2025-03-11,
+  // 2025-01-14, 2025-02-11 in that order - an order that is neither the
+  // rendered (ascending) order nor its reverse. The middle game in
+  // rendered order (2025-01-14, the "first card") carries every field the
+  // checklist names: entrants, a three-entry podium whose third entry has
+  // a handle, two bounties, and a note. The other two games each isolate
+  // one absence: 2025-02-11 has no entrants, an empty bounties list, and
+  // no note; 2025-03-11 exists only to pin the ordering.
+  describe("M3: game order within a season, and one card's full content", () => {
+    const januaryGame = archiveGame({
+      date: "2025-01-14",
+      entrants: 7,
+      podium: [
+        { place: 1, name: "Ada W." },
+        { place: 2, name: "Cy T." },
+        { place: 3, name: "Bly R.", handle: "blyr" },
+      ],
+      bounties: [
+        { kind: "hope-slayer", name: "Ada W." },
+        { kind: "bubble", name: "Bly R." },
+      ],
+      note: "First game of the year.",
+    });
+    const februaryGame = archiveGame({
+      date: "2025-02-11",
+      // entrants absent, bounties empty, no note - the three negative
+      // cases this leg's other games are for.
+    });
+    const marchGame = archiveGame({ date: "2025-03-11" });
+
+    const fixture: ArchiveData = {
+      seasons: [{ id: "2025", title: "2025", games: [marchGame, januaryGame, februaryGame] }],
+    };
+    const html = renderArchive(fixture);
+    const cards = seasonCardBlocks(html);
+
+    test("orders games within a season ascending by date, regardless of file order", () => {
+      const dates = cards.map((c) => /<p class="season-date">([^<]*)<\/p>/.exec(c)?.[1]);
+      expect(dates).toEqual(["2025-01-14", "2025-02-11", "2025-03-11"]);
+    });
+
+    const jan = cards[0]!;
+
+    test("the eyebrow names the month alone, with no \"· Played\" suffix", () => {
+      expect(jan).toContain('<p class="eyebrow">January</p>');
+    });
+
+    test("the date paragraph holds the plain date with no anchor", () => {
+      expect(jan).toContain('<p class="season-date">2025-01-14</p>');
+      expect(jan).not.toContain("<a");
+    });
+
+    test("the podium reads place spans 1, 2, 3 in order, the third entry's handle in its own stat span", () => {
+      const items = podiumItems(jan);
+      expect(items.length).toBe(3);
+      expect(items[0]).toContain('<span class="stat">1</span>');
+      expect(items[1]).toContain('<span class="stat">2</span>');
+      expect(items[2]).toContain('<span class="stat">3</span>');
+      expect(items[2]).toContain('<span class="stat">blyr</span>');
+    });
+
+    test("the gem follows the place-1 name and follows no other podium row", () => {
+      const items = podiumItems(jan);
+      expect(items[0]).toContain(FOIL_GEM);
+      expect(items[1]).not.toContain(FOIL_GEM);
+      expect(items[2]).not.toContain(FOIL_GEM);
+    });
+
+    test("the bounties line joins each bounty's display name and holder with the middle dot", () => {
+      expect(jan).toContain('<p class="stat">Hope Slayer: Ada W. · The Bubble: Bly R.</p>');
+    });
+
+    test("the turnout line reads the entrant count", () => {
+      expect(jan).toContain("7 entrants");
+    });
+
+    test("the card's fields appear in strictly increasing order: eyebrow, date, podium, bounties, turnout, note", () => {
+      const eyebrowIdx = jan.indexOf('<p class="eyebrow">January</p>');
+      const dateIdx = jan.indexOf('<p class="season-date">2025-01-14</p>');
+      const podiumIdx = jan.indexOf('<ol class="podium">');
+      const bountiesIdx = jan.indexOf("Hope Slayer: Ada W.");
+      const turnoutIdx = jan.indexOf("7 entrants");
+      const noteIdx = jan.indexOf("First game of the year.");
+      const indices = [eyebrowIdx, dateIdx, podiumIdx, bountiesIdx, turnoutIdx, noteIdx];
+      for (const i of indices) expect(i).toBeGreaterThan(-1);
+      for (let i = 1; i < indices.length; i++) expect(indices[i]!).toBeGreaterThan(indices[i - 1]!);
+    });
+
+    test("a game with a note carries it as the card's last child", () => {
+      expect(jan.trim().endsWith("</li>")).toBe(true);
+      const noteMatch = /<p>First game of the year\.<\/p>\s*<\/li>$/.exec(jan);
+      expect(noteMatch).not.toBeNull();
+    });
+
+    const feb = cards[1]!;
+
+    test("a game with no entrants reads exactly \"Entrants not recorded\"", () => {
+      expect(feb).toContain('<p class="stat">Entrants not recorded</p>');
+    });
+
+    test("a game with bounties: [] has no bounties line between its podium and its turnout", () => {
+      // The podium's closing </ol> is followed directly by the turnout
+      // paragraph with nothing between them - a bounties line, had one
+      // rendered, would be its own <p class="stat"> sitting right here.
+      expect(feb).toContain('</ol>\n      <p class="stat">Entrants not recorded</p>');
+    });
+
+    test("a game without a note has no trailing <p> after its turnout line", () => {
+      expect(feb.trim().endsWith("</p>\n    </li>") || feb.trim().endsWith("</p></li>")).toBe(true);
+    });
+  });
+
+  // A handle-only entry is docs/brand.md's second Names exception: the notes
+  // never gave that player a "First L." form, so the handle IS the display
+  // name and `handle` equals `name`. Printing the handle in its own stat
+  // span as well would put the same word on the card twice in a row (the
+  // live page showed `jfe <span class="stat">jfe</span>`), so
+  // archivePodiumRow suppresses the span for exactly that identity. An
+  // entry whose handle genuinely differs from its name is unaffected.
+  describe("a handle-only podium entry prints its name once (review fix, 2026-09-06)", () => {
+    const html = renderArchive({
+      seasons: [{
+        id: "2025", title: "2025",
+        games: [archiveGame({
+          date: "2025-05-13",
+          podium: [
+            { place: 1, name: "jfe", handle: "jfe" },
+            { place: 2, name: "Ada W.", handle: "adaw" },
+          ],
+        })],
+      }],
+    });
+    const items = podiumItems(seasonCardBlocks(html)[0]!);
+
+    test("a handle-only entry renders its name once and no handle stat span", () => {
+      expect(items[0]).toContain("jfe");
+      expect(items[0]!.match(/jfe/g)!.length).toBe(1);
+      expect(items[0]).not.toContain('<span class="stat">jfe</span>');
+    });
+
+    test("an entry whose handle differs from its name still gets the handle span", () => {
+      expect(items[1]).toContain('<span class="stat">adaw</span>');
+    });
+  });
+
+  // [c, M4] A slugged podium entry and a slugged bounty holder each link to
+  // /player/<slug>/; their unslugged counterparts render as plain text. A
+  // separate one-game fixture isolates the chop: two podium rows sharing
+  // place 1, each carrying the gem.
+  describe("M4: slug links and the chop", () => {
+    const slugFixture: ArchiveData = {
+      seasons: [{
+        id: "2025", title: "2025",
+        games: [archiveGame({
+          date: "2025-04-01",
+          entrants: 4,
+          podium: [
+            { place: 1, name: "Ada W.", slug: "ada-w" },
+            { place: 2, name: "Cy T." },
+          ],
+          bounties: [
+            { kind: "hope-slayer", name: "Bly R.", slug: "bly-r" },
+            { kind: "bubble", name: "Gene" },
+          ],
+        })],
+      }],
+    };
+    const slugHtml = renderArchive(slugFixture);
+
+    test("a slugged podium entry links to its player page", () => {
+      expect(slugHtml).toContain('<a href="/player/ada-w/">Ada W.</a>');
+    });
+
+    test("a slugged bounty holder links to their player page inside the bounties line", () => {
+      expect(slugHtml).toContain('<a href="/player/bly-r/">Bly R.</a>');
+    });
+
+    test("an unslugged podium entry renders its name with no anchor", () => {
+      expect(slugHtml).toContain("Cy T.");
+      expect(slugHtml).not.toContain('>Cy T.</a>');
+    });
+
+    test("an unslugged bounty holder renders its name with no anchor", () => {
+      expect(slugHtml).toContain("Gene");
+      expect(slugHtml).not.toContain(">Gene</a>");
+    });
+
+    const chopFixture: ArchiveData = {
+      seasons: [{
+        id: "2025", title: "2025",
+        games: [archiveGame({
+          date: "2025-05-01",
+          podium: [
+            { place: 1, name: "Ada W." },
+            { place: 1, name: "Cy T." },
+          ],
+          note: "A chop split the pot evenly.",
+        })],
+      }],
+    };
+    const chopHtml = renderArchive(chopFixture);
+
+    test("a chop renders two podium rows, both place 1, both carrying the gem", () => {
+      const card = seasonCardBlocks(chopHtml)[0]!;
+      const items = podiumItems(card);
+      expect(items.length).toBe(2);
+      for (const item of items) {
+        expect(item).toContain('<span class="stat">1</span>');
+        expect(item).toContain(FOIL_GEM);
+      }
+    });
+  });
+
+  // [d, M1] The document shell: title, og:url, description, and the intro
+  // section's exact copy plus its link to /games/.
+  describe("M1: the document shell and the intro section", () => {
+    const fixture: ArchiveData = {
+      seasons: [{ id: "2025", title: "2025", games: [archiveGame({ date: "2025-06-01" })] }],
+    };
+    const html = renderArchive(fixture);
+
+    test("the title begins \"Archive\"", () => {
+      expect(html).toContain("<title>Archive");
+    });
+
+    test("declares its own canonical url for link unfurls", () => {
+      expect(html).toContain('<meta property="og:url" content="https://poker.kmikeym.com/archive/">');
+    });
+
+    test("the description meta reads exactly the M1 sentence", () => {
+      expect(html).toContain(
+        '<meta name="description" content="Every K5M Shareholder Poker game before the record began: ' +
+        '2020, 2025, and early 2026.">'
+      );
+    });
+
+    test("the first section is band-light with the heading, the exact intro paragraph, and a link to /games/", () => {
+      const intro = sectionBlocks(html)[0]!;
+      expect(intro).toStartWith('<section class="band-light">');
+      expect(intro).toContain('<h1 class="display">Before the record</h1>');
+      expect(intro).toContain(
+        "Every game before the data spine, from the notes that survive. Podiums, bounties, and who " +
+        "showed up: no chips, no hands. The record proper picks up where this page leaves off."
+      );
+      expect(intro).toContain('<a href="/games/">');
+    });
+
+    test("highlights no nav link, since the archive page is outside the four main sections", () => {
+      expect(html).not.toContain('aria-current="page"');
+    });
+  });
+
+  // [e, M5] The footer's tone always opposes the last season section's own
+  // tone: with one season (band-dark, the only section) the footer must be
+  // band-light; with two seasons (band-dark then band-light) the footer
+  // must be band-dark.
+  describe("M5: the footer tone opposes the last season", () => {
+    test("one season leaves the footer band-light", () => {
+      const html = renderArchive({
+        seasons: [{ id: "2025", title: "2025", games: [archiveGame({ date: "2025-06-01" })] }],
+      });
+      expect(html).toContain('<footer class="band-light"');
+    });
+
+    test("two seasons leave the footer band-dark", () => {
+      const html = renderArchive({
+        seasons: [
+          { id: "2025", title: "2025", games: [archiveGame({ date: "2025-06-01" })] },
+          { id: "2020", title: "2020", games: [archiveGame({ date: "2020-06-01" })] },
+        ],
+      });
+      expect(html).toContain('<footer class="band-dark"');
+    });
+  });
+
+  // [f, M6] No btn-primary, no em dash, no "experiment" anywhere in a
+  // three-season render; and, on a fixture built to exercise esc(), every
+  // special character comes out entity-encoded and the raw form is gone.
+  describe("M6: forbidden substrings and escaping", () => {
+    const threeSeasonFixture: ArchiveData = {
+      seasons: [
+        { id: "2025", title: "2025", games: [archiveGame({ date: "2025-06-01" })] },
+        { id: "2020", title: "2020", games: [archiveGame({ date: "2020-06-01" })] },
+        { id: "2026-pre", title: "2026-pre", games: [archiveGame({ date: "2026-01-01" })] },
+      ],
+    };
+    const html = renderArchive(threeSeasonFixture);
+
+    test("contains no btn-primary", () => {
+      expect(html).not.toContain("btn-primary");
+    });
+
+    test("contains no em dash", () => {
+      expect(html).not.toContain("—");
+    });
+
+    test("contains no \"experiment\"", () => {
+      expect(html.toLowerCase()).not.toContain("experiment");
+    });
+
+    // A dedicated fixture whose names, handle, and notes each carry one of
+    // the four characters esc() encodes. These necessarily break the
+    // site's "First L." name pattern - that pattern is validateArchive's
+    // job to enforce elsewhere, not renderArchive's, and testing escaping
+    // at all requires characters the pattern forbids.
+    const escFixture: ArchiveData = {
+      seasons: [{
+        id: "esc-season", title: "Esc Season", note: 'A season with a "quoted" word.',
+        games: [archiveGame({
+          date: "2025-07-01",
+          podium: [{ place: 1, name: "A & B", handle: "<AB>" }],
+          bounties: [{ kind: "cain", name: "C & D" }],
+          note: "Contains <b>bold</b> text.",
+        })],
+      }],
+    };
+    const escHtml = renderArchive(escFixture);
+
+    test("escapes an ampersand in a podium name", () => {
+      expect(escHtml).toContain("A &amp; B");
+      expect(escHtml).not.toContain("A & B");
+    });
+
+    test("escapes an ampersand in a bounty holder name, inside the bounties line", () => {
+      expect(escHtml).toContain("C &amp; D");
+      expect(escHtml).not.toContain("C & D");
+    });
+
+    test("escapes a less-than sign in a handle", () => {
+      expect(escHtml).toContain("&lt;AB&gt;");
+      expect(escHtml).not.toContain("<AB>");
+    });
+
+    test("escapes a game note containing a tag", () => {
+      expect(escHtml).toContain("Contains &lt;b&gt;bold&lt;/b&gt; text.");
+      expect(escHtml).not.toContain("<b>bold</b>");
+    });
+
+    test("escapes a double quote in a season note", () => {
+      expect(escHtml).toContain("&quot;quoted&quot;");
+      expect(escHtml).not.toContain('"quoted"');
+    });
   });
 });
