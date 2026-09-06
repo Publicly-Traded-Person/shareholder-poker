@@ -55,7 +55,7 @@ The file stays in canonical form, `JSON.stringify(data, null, 2)` plus a trailin
 }
 ```
 
-A chop is the same shape with two podium entries at `place: 1` and a `note` that says who chopped. The example stops at one game on purpose: the March 10 chop's second name is still an open question (§10), and an example must not show a guess as data.
+A chop is the same shape with two podium entries at `place: 1` and a `note` that says who chopped: for March 10, 2026, Beau G. and Matt W. (Mike, 2026-09-05: `mawgators` is Matt W.). The example stops at one game on purpose; the March entrant count is still open (§10), and an example must not show a guess as data.
 
 ### 3.1 Shape
 
@@ -150,7 +150,7 @@ Nova types it from these sources. Mike checks every name in the PR. Nothing ente
 |---|---|---|---|
 | 2020 | `README.md`, "Archive" table (30 games, 2020-04-21 to 2020-11-17) | date, entrants, podium | Buy-ins and payouts were never shown. 2020-11-04 has no third place. 2020-11-17 has no result. Names are first names only; last initials come from the roster note in the vault, which stays out of the repo. |
 | 2025 | vault, `Shareholder Poker 2025 (Airtable Archive).md` | date, entrants (rows in the table), podium, bounties from the result column | November unrecorded. December's result never reached the note. |
-| 2026, before the cards | same note (2026-02-10); `2026-03-10` daily note; `Shareholder Poker 2026 (Airtable Archive).md` (2026-04-14); `Charlie/ch-poker-room-tracker.md` (2026-06-09) | date, entrants, podium, bounties | March: six buy-ins reported by Beau, a chop, no entrant count. April and June: bounty shares marked pending in the notes. January: no result. May: a cash game. |
+| 2026, before the cards | same note (2026-02-10); `2026-03-10` daily note; `Shareholder Poker 2026 (Airtable Archive).md` (2026-04-14); `Charlie/ch-poker-room-tracker.md` (2026-06-09) | date, entrants, podium, bounties | March: six buy-ins reported by Beau, a chop between Beau G. and Matt W. (`mawgators`, resolved by Mike 2026-09-05), no entrant count. April and June: bounty shares marked pending in the notes. January: no result. May: a cash game. |
 
 Season notes, first draft, Charlie's to edit:
 
@@ -175,7 +175,7 @@ Steps 1 through 4 need no real data and can be built and reviewed on synthetic f
 
 None block the build; all block the first file being complete.
 
-1. **March 10, 2026.** Who is `mawgators`, and did six buy-ins mean six players? The game ships with a podium and a chop note either way; `entrants` stays absent until answered.
+1. **March 10, 2026.** `mawgators` is Matt W. (answered 2026-09-05). Still open: did six buy-ins mean six players? The game ships with its podium and chop note either way; `entrants` stays absent until answered.
 2. **Bounty shares for April 14 and June 9, 2026.** Both notes mark them pending. The games ship with the bounties the notes do state (April: the bubble and Nick's Hope Slayer) and gain the rest when answered.
 3. **December 2025.** If the result is remembered, it joins the season; otherwise the season note stands.
 4. **2020 last initials.** Taken from the roster note; confirmed in the PR by reading the file.
