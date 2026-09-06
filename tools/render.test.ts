@@ -1437,6 +1437,32 @@ describe("routeLoop and the stint loops (Task 7, #48)", () => {
     }
   });
 
+  // Review finding (2026-09-05): the first cut re-anchored an overflowing
+  // label to the frame's edge, which for a short route with a long name
+  // traded a right-edge overflow for a left-edge one - the three-name
+  // British Columbia fixture above rendered its 53-character label running
+  // off the left side, clipped by the svg's own viewBox. This leg pins the
+  // numeric bound rather than the anchor, using the same 6.6-units-per-
+  // character estimate routeLoop() measures with, so any future placement
+  // scheme has to keep every label on the drawing to pass.
+  test("every text on the loop stays inside the viewBox, at the shortest route that carries the long border label", () => {
+    const viewBox = /viewBox="0 0 ([\d.]+) [\d.]+"/.exec(borderLoop);
+    expect(viewBox).not.toBeNull();
+    const frameWidth = Number.parseFloat(viewBox![1]!);
+
+    const texts = [...borderLoop.matchAll(/<text[^>]*\bx="([\d.-]+)"[^>]*text-anchor="(\w+)"[^>]*>([\s\S]*?)<\/text>/g)];
+    // Three tick names plus the mileage: if this count ever drops, the
+    // regex stopped matching and the bounds below stopped being checked.
+    expect(texts.length).toBe(4);
+    for (const [, xAttr, anchor, content] of texts) {
+      const x = Number.parseFloat(xAttr!);
+      const w = content!.length * 6.6;
+      const start = anchor === "middle" ? x - w / 2 : anchor === "end" ? x - w : x;
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(start + w).toBeLessThanOrEqual(frameWidth);
+    }
+  });
+
   test("M5 leg (e): neither loop carries an em dash", () => {
     expect(loop).not.toContain("—");
     expect(borderLoop).not.toContain("—");

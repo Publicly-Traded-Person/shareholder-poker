@@ -1062,6 +1062,26 @@ export function odometerTiles(data: GamesData): string {
     </div>`;
 }
 
+// The sentence the one border tick carries after its place name (Task 7,
+// #48, M3). A constant, not a literal typed twice, because routeLoop() both
+// prints it and measures it: the frame has to be wide enough for the label
+// it produces, and the two must never disagree about its length.
+const BORDER_LABEL = ", the coin's one border crossing";
+
+// The widest of a set of route-loop labels, in viewBox units. Takes the
+// label strings as they will actually read on screen (unescaped: a browser
+// draws the "&" in "&amp;", not five characters); returns the width of the
+// longest, or 0 for an empty list. Throws nothing.
+//
+// 6.6 units per character is the monospace face's advance at the 11px size
+// `.route-tick text` sets in site/styles.css. It is an estimate, and it is
+// only ever used to decide how much room to leave and where a label may
+// sit, so an estimate that runs a little wide is the safe direction and a
+// wrong one shifts a label rather than breaking the drawing.
+function widestLabel(labels: string[]): number {
+  return labels.reduce((widest, label) => Math.max(widest, label.length * 6.6), 0);
+}
+
 // routeLoop draws one stop's road trip as a loop hanging off the journey's
 // line (Task 7, #48, spec §5): a thin pewter path leaving the stop and
 // returning to it, one tick per place the Coin actually rode through, the
@@ -1103,10 +1123,29 @@ export function routeLoop(stop: HopeCoinStop): string {
   const route = stop.route;
   if (!route || route.length === 0) return "";
 
+  // The labels, decided before the frame is: the border tick carries a
+  // whole sentence, and the frame has to be wide enough to hold the longest
+  // label on the route (see `width` below).
+  const isBorder = (name: string) => name.includes("British Columbia");
+  const labelText = (name: string) => name + (isBorder(name) ? BORDER_LABEL : "");
+
   // The frame. Width grows with the tick count (90 units each) so the
   // drawing gets wider, never denser, as a route gets longer; height is
   // fixed, because the loop is always one lane out and one lane back.
-  const width = 90 * route.length + 40;
+  //
+  // The second term is the honest answer to "what if a label is wider than
+  // the whole drawing": widen the drawing. An svg clips at its own viewBox,
+  // so a label longer than the frame cannot be saved by moving it - every
+  // position overflows one edge or the other. The alternative was breaking
+  // the label onto a second <tspan> line, which would put markup inside the
+  // one <text> element M3 reads as the tick's name and make the name harder
+  // to check, not easier. Widening costs nothing: the loop is sized by CSS,
+  // so a wider viewBox just draws the same loop at a slightly smaller scale.
+  // Neither of Beau's two real routes triggers this (their frames are 580
+  // and 850 units against a longest label near 350), so it changes nothing
+  // on the page today and keeps a future short route with a long name from
+  // losing its tail.
+  const width = Math.max(90 * route.length + 40, Math.ceil(widestLabel(route.map(labelText)) + 4));
   const height = 150;
   const left = 20;
   const right = width - 20;
@@ -1135,24 +1174,26 @@ export function routeLoop(stop: HopeCoinStop): string {
     const x = round(runStart + (runEnd - runStart) * ((slot + 0.5) / count));
     const y = onTop ? top : bottom;
 
-    const isBorder = name.includes("British Columbia");
+    const border = isBorder(name);
     // Names sit outside the loop (above the top run, below the bottom run)
     // so they never collide with the path or with the mileage inside it.
     // The border tick's label carries a whole sentence, so it sits one row
     // further out than its neighbors rather than running through them.
     const labelY = onTop
-      ? top - (isBorder ? 26 : 12)
-      : bottom + (isBorder ? 29 : 15);
-    // Keeping the label inside the frame: an svg clips at its own viewBox,
-    // so a long name centered on a tick near either end would simply lose
-    // its tail. 6.6 units per character is the monospace face's advance at
-    // this size, near enough to decide which end to hang the text from.
-    const halfLabel = (name.length + (isBorder ? 32 : 0)) * 3.3;
-    const anchor = x - halfLabel < 2 ? "start" : x + halfLabel > width - 2 ? "end" : "middle";
-    const labelX = anchor === "start" ? 2 : anchor === "end" ? width - 2 : x;
+      ? top - (border ? 26 : 12)
+      : bottom + (border ? 29 : 15);
+    // Keeping the label inside the frame: a label centered on a tick near
+    // either end would run past the viewBox edge, and an svg clips there.
+    // Every label is centered on its own tick and then slid back inside the
+    // frame if it has to be - never re-anchored to an edge, which only
+    // trades one overflow for the opposite one. Both clamps can never fight
+    // each other, because `width` above is already at least as wide as the
+    // longest label.
+    const halfLabel = widestLabel([labelText(name)]) / 2;
+    const labelX = round(Math.min(Math.max(x, 2 + halfLabel), width - 2 - halfLabel));
     // The flag points into the loop, where nothing else is drawn at this
     // end, rather than out into the name's own space.
-    const flag = isBorder
+    const flag = border
       ? (onTop
         ? `<path class="route-flag" d="M ${x} ${y + 2} L ${x + 11} ${y + 7} L ${x} ${y + 12} Z"/>`
         : `<path class="route-flag" d="M ${x} ${y - 2} L ${x + 11} ${y - 7} L ${x} ${y - 12} Z"/>`)
@@ -1160,9 +1201,9 @@ export function routeLoop(stop: HopeCoinStop): string {
     // The border sentence is appended outside esc() on purpose: it is this
     // file's own copy, not data, and esc() leaves the apostrophe alone
     // anyway (see its comment at the top of this file).
-    const label = esc(name) + (isBorder ? ", the coin's one border crossing" : "");
+    const label = esc(name) + (border ? BORDER_LABEL : "");
 
-    return `<g class="route-tick"><circle cx="${x}" cy="${y}" r="3.5"/>${flag}<text x="${labelX}" y="${labelY}" text-anchor="${anchor}">${label}</text></g>`;
+    return `<g class="route-tick"><circle cx="${x}" cy="${y}" r="3.5"/>${flag}<text x="${labelX}" y="${labelY}" text-anchor="middle">${label}</text></g>`;
   }).join("");
 
   const path = `<path class="route-loop-path" d="M ${runStart} ${top} H ${runEnd} A ${rx} ${rx} 0 0 1 ${runEnd} ${bottom} H ${runStart} A ${rx} ${rx} 0 0 1 ${runStart} ${top} Z"/>`;
