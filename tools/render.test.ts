@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import {
   esc, recordQualifier, renderStandings, renderGamesIndex, renderNextGameIcs, secondTuesday,
-  playerSlugs, renderPlayer, renderHopeCoin, coinHero, odometerTiles, routeLoop,
+  playerSlugs, renderPlayer, renderHopeCoin, coinHero, odometerTiles, routeLoop, holdersSection,
 } from "./render";
 import { deriveStandings, type GamesData, type HopeCoinStop } from "./lib/standings";
 import { TROPHIES, displayOrder, visibleTrophies } from "./lib/trophies";
@@ -1595,5 +1595,267 @@ describe("site/styles.css: the stint loop (Task 7, #48, M4)", () => {
     const size = declValue(rule!.body, "font-size");
     expect(size).toMatch(/^\d+(\.\d+)?px$/);
     expect(Number.parseFloat(size!)).toBeLessThanOrEqual(11);
+  });
+});
+
+// Task 8 (#48): "Who has held it" - the donut, the tenure strip, and the
+// legend table holdersSection(data) draws beneath the journey.
+//
+// Every fixture below is invented: made-up slugs, and month spans chosen so
+// the arithmetic is checkable by hand (a 3, 6, 3 chain is 25%, 50%, 25% and
+// nothing else). The real chain is twelve stops of Beau's chain of custody
+// and would make every number here a puzzle rather than an assertion.
+
+// Wraps one history array plus a list of game dates in the rest of the
+// GamesData shape holdersSection needs. Takes the dates in whatever order
+// the caller wants them - the caption leg below passes them deliberately
+// out of order, because "the latest game" is max(date), never the first or
+// last entry of the array.
+function heldData(history: HopeCoinStop[], gameDates: string[]): GamesData {
+  const last = history[history.length - 1]!;
+  return {
+    nextGame: { date: "2026-10-13", time: "7:00pm PT" },
+    hopeCoin: { holder: last.holder, since: last.from ?? "2020-01", history },
+    players: [
+      { slug: "fen-o", name: "Fen O.", aka: ["feno"] },
+      { slug: "gil-p", name: "Gil P.", aka: ["gilp"] },
+      { slug: "hax-q", name: "Hax Q.", aka: ["haxq"] },
+      { slug: "ash-r", name: "Ash R.", aka: ["ashr"] },
+      { slug: "bru-s", name: "Bru S.", aka: ["brus"] },
+      { slug: "cyd-t", name: "Cyd T.", aka: ["cydt"] },
+      { slug: "dov-u", name: "Dov U.", aka: ["dovu"] },
+      { slug: "eve-v", name: "Eve V.", aka: ["evev"] },
+      { slug: "fyn-w", name: "Fyn W.", aka: ["fynw"] },
+      { slug: "gus-x", name: "Gus X.", aka: ["gusx"] },
+      { slug: "ivy-y", name: "Ivy Y.", aka: ["ivyy"] },
+      { slug: "jem-z", name: "Jem Z.", aka: ["jemz"] },
+    ],
+    games: gameDates.map((date) => ({
+      date, hands: 100, startingStack: 5000, buyIn: 50, entries: 1, pot: 50,
+      results: [{ slug: "fen-o", handle: "feno", finish: 1, payout: 50, rebuys: 0, trophies: [] }],
+    })),
+  };
+}
+
+// The 3, 6, 3 chain of leg (a) and leg (c): fen-o holds three months, gil-p
+// six, hax-q three and still holds it. Share order (gil-p, fen-o, hax-q) is
+// deliberately NOT chain order, so a donut or a legend drawn straight down
+// the history array fails rather than passing by coincidence.
+const chain363: HopeCoinStop[] = [
+  { holder: "fen-o", from: "2025-01", to: "2025-04", place: "Cinder Bend", how: "Won the season." },
+  { holder: "gil-p", from: "2025-04", to: "2025-10", place: "Marrow Gap", how: "Won the season." },
+  { holder: "hax-q", from: "2025-10", place: "Ochre Ridge", how: "Took it on the third skull." },
+];
+const held363 = holdersSection(heldData(chain363, ["2026-01-13"]));
+
+// The A, B, A chain of leg (b) and the second half of leg (c): ash-r holds
+// 2024-12 to 2025-02 (2 months), bru-s to 2025-08 (6), ash-r again to the
+// latest game (4). Chain order is ash-r, bru-s, ash-r while share order is
+// ash-r then bru-s (tied on 6 months, ash-r first by first appearance), and
+// the widths 2, 6, 4 are not a palindrome, so a strip drawn per holder, in
+// share order, reversed, or with equal widths all fail.
+const chainABA: HopeCoinStop[] = [
+  { holder: "ash-r", from: "2024-12", to: "2025-02", place: "Cinder Bend", how: "Won the season." },
+  { holder: "bru-s", from: "2025-02", to: "2025-08", place: "Marrow Gap", how: "Won the season." },
+  { holder: "ash-r", from: "2025-08", place: "Cinder Bend", how: "Took it back." },
+];
+const heldABA = holdersSection(heldData(chainABA, ["2025-12-09"]));
+
+// Every `<path class="donut-arc...">` element, whole, in document order.
+function donutArcs(html: string): string[] {
+  return [...html.matchAll(/<path class="donut-arc[^"]*"[^>]*\/>/g)].map((m) => m[0]);
+}
+
+// Every donut label's text, in document order.
+function donutLabels(html: string): string[] {
+  return [...html.matchAll(/<text class="donut-label"[^>]*>([\s\S]*?)<\/text>/g)].map((m) => m[1]!);
+}
+
+// Every `<rect class="strip-seg">` element, whole, in document order.
+function stripSegs(html: string): string[] {
+  return [...html.matchAll(/<rect class="strip-seg"[^>]*\/>/g)].map((m) => m[0]);
+}
+
+// One attribute's value off a single SVG element, or "" when it carries
+// none - so a leg asserting on a fill fails on the fill, not on a throw.
+function attr(el: string, name: string): string {
+  return new RegExp(`\\b${name}="([^"]*)"`).exec(el)?.[1] ?? "";
+}
+
+// Every strip tick's text, in document order.
+function stripTicks(html: string): string[] {
+  return [...html.matchAll(/<text class="strip-tick"[^>]*>([\s\S]*?)<\/text>/g)].map((m) => m[1]!);
+}
+
+// The legend's body rows, each as its list of `<td>` texts, in document
+// order. Reads inside `<tbody>` on purpose: the header row is `<th>`, and a
+// leg counting four cells per row must not be satisfied by the header.
+function legendRows(html: string): string[][] {
+  const body = /<tbody>([\s\S]*?)<\/tbody>/.exec(html)?.[1] ?? "";
+  return [...body.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].map((row) =>
+    [...row[1]!.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((cell) => cell[1]!));
+}
+
+describe("holdersSection: who has held it (Task 8, #48)", () => {
+  test("M1 leg (a): a band-dark section headed Who has held it, with one donut arc per holder in share order and one marked current", () => {
+    expect(held363).toStartWith('<section class="band-dark">');
+    expect(held363).toContain("Who has held it");
+    expect(held363).toMatch(/<svg class="coin-donut" viewBox="[\d .]+"/);
+
+    const arcs = donutArcs(held363);
+    expect(arcs.length).toBe(3);
+    // Exactly one arc is the current holder's, and it is hax-q's: the third
+    // arc in share order, which is neither first nor last in chain order.
+    const currentFlags = arcs.map((a) => a.includes("donut-arc--current"));
+    expect(currentFlags).toEqual([false, false, true]);
+  });
+
+  test("M1 leg (a): one donut label per holder, name then percent, in share order not chain order", () => {
+    expect(donutLabels(held363)).toEqual(["Gil P. 50%", "Fen O. 25%", "Hax Q. 25%"]);
+  });
+
+  test("M2 leg (b): the tenure strip carries a viewBox and one rect per segment, in chain order, widths proportional to months", () => {
+    expect(heldABA).toMatch(/<svg class="tenure-strip" viewBox="[\d .]+"/);
+    const segs = stripSegs(heldABA);
+    expect(segs.length).toBe(3);
+    expect(segs.map((s) => attr(s, "width"))).toEqual(["100", "300", "200"]);
+  });
+
+  test("M2 leg (b): exactly one January tick, reading 2025, and none on either edge of the range", () => {
+    // 2024-12 to 2025-12: January 2025 is the only January strictly inside.
+    expect(stripTicks(heldABA)).toEqual(["2025"]);
+
+    // Same chain, latest game 2026-01-13: January 2026 sits ON the range's
+    // end edge, so it is not a tick.
+    const endEdge = holdersSection(heldData(chainABA, ["2026-01-13"]));
+    expect(stripTicks(endEdge)).toEqual(["2025"]);
+
+    // A chain whose first dated stop starts in January: the range's start
+    // edge is not a tick either.
+    const startEdge = holdersSection(heldData([
+      { holder: "cyd-t", from: "2025-01", to: "2025-06", place: "Cinder Bend", how: "Won the season." },
+      { holder: "dov-u", from: "2025-06", place: "Marrow Gap", how: "Took it on the third skull." },
+    ], ["2025-12-09"]));
+    expect(stripTicks(startEdge)).toEqual([]);
+
+    // A long chain crosses three Januaries and must draw all three, in
+    // order: a renderer that stops after the first fails here.
+    const threeYears = holdersSection(heldData([
+      { holder: "cyd-t", from: "2023-06", to: "2024-09", place: "Cinder Bend", how: "Won the season." },
+      { holder: "dov-u", from: "2024-09", place: "Marrow Gap", how: "Took it on the third skull." },
+    ], ["2026-03-10"]));
+    expect(stripTicks(threeYears)).toEqual(["2024", "2025", "2026"]);
+  });
+
+  test("M3 leg (c): the legend is one tenure-legend table, one four-cell row per holder in share order", () => {
+    expect(held363.match(/<table class="tenure-legend">/g)?.length).toBe(1);
+    expect(legendRows(held363)).toEqual([
+      ["Gil P.", "1", "6", "50%"],
+      ["Fen O.", "1", "3", "25%"],
+      ["Hax Q.", "1", "3", "25%"],
+    ]);
+  });
+
+  test("M3 leg (c): a holder with two reigns is one row counting both, ahead of the holder it ties on months", () => {
+    expect(legendRows(heldABA)).toEqual([
+      ["Ash R.", "2", "6", "50%"],
+      ["Bru S.", "1", "6", "50%"],
+    ]);
+  });
+
+  test("M4 leg (d): the caption names the month of the latest game, which is neither the first nor the last game in the array", () => {
+    const outOfOrder = holdersSection(heldData(chain363, ["2025-08-12", "2025-11-11", "2025-10-14"]));
+    expect(outOfOrder).toContain("Months, as of the November 2025 game.");
+  });
+
+  test("M4 leg (d): an undated first stop's time is called out as uncounted, and a dated one says nothing of the kind", () => {
+    const undatedFirst = holdersSection(heldData([
+      { holder: "fen-o", to: "2025-02", place: "Marrow Gap", how: "Held it since before anyone kept records." },
+      { holder: "gil-p", from: "2025-02", to: "2025-08", place: "Cinder Bend", how: "Won the season." },
+      { holder: "hax-q", from: "2025-08", place: "Ochre Ridge", how: "Took it on the third skull." },
+    ], ["2025-11-11"]));
+    expect(undatedFirst).toContain("The coin's time in Marrow Gap before February 2025 is not counted.");
+    expect(held363).not.toContain("is not counted");
+  });
+
+  // Leg (e): eight holders, the current one SECOND in share order, so the
+  // opacity list is walked by "share order skipping the current holder" and
+  // an implementation indexing it by absolute share position fails on the
+  // very first two rows.
+  const chain8: HopeCoinStop[] = [
+    { holder: "fen-o", from: "2020-01", to: "2021-09", place: "Cinder Bend", how: "Won the season." },
+    { holder: "gil-p", from: "2021-09", to: "2022-06", place: "Marrow Gap", how: "Won the season." },
+    { holder: "hax-q", from: "2022-06", to: "2023-02", place: "Ochre Ridge", how: "Won the season." },
+    { holder: "ash-r", from: "2023-02", to: "2023-09", place: "Salt Pan", how: "Won the season." },
+    { holder: "bru-s", from: "2023-09", to: "2024-03", place: "Cinder Bend", how: "Won the season." },
+    { holder: "cyd-t", from: "2024-03", to: "2024-08", place: "Marrow Gap", how: "Won the season." },
+    { holder: "dov-u", from: "2024-08", to: "2024-12", place: "Ochre Ridge", how: "Won the season." },
+    { holder: "eve-v", from: "2024-12", place: "Salt Pan", how: "Took it on the third skull." },
+  ];
+  // Months: 20, 9, 8, 7, 6, 5, 4 and the current holder's 10, so share order
+  // runs fen-o (20), eve-v (10, current), gil-p (9), hax-q (8), ash-r (7),
+  // bru-s (6), cyd-t (5), dov-u (4).
+  const held8 = holdersSection(heldData(chain8, ["2025-10-14"]));
+
+  test("M5 leg (e): the current holder is drawn in foil and every other holder in a tint of the ink, in share order skipping the current one", () => {
+    const arcs = donutArcs(held8);
+    const segs = stripSegs(held8);
+    expect(arcs.length).toBe(8);
+    expect(segs.length).toBe(8);
+
+    // The donut is in share order; the strip is in chain order. Keying each
+    // one by the label/holder it belongs to is what lets the last leg below
+    // compare the two without assuming they are drawn in the same order.
+    const arcFills = arcs.map((a) => [attr(a, "fill"), attr(a, "fill-opacity")]);
+    expect(arcFills).toEqual([
+      ["var(--ink)", "1"],
+      ["var(--foil-deep)", ""],
+      ["var(--ink)", ".8"],
+      ["var(--ink)", ".62"],
+      ["var(--ink)", ".46"],
+      ["var(--ink)", ".32"],
+      ["var(--ink)", ".2"],
+      ["var(--ink)", ".12"],
+    ]);
+  });
+
+  test("M5 leg (e): no fill in the section names any value but the foil and the ink, and each holder's strip segment matches their own arc", () => {
+    for (const value of [...held8.matchAll(/\bfill="([^"]*)"/g)].map((m) => m[1]!)) {
+      expect(["var(--foil-deep)", "var(--ink)"]).toContain(value);
+    }
+
+    // Chain order for this fixture is fen-o, gil-p, hax-q, ash-r, bru-s,
+    // cyd-t, dov-u, eve-v, and every holder appears exactly once, so the
+    // strip's segments line up with those holders by position. Share order
+    // (the donut's order) is fen-o, eve-v, gil-p, hax-q, ash-r, bru-s,
+    // cyd-t, dov-u - a different order, which is the point.
+    const chainOrder = ["fen-o", "gil-p", "hax-q", "ash-r", "bru-s", "cyd-t", "dov-u", "eve-v"];
+    const shareOrder = ["fen-o", "eve-v", "gil-p", "hax-q", "ash-r", "bru-s", "cyd-t", "dov-u"];
+    const arcs = donutArcs(held8);
+    const segs = stripSegs(held8);
+    for (let i = 0; i < chainOrder.length; i++) {
+      const arc = arcs[shareOrder.indexOf(chainOrder[i]!)]!;
+      const seg = segs[i]!;
+      expect(attr(seg, "fill")).toBe(attr(arc, "fill"));
+      expect(attr(seg, "fill-opacity")).toBe(attr(arc, "fill-opacity"));
+    }
+  });
+
+  test("M6 leg (f): the section carries no em dash", () => {
+    expect(held363).not.toContain("—");
+    expect(heldABA).not.toContain("—");
+    expect(held8).not.toContain("—");
+  });
+
+  test("renderHopeCoin appends the section after the journey, and its footer band alternates away from it", () => {
+    const data = heldData(chain363, ["2026-01-13"]);
+    const full = renderHopeCoin(data);
+    const section = holdersSection(data);
+    const sectionIdx = full.indexOf(section);
+    expect(sectionIdx).toBeGreaterThan(-1);
+    expect(sectionIdx).toBeGreaterThan(full.indexOf('<h2 class="rule-label">The journey</h2>'));
+    // Two adjacent bands never share a tone (docs/brand.md), and the new
+    // section is the last thing above the footer.
+    expect(full).toContain('<footer class="band-light"');
   });
 });

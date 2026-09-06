@@ -5,7 +5,7 @@ import {
   deriveStandings, type GamesData, type Game, type GameResult, type CardRef, type HopeCoinStop,
 } from "./lib/standings";
 import { trophyCase, TROPHIES, displayOrder, type Trophy, type Look, type Earned } from "./lib/trophies";
-import { odometer, formatMiles } from "./lib/hope-coin";
+import { odometer, formatMiles, tenureMonths, holderShares, monthIndex } from "./lib/hope-coin";
 
 // HTML-escapes a string for use in text content OR inside a double-quoted
 // attribute. Takes any string; returns it with & < > and " replaced by their
@@ -1214,6 +1214,307 @@ export function routeLoop(stop: HopeCoinStop): string {
   return `<svg class="route-loop" viewBox="0 0 ${width} ${height}">${path}${ticks}${miles}</svg>`;
 }
 
+// The ink tints the non-current holders are drawn in, darkest first, in
+// share order with the current holder skipped over (the current holder is
+// foil, not a tint). Spelled as strings, not numbers, because these are
+// written straight into `fill-opacity` attributes and the record of what
+// the page prints should read the same here as it does in the markup:
+// ".8", never "0.8". Seven values, the deepest ladder the eye can still
+// tell apart on paper; a chain that ever grows an eighth non-current
+// holder reuses the last value rather than inventing a fainter one nobody
+// could see, so a stop is never dropped from the drawing.
+const TENURE_TINTS = ["1", ".8", ".62", ".46", ".32", ".2", ".12"];
+
+// The donut's geometry, in the 200 by 200 viewBox units it is drawn in
+// (the svg itself is sized by CSS, per `.coin-donut` in site/styles.css,
+// so these numbers never change with the screen). The ring runs from
+// radius 32 to 52 and the labels sit at 58, just outside it: labels beside
+// the marks, never inside a wedge, so a thin slice's name is as readable
+// as a fat one's.
+const DONUT_BOX = 200;
+const DONUT_CENTER = 100;
+const DONUT_R_OUT = 52;
+const DONUT_R_IN = 32;
+const DONUT_R_LABEL = 58;
+// One character's advance in the donut's label face, in viewBox units:
+// the monospace advance (0.6em) at the 8px size `.donut-label` sets. Used
+// only to keep a long label from running off the edge of the drawing, the
+// same estimate-and-clamp routeLoop() above already uses for its own place
+// names, so a wrong guess shifts a label rather than breaking the picture.
+const DONUT_CHAR = 4.8;
+// One full line of clearance between two labels on the same side of the
+// ring, in viewBox units: 1.2 lines at the 8px `.donut-label` face. Two
+// thin slices next to each other would otherwise print their names on top
+// of each other.
+const DONUT_LABEL_GAP = 9.6;
+
+// The tenure strip's geometry, in its own 600 by 40 viewBox: a 600-unit
+// bar of segments with the January ticks and their years beneath it.
+const STRIP_W = 600;
+const STRIP_H = 40;
+const STRIP_BAR_TOP = 2;
+const STRIP_BAR_HEIGHT = 20;
+
+// Two decimals is as fine as any of these drawings needs, and it is what
+// keeps a width of exactly one twelfth of the bar printing as "100" rather
+// than "99.99999999999999" - a number Charlie would reasonably read as a
+// bug in the month math when it is only floating point noise.
+function round2(n: number): number {
+  return Number(n.toFixed(2));
+}
+
+// A point on the donut at `radius` and `angle`, where angle is degrees
+// clockwise from twelve o'clock (spec section 7.2: the donut starts at the
+// top and runs clockwise, largest share first). Returns [x, y] in viewBox
+// units, already rounded. Screen y grows downward, which is why the cosine
+// is subtracted rather than added.
+function donutPoint(radius: number, angle: number): [number, number] {
+  const rad = (angle * Math.PI) / 180;
+  return [round2(DONUT_CENTER + radius * Math.sin(rad)), round2(DONUT_CENTER - radius * Math.cos(rad))];
+}
+
+// The `d` for one ring segment of the donut, from `a0` to `a1` degrees
+// clockwise from twelve o'clock. Returns the path data alone, no element.
+//
+// A holder with the whole coin's life to themselves (one stop, or a chain
+// where only one holder has any dated months at all) sweeps the full 360
+// degrees, and a single SVG arc whose start and end points are the same
+// point draws nothing at all - the one case that would silently render an
+// empty donut. That case is drawn as two half arcs instead, outer ring
+// clockwise and inner ring counter-clockwise so the nonzero fill rule
+// punches the hole out of the middle.
+function donutSegmentPath(a0: number, a1: number): string {
+  const [ox0, oy0] = donutPoint(DONUT_R_OUT, a0);
+  const [ix0, iy0] = donutPoint(DONUT_R_IN, a0);
+  if (a1 - a0 >= 359.99) {
+    const [oxHalf, oyHalf] = donutPoint(DONUT_R_OUT, a0 + 180);
+    const [ixHalf, iyHalf] = donutPoint(DONUT_R_IN, a0 + 180);
+    return `M ${ox0} ${oy0} A ${DONUT_R_OUT} ${DONUT_R_OUT} 0 1 1 ${oxHalf} ${oyHalf} ` +
+      `A ${DONUT_R_OUT} ${DONUT_R_OUT} 0 1 1 ${ox0} ${oy0} Z ` +
+      `M ${ix0} ${iy0} A ${DONUT_R_IN} ${DONUT_R_IN} 0 1 0 ${ixHalf} ${iyHalf} ` +
+      `A ${DONUT_R_IN} ${DONUT_R_IN} 0 1 0 ${ix0} ${iy0} Z`;
+  }
+  const [ox1, oy1] = donutPoint(DONUT_R_OUT, a1);
+  const [ix1, iy1] = donutPoint(DONUT_R_IN, a1);
+  const large = a1 - a0 > 180 ? 1 : 0;
+  return `M ${ox0} ${oy0} A ${DONUT_R_OUT} ${DONUT_R_OUT} 0 ${large} 1 ${ox1} ${oy1} ` +
+    `L ${ix1} ${iy1} A ${DONUT_R_IN} ${DONUT_R_IN} 0 ${large} 0 ${ix0} ${iy0} Z`;
+}
+
+// holdersSection renders the second section of the Hope Coin page (Task 8,
+// #48, spec section 7): "Who has held it," three views of the same numbers
+// side by side. The donut is each holder's share of the coin's recorded
+// life, largest first from twelve o'clock. The strip is the same tenure
+// laid out in time, one segment per stop in chain order, with a tick at
+// every January it crosses. The legend table beside them states every
+// figure in words, and doubles as the leaderboard.
+//
+// Takes the parsed games.json; returns the `<section class="band-dark">`
+// markup, which renderHopeCoin below splices after its own band-light
+// section (the tones alternate; see the footer note in that function).
+//
+// Returns the EMPTY STRING, not a section, when there is nothing dated to
+// chart: no games on the spine to date the current stop against, or a
+// history whose only stop has no `from` (the "before anyone kept records"
+// shape, which tenureMonths deliberately produces no segment for), or a
+// chain whose every stop changed hands inside a single month. Those are
+// the same "splice it unconditionally, let the function decide" contract
+// routeLoop() above keeps: the alternative is a heading over an empty
+// drawing, which reads as a broken page rather than as an honest absence.
+//
+// Every number here comes from tenureMonths and holderShares in
+// tools/lib/hope-coin.ts and none of it is recomputed: the whole reason
+// that month math lives in one place is that these three graphics must
+// never be able to disagree with each other about who held the Coin how
+// long. The only arithmetic below is geometry.
+//
+// Color carries nothing on its own. The current holder's arc and segment
+// are foil and everyone else is a tint of the page's ink, but the donut
+// labels name every holder and their share, and the legend states all four
+// figures as text, so the section reads the same to someone who cannot
+// tell the foil from the ink.
+//
+// Throws nothing.
+export function holdersSection(data: GamesData): string {
+  const history = data.hopeCoin.history ?? [];
+  const nameOf = new Map(data.players.map((p) => [p.slug, p.name]));
+
+  // The latest game on the spine, by date - max(), never games[0] or the
+  // last array entry, because games.json is not guaranteed sorted and the
+  // caption below makes a claim about "as of" a specific game night.
+  const latestGame = data.games.map((g) => g.date).sort().at(-1);
+  if (latestGame === undefined) return "";
+
+  const segments = tenureMonths(history, latestGame);
+  const totalMonths = segments.reduce((sum, seg) => sum + seg.months, 0);
+  if (segments.length === 0 || totalMonths === 0) return "";
+  const shares = holderShares(segments);
+
+  // The current holder is the last stop's, not data.hopeCoin.holder: the
+  // two always agree (validateCoinHistory rule 4 refuses a chain where
+  // they do not), and reading the chain keeps this function's drawing
+  // sourced entirely from the same array every other number here comes
+  // from.
+  const current = history[history.length - 1]!.holder;
+
+  // One fill per holder, assigned once and shared by that holder's donut
+  // arc and every one of their strip segments - a holder who won the Coin
+  // back must read as the same holder in both drawings, and two segments
+  // of different shades would say the opposite.
+  const fillOf = new Map<string, string>();
+  let tint = 0;
+  for (const share of shares) {
+    if (share.holder === current) {
+      fillOf.set(share.holder, `fill="var(--foil-deep)"`);
+      continue;
+    }
+    fillOf.set(share.holder, `fill="var(--ink)" fill-opacity="${TENURE_TINTS[Math.min(tint, TENURE_TINTS.length - 1)]}"`);
+    tint += 1;
+  }
+
+  // The donut. Angles are cut from `percent`, not from raw months, because
+  // holderShares already guarantees the percents sum to exactly 100 - so
+  // the arcs close the circle exactly, and the drawing and the legend can
+  // never round to two different stories.
+  let angle = 0;
+  const arcs: string[] = [];
+  const labels: { text: string; x: number; y: number; anchor: string }[] = [];
+  for (const share of shares) {
+    const sweep = (share.percent / 100) * 360;
+    const a0 = angle;
+    const a1 = angle + sweep;
+    angle = a1;
+    const currentClass = share.holder === current ? " donut-arc--current" : "";
+    arcs.push(`<path class="donut-arc${currentClass}" ${fillOf.get(share.holder)} d="${donutSegmentPath(a0, a1)}"/>`);
+
+    const name = nameOf.get(share.holder) ?? share.holder;
+    const text = `${name} ${share.percent}%`;
+    const mid = (a0 + a1) / 2;
+    const [lx, ly] = donutPoint(DONUT_R_LABEL, mid);
+    // Which side of the clock the label sits on decides which end of the
+    // text touches the ring: a label on the right reads outward from the
+    // ring, a label on the left reads inward to it. A label at the very
+    // top or bottom straddles the center line and is simply centered.
+    const across = Math.sin((mid * Math.PI) / 180);
+    const anchor = across > 0.02 ? "start" : across < -0.02 ? "end" : "middle";
+    // Keep it on the drawing. The svg clips at its viewBox, so a long name
+    // on a thin wedge would otherwise lose its last few characters; the
+    // label slides back inside rather than being re-anchored, which would
+    // only trade one overflow for the opposite one (the same reasoning as
+    // routeLoop's own clamp above).
+    const width = text.length * DONUT_CHAR;
+    const reach = anchor === "start" ? width : anchor === "end" ? 0 : width / 2;
+    const back = anchor === "start" ? 0 : anchor === "end" ? width : width / 2;
+    const x = round2(Math.min(Math.max(lx, back + 1), DONUT_BOX - 1 - reach));
+    labels.push({ text, x, y: ly, anchor });
+  }
+
+  // Two thin slices side by side put their labels within a few units of
+  // each other, and at the 8px face `.donut-label` sets that is two lines
+  // of type on top of each other - the real chain does exactly this at the
+  // top of the ring, where the two shortest reigns sit next to one another.
+  // Labels on the same side of the ring are pushed apart to a full line of
+  // clearance, in the order they already run down the drawing, and the
+  // whole column is slid back up if the pushing ran it off the bottom. Only
+  // the vertical position moves: a label stays on its own arc's side and
+  // keeps its own anchor, so it still reads as belonging to the slice it
+  // names.
+  for (const side of ["start", "end", "middle"]) {
+    const column = labels.filter((l) => l.anchor === side).sort((a, b) => a.y - b.y);
+    for (let i = 1; i < column.length; i++) {
+      column[i]!.y = Math.max(column[i]!.y, column[i - 1]!.y + DONUT_LABEL_GAP);
+    }
+    const overflow = (column[column.length - 1]?.y ?? 0) - (DONUT_BOX - 4);
+    if (overflow > 0) for (const label of column) label.y = Math.max(round2(label.y - overflow), 8);
+  }
+
+  // Emitted in share order, the order they were built in, not the top-to-
+  // bottom order the spreading above sorted them into: the donut's labels
+  // read down the page in the same order as the legend's rows.
+  const labelMarkup = labels
+    .map((l) => `<text class="donut-label" x="${l.x}" y="${round2(l.y)}" text-anchor="${l.anchor}">${esc(l.text)}</text>`)
+    .join("");
+
+  // The strip: one segment per stop, in chain order, its width the stop's
+  // share of the whole span. Widths are accumulated unrounded and only
+  // rounded on the way out, so a dozen roundings cannot drift the last
+  // segment off the end of the bar.
+  const segs: string[] = [];
+  let x = 0;
+  for (const seg of segments) {
+    const width = (seg.months / totalMonths) * STRIP_W;
+    segs.push(
+      `<rect class="strip-seg" x="${round2(x)}" y="${STRIP_BAR_TOP}" width="${round2(width)}" ` +
+      `height="${STRIP_BAR_HEIGHT}" ${fillOf.get(seg.holder)}/>`
+    );
+    x += width;
+  }
+
+  // January ticks: one hairline and one year for every January the span
+  // actually crosses, STRICTLY inside it. A January on either edge gets no
+  // tick, because the edge is already the start or the end of the bar and
+  // a tick there would be a second mark for something the drawing already
+  // says - and, at the end, would date the bar a month past the game the
+  // caption says it runs to.
+  const firstMonth = monthIndex(segments[0]!.from);
+  const lastMonth = monthIndex(segments[segments.length - 1]!.to);
+  const ticks: string[] = [];
+  for (let year = Number(segments[0]!.from.slice(0, 4)); year <= Number(segments[segments.length - 1]!.to.slice(0, 4)); year++) {
+    const january = monthIndex(`${year}-01`);
+    if (january <= firstMonth || january >= lastMonth) continue;
+    const tx = round2(((january - firstMonth) / totalMonths) * STRIP_W);
+    ticks.push(
+      `<line class="strip-tick-line" x1="${tx}" y1="0" x2="${tx}" y2="${STRIP_BAR_TOP + STRIP_BAR_HEIGHT + 4}"/>` +
+      `<text class="strip-tick" x="${tx}" y="${STRIP_H - 3}" text-anchor="middle">${year}</text>`
+    );
+  }
+
+  const rows = shares.map((share) => {
+    const name = esc(nameOf.get(share.holder) ?? share.holder);
+    return `          <tr><td>${name}</td><td class="num">${share.reigns}</td><td class="num">${share.months}</td><td class="num">${share.percent}%</td></tr>`;
+  }).join("\n");
+
+  // The caption. "As of" a game night, never the clock: the current stop
+  // has no end date, and the only honest thing to measure it to is the last
+  // game the record actually holds (spec section 7.1).
+  let caption = `Months, as of the ${monthYear(latestGame)} game.`;
+  // A first stop with no `from` produces no segment at all (see
+  // tenureMonths), so its months are missing from every figure on this
+  // page. That absence is said out loud rather than left for a visitor to
+  // notice: the alternative is a donut that quietly reads as the Coin's
+  // whole life when it is not. Only said when the record can actually name
+  // the place and the month it ended, which is the only shape this stop has
+  // ever arrived in; with either missing there is no sentence to write that
+  // would not be inventing half of it.
+  const firstStop = history[0];
+  if (firstStop !== undefined && firstStop.from === undefined && firstStop.place !== undefined && history[1]?.from !== undefined) {
+    caption += ` The coin's time in ${esc(firstStop.place)} before ${monthYear(history[1]!.from!)} is not counted.`;
+  }
+
+  return `<section class="band-dark">
+  <div class="band-inner">
+    <h2 class="rule-label">Who has held it</h2>
+    <p class="stat">${caption}</p>
+    <div class="cols">
+      <figure class="donut-figure">
+        <svg class="coin-donut" viewBox="0 0 ${DONUT_BOX} ${DONUT_BOX}"><title>Each holder's share of the coin's recorded life</title>${arcs.join("")}${labelMarkup}</svg>
+      </figure>
+      <div>
+        <svg class="tenure-strip" viewBox="0 0 ${STRIP_W} ${STRIP_H}"><title>Every stop in order, sized by the months it lasted</title>${segs.join("")}${ticks.join("")}</svg>
+        <div class="table-scroll">
+          <table class="tenure-legend">
+            <thead><tr><th>Holder</th><th>Reigns</th><th>Months</th><th>Share</th></tr></thead>
+            <tbody>
+${rows}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>`;
+}
+
 // Renders the Hope Coin's own page: the hero grid coinHero() builds (the
 // coin's photo and the "what is the Coin" copy, side by side), the four
 // odometer tiles odometerTiles() builds (Task 6, #48) directly beneath it,
@@ -1224,7 +1525,10 @@ export function routeLoop(stop: HopeCoinStop): string {
 // under "The journey" heading, above the route, saying the record's
 // earliest datable stop is not the Coin's actual first stop (see
 // journeyIncompleteHtml below); the sentence is absent entirely once that
-// flag is gone. Takes the parsed games.json; returns the full document.
+// flag is gone. Beneath all of that, in a second band-dark section, comes
+// holdersSection()'s "Who has held it" (Task 8, #48): the donut, the tenure
+// strip, and the legend table. Takes the parsed games.json; returns the
+// full document.
 // Throws nothing of its own: an absent history (the rollout state before
 // any stops existed - see the comment on GamesData.hopeCoin.history)
 // renders a journey with zero rows and no leg labels, and a malformed
@@ -1319,7 +1623,8 @@ export function renderHopeCoin(data: GamesData): string {
 ${stops}
     </ol>
   </div>
-</section>`;
+</section>
+${holdersSection(data)}`;
 
   // navCurrent: the Hope Coin page isn't one of nav()'s four sections, so
   // Standings is named explicitly here rather than guessed from the
@@ -1332,8 +1637,11 @@ ${stops}
   // function used to supply this option (final fix wave, item 4) and is
   // kept in this file rather than deleted (see its own comment above), but
   // this page no longer calls it.
+  // The footer band is band-light because holdersSection() above ends the
+  // page on a band-dark section, and two adjacent bands never share a tone
+  // (docs/brand.md).
   return page(
-    "The Hope Coin", body, "band-dark", "/hope-coin/",
+    "The Hope Coin", body, "band-light", "/hope-coin/",
     "Every stop the K5M Shareholder Poker Hope Coin has made, and who holds it now.",
     { navCurrent: "/standings/", image: "https://poker.kmikeym.com/hope-coin/assets/coin-og.png" }
   );

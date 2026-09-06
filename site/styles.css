@@ -78,7 +78,9 @@ nav.band-dark a:hover { color: var(--sapphire); text-decoration: underline; }
 }
 h1.display { font-size: clamp(2rem, 6vw, 3.4rem); margin: 0 0 .4em; }
 h2.display { font-size: clamp(1.4rem, 4vw, 2rem); margin: 0 0 .6em; }
-.stat, .ledger td.num {
+/* .tenure-legend td.num joins this list so the coin page's legend numbers
+   read in the same tabular face every other table's numbers do. */
+.stat, .ledger td.num, .tenure-legend td.num {
   font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
   font-variant-numeric: tabular-nums;
   font-size: .92em;
@@ -133,10 +135,10 @@ h2.display { font-size: clamp(1.4rem, 4vw, 2rem); margin: 0 0 .6em; }
   box-shadow: 0 1px 3px rgba(26, 28, 32, .06);
   margin: 1.25em 0;
 }
-.ledger { width: 100%; border-collapse: collapse; font-size: .95em; }
-.ledger th, .ledger td { padding: .65em .9em; text-align: left; border-bottom: 1px solid var(--line); }
-.ledger tbody tr:last-child td { border-bottom: none; }
-.ledger th {
+.ledger, .tenure-legend { width: 100%; border-collapse: collapse; font-size: .95em; }
+.ledger th, .ledger td, .tenure-legend th, .tenure-legend td { padding: .65em .9em; text-align: left; border-bottom: 1px solid var(--line); }
+.ledger tbody tr:last-child td, .tenure-legend tbody tr:last-child td { border-bottom: none; }
+.ledger th, .tenure-legend th {
   background: var(--parchment);
   text-transform: uppercase;
   font-size: .72em;
@@ -708,3 +710,40 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
 /* The cards index's unminted row carries the RSVP link (Mike, 2026-09-04);
    this gives it air under the copy line above it. */
 .set-row .btn-secondary { margin-top: .25em; }
+
+/* "Who has held it" (Task 8, #48, spec section 7): the donut, the tenure
+   strip, and the legend beneath the Hope Coin journey. Light page, dark
+   objects (docs/brand.md): both drawings are ink, with the current holder
+   in foil. Neither carries a fill in CSS at all - every arc and segment
+   writes its own fill and fill-opacity as an attribute, because which
+   holder is foil and how deep each tint runs is decided by the share order
+   in tools/render.ts, and a stylesheet cannot know that order.
+
+   .tenure-legend itself is styled by the .ledger rules above, which name it
+   in their own selectors rather than carrying a second copy of the same
+   numbers here: the legend is a ledger table, and the two must never drift
+   apart. It is not spelled class="ledger tenure-legend" in the markup
+   because .ledger's finish-1 and ledger-total rules are about a game's
+   results, and a holder's tenure is not a finish. */
+
+/* Both svgs are sized here, never by width/height attributes on the
+   element, so one change resizes every copy. max-width keeps the donut from
+   inflating into a wall decoration on a wide screen and the strip from
+   stretching its year labels apart. */
+.coin-donut { display: block; width: 100%; height: auto; max-width: 320px; margin: 0 auto; }
+.tenure-strip { display: block; width: 100%; height: auto; max-width: 620px; margin: 0 0 .5rem; }
+/* Browser default figure margin (1em 40px) would push the donut off-center
+   in its half of the .cols grid, the same reason .coin-figure above sets
+   this. */
+.donut-figure { margin: 0; }
+/* Labels on both drawings use the small monospace face .stat uses, at a
+   fixed pixel size: the svgs scale by their viewBox, so an em-based size
+   would shrink and grow with the drawing instead of staying legible. 8px
+   on the donut is the size tools/render.ts measures its labels against
+   (DONUT_CHAR); changing one without the other slides them off-center. */
+.donut-label { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 8px; fill: var(--ink); }
+.strip-tick { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 11px; fill: var(--muted-ink); }
+/* The January hairline: a drawn line, pewter like every other piece of
+   structure on this page, never a rarity metal (a year boundary is not a
+   signal, it is a ruler mark). */
+.strip-tick-line { stroke: var(--pewter-deep); stroke-width: 1; }
