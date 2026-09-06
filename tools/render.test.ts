@@ -1503,8 +1503,8 @@ describe("the stint loops read on a phone (final fix wave, #48)", () => {
     const full = renderHopeCoin(odoData(loopChain));
     const blocks = routeStopBlocks(full);
     for (const [i, how, places] of [
-      [1, "Drove it the whole way in the RV.", "Cinder Bend, Marrow Gap, Ochre Ridge"],
-      [3, "Took it out on the second trip.", "Quarry Row, Lantern Creek"],
+      [1, "Drove it the whole way in the RV.", "Cinder Bend \u00b7 Marrow Gap \u00b7 Ochre Ridge"],
+      [3, "Took it out on the second trip.", "Quarry Row \u00b7 Lantern Creek"],
     ] as const) {
       const block = blocks[i]!;
       const line = `<p class="stat">${places}</p>`;
@@ -1513,9 +1513,11 @@ describe("the stint loops read on a phone (final fix wave, #48)", () => {
       expect(block.indexOf(line)).toBeLessThan(block.indexOf('<svg class="route-loop"'));
     }
     // A stop with no route prints no such line: the places line exists only
-    // where there are places, never as an empty paragraph.
+    // where there are places, never as an empty paragraph. Checked on the
+    // separator, not on a place name - one of these three stops carries a
+    // `place`, which is a different line with the same class.
     for (const i of [0, 2, 4]) {
-      expect(blocks[i]!).not.toContain('<p class="stat">Salt Pan, ');
+      expect(blocks[i]!).not.toContain("\u00b7");
     }
   });
 

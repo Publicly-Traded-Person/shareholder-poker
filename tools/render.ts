@@ -1632,11 +1632,17 @@ export function renderHopeCoin(data: GamesData): string {
     // eighteen places the Coin has been used to exist nowhere on this page
     // except inside an SVG, which fails the site's own rule that every
     // chart also states its information in words (the plan's Global
-    // Constraints, and docs/brand.md). Names only, in route order, joined
-    // by commas: the border sentence stays on the drawing, where it labels
-    // the one tick it belongs to.
+    // Constraints, and docs/brand.md). Names only, in route order: the
+    // border sentence stays on the drawing, where it labels the one tick it
+    // belongs to.
+    //
+    // The separator is the site's own middle dot, never a comma (Mike's
+    // ruling, 2026-09-05): half these places carry a comma of their own,
+    // and "Hope, British Columbia, Cassiar Highway" reads as three places
+    // when it is two. The dot is the same one the nav and the card captions
+    // already use, so nothing new was invented to solve this.
     const routeText = stop.route?.length
-      ? `\n        <p class="stat">${esc(stop.route.join(", "))}</p>`
+      ? `\n        <p class="stat">${esc(stop.route.join(" · "))}</p>`
       : "";
 
     stopBlocks.push(`      <li class="route-stop${isCurrent ? " route-stop--current" : ""}">
