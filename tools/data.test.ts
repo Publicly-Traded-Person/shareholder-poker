@@ -91,6 +91,82 @@ describe("hope coin chain (Task 6)", () => {
       }
     }
   });
+
+  // Task 3, #48: Beau's figures pinned against the real chain. These four
+  // tests are the record's own statement of the odometer numbers driving
+  // the Hope Coin page's route graphic; a future correction to a leg's
+  // mileage or a road-trip route updates these pins in the same commit, on
+  // purpose, so nobody discovers the drift after the page has already
+  // shipped a wrong number.
+
+  // (a) [M1] The odometer total the coin page adds up: every milesIn plus
+  // every milesHeld across the whole chain. If a leg's mileage is ever
+  // corrected, or a stop's miles field added or removed, this sum moves and
+  // the pin must move with it in the same commit.
+  test("the sum of every milesIn and every milesHeld across the chain is 17677", () => {
+    const history = data.hopeCoin.history ?? [];
+    const total = history.reduce(
+      (sum, stop) => sum + (stop.milesIn ?? 0) + (stop.milesHeld ?? 0),
+      0
+    );
+    expect(total).toBe(17677);
+  });
+
+  // (b) [M2] Exactly two stops are road trips with a named route: both of
+  // Beau's RV stints. Pinning the exact arrays (not just their length)
+  // catches a place dropped, reordered, or misspelled on either leg.
+  test("exactly two stops carry a route, both beau-g's RV trips, with their exact stops and milesHeld", () => {
+    const history = data.hopeCoin.history ?? [];
+    const routed = history.filter(stop => stop.route !== undefined);
+    expect(routed.length).toBe(2);
+    for (const stop of routed) expect(stop.holder).toBe("beau-g");
+    expect(routed[0].route).toEqual([
+      "Petaluma",
+      "Puget Sound",
+      "Southern California",
+      "Pahrump",
+      "Las Vegas",
+      "San Diego",
+    ]);
+    expect(routed[0].milesHeld).toBe(5420);
+    expect(routed[1].route).toEqual([
+      "Seattle",
+      "Wenatchee",
+      "Bellingham",
+      "Hope, British Columbia",
+      "Cassiar Highway",
+      "Yukon",
+      "Fairbanks",
+      "Denali",
+      "Homer, Alaska",
+    ]);
+    expect(routed[1].milesHeld).toBe(4454);
+  });
+
+  // (c) [M3] milesIn is absent only on the first and last stops (nobody
+  // knows the mileage of the coin arriving at its own origin, and the last
+  // stop's figure rests on an assumed city per the brief) and present on
+  // every stop in between. A stop missing its figure fails by index here
+  // rather than silently leaving a gap in the page's odometer strip.
+  test("milesIn is absent at the first and last stop and present at every stop between", () => {
+    const history = data.hopeCoin.history ?? [];
+    expect(history.length).toBe(12);
+    expect(history[0].milesIn).toBeUndefined();
+    expect(history[history.length - 1].milesIn).toBeUndefined();
+    for (let i = 1; i <= history.length - 2; i++) {
+      expect(typeof history[i].milesIn).toBe("number");
+    }
+  });
+
+  // (d) [M4] The file stays in canonical JSON.stringify(data, null, 2) form
+  // with a trailing newline, so a published game (or this task's edit)
+  // appends as a small, readable diff rather than a reformatted blob.
+  test("the file text is the canonical JSON.stringify(data, null, 2) round trip, byte for byte", async () => {
+    const text = await Bun.file(
+      new URL("../site/data/games.json", import.meta.url)
+    ).text();
+    expect(text).toBe(JSON.stringify(JSON.parse(text), null, 2) + "\n");
+  });
 });
 
 describe("card set references", () => {

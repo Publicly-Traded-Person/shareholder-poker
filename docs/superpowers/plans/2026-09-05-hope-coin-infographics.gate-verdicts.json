@@ -1,0 +1,53 @@
+{
+ "tasks": {
+  "1": {
+   "hash": "3ea67a79e139b3f18a9a430eb0013b11cab6c7de4ec33b743ed66a25b74fa1c2",
+   "verdict": "pass",
+   "reason": "M1 falsified by leg (a) at the validator layer, including the milesIn: 0 boundary. M2's eight enumerated cases each have one leg asserting the thrown message matches both \"stop 2\" and \"bob\". M3 falsified in both directions by leg (j): the field-free chain still passes and the rule 0 through 4 cases still throw with their messages. Round 2."
+  },
+  "2": {
+   "hash": "584c9e80fb05f299099e917157af3ad55ea9eb764b36e3f5b7e7ea8e87358c2b",
+   "verdict": "pass",
+   "reason": "Pure functions proved by calling them with exact outputs. M1 pinned to the absolute value for both forms; M2 by deep equality on a four-stop chain plus the dated-first-stop case; M3's largest-remainder rounding by the [69, 16, 15] case, which rejects first-holder or largest-holder surplus; M4 by a chain with milesIn and milesHeld on one stop; M5 by all three enumerated values. Round 3."
+  },
+  "3": {
+   "hash": "819355bc943e7a58d0dbe3397de65c8daf1b5c4320e1f87ed207dba49c95bc07",
+   "verdict": "pass",
+   "reason": "All four clauses read the committed file. M1 by exact sum; M2 by route-filtered count, holder, both arrays, both milesHeld values; M3 by absence at index 0 and the last index and presence at every index between, pinned to length 12; M4 by a byte-for-byte round trip. Round 2."
+  },
+  "4": {
+   "hash": "3217819e008062de164cd7645bb566b922d9000ecbe7457f75305766e667e5fc",
+   "verdict": "pass",
+   "reason": "Asset layer throughout. M1 by identify (PNG, 900 square, alpha, bytes), a multiply mask whose maxima of exactly 0 fails on any opacity outside radius 450, and a screen mask whose minima of exactly 1 fails on any transparency inside radius 446. M2 by identify, four exact felt edge samples, and the untrimmed %@ box with W/H in 556..564 and the computed center within two pixels. M3 by a find whose empty output is the named absence. Round 6."
+  },
+  "5": {
+   "hash": "b7d4db24b761426a5b37e5cacaf74d04c5226528e1a1dcd5c83bcdc665841d7f",
+   "verdict": "pass",
+   "reason": "M1 at the render layer by (a) and (f), which pins the figure as the first child of the first band-light section's grid and names coin-figure as absent earlier. M2 has a leg per case (carded and uncarded) with the exact og:image. M3 and M4 read the stylesheet and the runbook section with named failures. M5's negations checked as absent substrings. Round 2."
+  },
+  "6": {
+   "hash": "e020f609b38699c284a36c1d2b5bc137bfe08630c0f0f1bec258bfa95d7f2f28",
+   "verdict": "pass",
+   "reason": "M1 across its enumerated cases: the Miles stat text and all three unmeasured phrasings, tile order with no fifth, Stops, a Places fixture that breaks non-deduplicating and road-counting implementations, both Longest-leg suffix cases. M2 by indexOf bounds against the coinHero fragment end and the heading. M3 by count, no leg before the first stop, the span wrapper, and whitespace-only adjacency to each stop. M4 by reading each declaration; M5 by named absences. Round 5."
+  },
+  "7": {
+   "hash": "fd027d6c86f21ef3503396691efe3fa1e60cbf5b688cdcd5620b062d790ec554",
+   "verdict": "pass",
+   "reason": "M1 by exact counts on the rendered loop including one circle per tick and the viewBox. M2 by the exact empty string and a five-stop chain with two routed stops, placement pinned inside each routed li after its how paragraph and absent from the other three. M3 by exactly one flag inside the British Columbia tick with the suffix, neither on the others. M4 read declaration by declaration across five rules. M5 on both loops. Round 3."
+  },
+  "8": {
+   "hash": "688d2168d9ed321699bda79f0a63d6ea7cf9c497e75ad07fd3d5cfba31d5138c",
+   "verdict": "pass",
+   "reason": "M1 and M3 by exact element and cell counts, class names, a fixture where holderShares order differs from chain order, and per-cell literals on two chains including a two-reign holder. M2 by widths 100/300/200 on a non-palindromic A, B, A chain and January ticks at both range edges plus a three-interior-year case. M4 by a games array whose max date is neither first nor last, both first-stop branches. M5 by an eight-holder fixture with the current holder mid-order, the full opacity list skipping the current holder, the no-other-fill negation, and arc/segment identity. M6 by U+2014 absence. Round 8."
+  },
+  "9": {
+   "hash": "6dff9b789bcdefcc083d0878ef09a5082711e694ce630a5020c3d7e88bab4723",
+   "verdict": "pass",
+   "reason": "M1 by the scoped porcelain Run required empty. M2's eight enumerated items each have a leg reading the committed page with exact counts and an exactly-zero check for the em dash. M3 by existence and non-zero size of both assets. M4 by the suite's exit code and fail count; M5 by tying the CLAUDE.md comment to the printed pass count. Round 2."
+  }
+ },
+ "tally": {
+  "dispatched": 33,
+  "rejected": 23
+ }
+}

@@ -192,3 +192,65 @@ describe("none of those blocks reaches for the lime CTA custom property (#27 tas
     expect(containsLime(".trophy { color: var(--lime); }")).toBe(true);
   });
 });
+
+// Splits one already-comment-free rule body into a property -> value map
+// (each value trimmed, the last write for a repeated property wins - the
+// same "last declaration in source order applies" rule the cascade itself
+// follows, so this reads a rule the way a browser would). Takes a rule's
+// `{ ... }` interior text; returns the map; throws nothing (a body with no
+// colons just yields an empty map).
+function declarations(body: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const part of body.split(";")) {
+    const colon = part.indexOf(":");
+    if (colon === -1) continue;
+    const prop = part.slice(0, colon).trim();
+    if (prop) out[prop] = part.slice(colon + 1).trim();
+  }
+  return out;
+}
+
+// The coin's own photo frame (Task 5, #48, M3): the hero image at the top
+// of /hope-coin/ clips to a circle (the coin itself is round; the source
+// photo is not), the image inside it fills that circle at its own aspect
+// ratio, and the <figure> wrapping both carries none of the browser's
+// default figure margin (1em 40px), which would otherwise shove the coin
+// off-center in its half of the .cols grid and misalign the caption under
+// it - the same reason .card-grid figure { margin: 0 } exists above.
+describe("site/styles.css: the coin frame and figure (Task 5, #48, M3)", () => {
+  const clean = stripComments(readFileSync(CSS_PATH, "utf8"));
+  const allRules = rules(clean);
+  const findRule = (selector: string) => allRules.find((r) => r.selector.trim() === selector);
+
+  test("`.coin-frame` clips its contents to a circle", () => {
+    const frame = findRule(".coin-frame");
+    expect(frame, "no `.coin-frame` rule in site/styles.css").toBeDefined();
+    const decl = declarations(frame!.body);
+    expect(decl["border-radius"]).toBe("50%");
+    expect(decl["overflow"]).toBe("hidden");
+  });
+
+  test("`.coin-frame img` fills the frame at its own aspect ratio", () => {
+    const img = findRule(".coin-frame img");
+    expect(img, "no `.coin-frame img` rule in site/styles.css").toBeDefined();
+    const decl = declarations(img!.body);
+    expect(decl["width"]).toBe("100%");
+    expect(decl["height"]).toBe("auto");
+  });
+
+  test("`.coin-figure` carries no margin of its own", () => {
+    const figure = findRule(".coin-figure");
+    expect(figure, "no `.coin-figure` rule in site/styles.css").toBeDefined();
+    const decl = declarations(figure!.body);
+    expect(decl["margin"]).toBe("0");
+  });
+
+  // Proves the check itself works, the same way the fill/stroke block above
+  // pins its own predicate against a literal rather than only the real
+  // file: a stylesheet missing one of the three declarations this leg
+  // names must fail it, not silently read as "not present, so not wrong."
+  test("a rule missing one of the three declarations fails the check that names it", () => {
+    const broken = declarations(rules(".coin-frame { border-radius: 50%; }")[0].body);
+    expect(broken["overflow"]).toBeUndefined();
+  });
+});

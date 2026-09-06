@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import {
   esc, recordQualifier, renderStandings, renderGamesIndex, renderNextGameIcs, secondTuesday,
-  playerSlugs, renderPlayer, renderHopeCoin,
+  playerSlugs, renderPlayer, renderHopeCoin, coinHero, odometerTiles, routeLoop, holdersSection,
 } from "./render";
-import { deriveStandings, type GamesData } from "./lib/standings";
+import { deriveStandings, type GamesData, type HopeCoinStop } from "./lib/standings";
 import { TROPHIES, displayOrder, visibleTrophies } from "./lib/trophies";
 
 const data: GamesData = {
@@ -957,16 +958,56 @@ describe("renderHopeCoin", () => {
     expect(html).not.toContain("btn-primary");
   });
 
-  // Final fix wave, item 4: /hope-coin/ used to pass no `image` option at
-  // all, so every unfurl showed page()'s DEFAULT_OG_IMAGE (July's foil
-  // champion card) no matter who actually held the Coin. Both branches of
-  // newestCardImage() get their own case here rather than trusting hcData's
-  // holder alone, because hcData's own nick-m happens to have no card, so it
-  // only ever exercised the fallback branch.
-  test("M7: og:image is the current holder's newest card when they have one", () => {
-    // nick-m carries no card anywhere in hcData - a real branch worth its
-    // own fixture, since hcData's holder always taking the fallback would
-    // never prove the "holder has a card" branch actually works.
+  // Task 5 (#48), M1, leg (f): the page's first band-light section opens
+  // straight into the coin grid - nothing (not even whitespace-adjacent
+  // markup) gets to stand ahead of the coin photo, and "coin-figure" itself
+  // must not appear anywhere earlier in the document (the masthead, an
+  // og:image URL, a stray comment). A page that puts any element ahead of
+  // the grid or the coin in an earlier block - the old heading-first layout,
+  // say - fails this exact test.
+  test("M1 leg (f): the first band-light section opens directly into the coin grid, coin-figure appears nowhere before it", () => {
+    const sectionIdx = html.indexOf('<section class="band-light">');
+    expect(sectionIdx).toBeGreaterThan(-1);
+    const afterSection = html.slice(sectionIdx);
+    const opener = /^<section class="band-light">\s*<div class="band-inner">\s*<div class="cols">\s*<figure class="coin-figure">/;
+    expect(opener.test(afterSection)).toBe(true);
+    expect(html.indexOf("coin-figure")).toBeGreaterThan(sectionIdx);
+  });
+
+  // Task 5 (#48), M1, leg (a) second half: the grid coinHero() returns is
+  // what actually lands in the page, ahead of "The journey" - not a second,
+  // divergent copy of the same markup.
+  test("M1 leg (a): renderHopeCoin places coinHero's own markup before The journey heading", () => {
+    const hero = coinHero(hcData);
+    const heroIdx = html.indexOf(hero);
+    const journeyIdx = html.indexOf('<h2 class="rule-label">The journey</h2>');
+    expect(heroIdx).toBeGreaterThan(-1);
+    expect(journeyIdx).toBeGreaterThan(heroIdx);
+  });
+
+  // Task 5 (#48), M2: the coin's own hero photo now unfurls every share of
+  // /hope-coin/, replacing the "current holder's newest card" og:image the
+  // two tests below used to pin (that was the final fix wave's own fix for
+  // "every unfurl showed page()'s DEFAULT_OG_IMAGE no matter who held the
+  // Coin" - a real improvement over the site default, but still a card, on
+  // a page about a coin). newestCardImage() stays in tools/render.ts for the
+  // player pages, which still want a player's own newest card - it is simply
+  // no longer this page's `image` option. The carded-holder fixture below is
+  // the same shape the old M7 test built, reused here as the case that
+  // failed before this task landed: it used to carry a `/cards/` og:image,
+  // and after this task it must not.
+  test("M2: og:image is the coin's own unfurl image for an uncarded holder, never a /cards/ URL", () => {
+    expect(html).toContain(
+      '<meta property="og:image" content="https://poker.kmikeym.com/hope-coin/assets/coin-og.png">'
+    );
+    expect(html).not.toMatch(/og:image" content="https:\/\/poker\.kmikeym\.com\/cards\//);
+  });
+
+  test("M2: og:image stays the coin's own unfurl image even when the current holder HAS a card", () => {
+    // nick-m carries no card anywhere in hcData, so this fixture (identical
+    // to the old M7 test's) is what actually exercises the "holder has a
+    // card" branch of newestCardImage() - proving this page's og:image no
+    // longer reaches for it, not merely that hcData never triggered it.
     const cardedData: GamesData = {
       ...hcData,
       games: [
@@ -984,18 +1025,9 @@ describe("renderHopeCoin", () => {
     };
     const cardedHtml = renderHopeCoin(cardedData);
     expect(cardedHtml).toContain(
-      '<meta property="og:image" content="https://poker.kmikeym.com/cards/2026-04/assets/card-1-nick-m.png">'
+      '<meta property="og:image" content="https://poker.kmikeym.com/hope-coin/assets/coin-og.png">'
     );
-  });
-
-  test("M7: og:image falls back to the site default when the current holder has never been carded", () => {
-    // hcData's holder, nick-m, has no `card` on any result in the fixture -
-    // the legitimate "pre-spine holder" shape (see newestCardImage's own
-    // comment in tools/render.ts), so this must fall back rather than 404
-    // on a card that does not exist.
-    expect(html).toContain(
-      '<meta property="og:image" content="https://poker.kmikeym.com/cards/2026-07/assets/card-1-lewd.png">'
-    );
+    expect(cardedHtml).not.toMatch(/og:image" content="https:\/\/poker\.kmikeym\.com\/cards\//);
   });
 
   // M8 (spec follow-up 2026-09-03, task 11): hopeCoin.historyPending. The
@@ -1048,5 +1080,1006 @@ describe("renderHopeCoin", () => {
       hopeCoin: { ...hcData.hopeCoin, historyPending: false },
     });
     expect(falseHtml).not.toContain(SENTENCE);
+  });
+});
+
+// Task 5 (#48): coinHero(data) is the grid that opens the Hope Coin page -
+// the coin's own photo beside the copy that used to open the page on its
+// own (the display heading, the "what is the Coin" paragraph, the holder
+// tile). Exported on its own (the task's Interface) so these tests can
+// check the grid's shape directly, without also parsing the rest of the
+// document renderHopeCoin returns.
+describe("coinHero (Task 5, #48)", () => {
+  const hero = coinHero(hcData);
+
+  test("M1: opens with the cols grid, whose first child is the coin figure holding the framed, captioned coin image", () => {
+    expect(hero).toStartWith('<div class="cols">');
+    const figureIdx = hero.indexOf('<figure class="coin-figure">');
+    expect(figureIdx).toBeGreaterThan(-1);
+    // Nothing but the grid opener and whitespace stands ahead of the figure.
+    expect(hero.slice(0, figureIdx).replace(/\s/g, "")).toBe('<divclass="cols">');
+
+    // The framed image: the right source, both dimensions, and a real alt
+    // (non-empty, so a screen reader gets something other than a blank).
+    const img = /<div class="coin-frame"><img src="\/hope-coin\/assets\/coin\.png" width="900" height="900" alt="([^"]+)">/
+      .exec(hero);
+    expect(img).not.toBeNull();
+    expect(img![1].trim().length).toBeGreaterThan(0);
+
+    // The caption, verbatim - Beau's own words for what the coin's engraving
+    // says about itself, quoted exactly rather than paraphrased.
+    expect(hero).toContain(
+      '<figcaption class="stat">It\'s not the cards, it\'s the player. The coin shows 7-2, the hand with its own bounty.</figcaption>'
+    );
+  });
+
+  test("M1: the grid's second child carries the display heading, then the intro paragraph, then the holder tile, in that order", () => {
+    const figureCloseIdx = hero.indexOf("</figure>");
+    const headingIdx = hero.indexOf('<h1 class="display">The Hope Coin');
+    const introIdx = hero.indexOf("The Hope Coin is the game's traveling trophy");
+    const tileIdx = hero.indexOf('<div class="tile">');
+    expect(figureCloseIdx).toBeGreaterThan(-1);
+    // All three land after the coin figure closes - inside the grid's
+    // SECOND child, not stuffed into the figure itself.
+    expect(headingIdx).toBeGreaterThan(figureCloseIdx);
+    expect(introIdx).toBeGreaterThan(headingIdx);
+    expect(tileIdx).toBeGreaterThan(introIdx);
+  });
+
+  test("M1: still shows the current holder, their since date, and a real skull tally - the tile this grid carries forward unchanged", () => {
+    const s = deriveStandings(hcData);
+    expect(hero).toContain("Nick M.");
+    expect(hero).toContain(hcData.hopeCoin.since);
+    expect(hero).toContain(`<span class="stat">${s.hopeCoin.skulls["nick-m"]} of 3</span> skulls`);
+  });
+
+  test("M5: the grid's own markup carries no em dash and no btn-primary", () => {
+    expect(hero).not.toContain("—");
+    expect(hero).not.toContain("btn-primary");
+  });
+});
+
+// Task 6 (#48): odometerTiles(data) and the leg labels in the journey list.
+// A synthetic five-stop chain of its own, per the task brief (invented
+// slugs, small integers for miles, one stop with a two-name route), rather
+// than reusing hcData above - these tests need small, exact numbers whose
+// sums and maxima are easy to hand-check, and a route/place overlap hcData
+// does not carry.
+//
+//   ada-w - first stop, no milesIn (nobody remembers what leg brought the
+//           Coin here in the first place - see the HopeCoinStop comment in
+//           lib/standings.ts), place "Anchorage".
+//   bly-r - milesIn 12, place "Yukon" - the SAME name as one of cly-d's
+//           route waypoints below, on purpose: the Places tile must count
+//           it once, not twice.
+//   cly-d - milesIn 8, milesHeld 40 with a two-name route ["Yukon",
+//           "Cassiar Highway"] - the RV stint, and (with every milesIn kept
+//           small) the fixture's single longest leg.
+//   dre-k - no milesIn at all: the fixture's one unmeasured leg. Its own
+//           place, "On the road to Reno", begins "On the road" and must
+//           not count toward the Places tile.
+//   eli-n - milesIn 25, place "Fresno", the current stop.
+const odoChain: HopeCoinStop[] = [
+  { holder: "ada-w", to: "2024-01-01", place: "Anchorage",
+    how: "Held it since before anyone kept records." },
+  { holder: "bly-r", from: "2024-01-01", to: "2024-03-01", place: "Yukon", milesIn: 12,
+    how: "Handed it off on the road north." },
+  { holder: "cly-d", from: "2024-03-01", to: "2024-06-01", milesIn: 8, milesHeld: 40,
+    route: ["Yukon", "Cassiar Highway"], how: "Drove it the whole way in the RV." },
+  { holder: "dre-k", from: "2024-06-01", to: "2024-09-01", place: "On the road to Reno",
+    how: "Passed it at a rest stop." },
+  { holder: "eli-n", from: "2024-09-01", milesIn: 25,
+    how: "Took the coin at the final table.", place: "Fresno" },
+];
+
+const odoPlayers = [
+  { slug: "ada-w", name: "Ada W.", aka: ["adaw"] },
+  { slug: "bly-r", name: "Bly R.", aka: ["blyr"] },
+  { slug: "cly-d", name: "Cly D.", aka: ["clyd"] },
+  { slug: "dre-k", name: "Dre K.", aka: ["drek"] },
+  { slug: "eli-n", name: "Eli N.", aka: ["elin"] },
+];
+
+// Wraps one history array in the rest of the GamesData shape odometerTiles
+// and renderHopeCoin both need. A function, not a single constant, because
+// several legs below build a small variant of odoChain (one field on one
+// stop changed) and need a fresh GamesData around it each time.
+function odoData(history: HopeCoinStop[]): GamesData {
+  const last = history[history.length - 1];
+  return {
+    nextGame: { date: "2026-10-13", time: "7:00pm PT" },
+    hopeCoin: { holder: last.holder, since: last.from ?? "2024-09-01", history },
+    players: odoPlayers,
+    games: [],
+  };
+}
+
+// Pulls one tile's whole `<div class="tile">...</div>` block out by its
+// `<h3>` text, so a test can check what lands INSIDE that one tile without
+// a stray match from a neighboring tile - safe because no tile's own body
+// ever nests a further `<div>` for this fixture's markup.
+function tileFor(html: string, heading: string): string {
+  const re = new RegExp(`<div class="tile">\\s*<h3>${heading}</h3>[\\s\\S]*?</div>`);
+  return re.exec(html)?.[0] ?? "";
+}
+
+describe("odometerTiles and the leg labels (Task 6, #48)", () => {
+  const html = odometerTiles(odoData(odoChain));
+
+  // M1 leg (a): the shared five-stop chain has milesIn on stops 2 (12), 3
+  // (8), and 5 (25), milesHeld 40 with a two-name route on stop 3, and
+  // stop 4 unmeasured. onRecord = 12 + (8 + 40) + 25 = 85; the one
+  // unmeasured leg (stop 4 - stop 1 is never counted, see odometer()'s own
+  // comment) reads "plus one leg still unmeasured."
+  test('M1 leg (a): the Miles tile\'s <p class="stat"> is the formatted sum plus " miles on record", second line names the one unmeasured leg', () => {
+    const tile = tileFor(html, "Miles");
+    expect(tile).toContain('<p class="stat">85 miles on record</p>');
+    expect(tile).toContain("<p>by Beau's count, plus one leg still unmeasured</p>");
+  });
+
+  test('M1 leg (a): giving stop 4 a milesIn leaves every leg measured, so the second line reads "by Beau\'s count" alone', () => {
+    const measured = odoChain.map((s, i) => (i === 3 ? { ...s, milesIn: 5 } : s));
+    const tile = tileFor(odometerTiles(odoData(measured)), "Miles");
+    expect(tile).toContain("<p>by Beau's count</p>");
+    expect(tile).not.toContain("unmeasured");
+  });
+
+  test('M1 leg (a): a second unmeasured leg (stop 5, alongside stop 4) reads "plus 2 legs still unmeasured"', () => {
+    const twoUnmeasured = odoChain.map((s, i) => (i === 4 ? { ...s, milesIn: undefined } : s));
+    const tile = tileFor(odometerTiles(odoData(twoUnmeasured)), "Miles");
+    expect(tile).toContain("<p>by Beau's count, plus 2 legs still unmeasured</p>");
+  });
+
+  test("M1 leg (b): the markup is exactly four tiles, Miles/Stops/Places/Longest leg in that order, no fifth", () => {
+    expect(html).toStartWith('<div class="tiles tiles--4">');
+    const headings = [...html.matchAll(/<div class="tile">\s*<h3>([^<]+)<\/h3>/g)].map((m) => m[1]);
+    expect(headings).toEqual(["Miles", "Stops", "Places", "Longest leg"]);
+  });
+
+  test("M1 leg (b): the Stops tile reads the plain stop count", () => {
+    expect(tileFor(html, "Stops")).toContain('<p class="stat">5</p>');
+  });
+
+  // Places: {Anchorage, Yukon, Cassiar Highway, Fresno} = 4 distinct names.
+  // bly-r's place "Yukon" duplicates cly-d's route waypoint "Yukon" (must
+  // collapse to one), and dre-k's "On the road to Reno" must not count at
+  // all. A non-deduplicating implementation would read 5 (3 places outside
+  // "On the road" + 2 route names, not collapsed); a road-counting
+  // implementation would also read 5 (4 correctly-deduplicated names plus
+  // the road entry). Only the correct implementation reads 4.
+  test("M1 leg (b): the Places tile reads the deduplicated, road-excluded count", () => {
+    expect(tileFor(html, "Places")).toContain('<p class="stat">4</p>');
+  });
+
+  test("M1 leg (b): the Longest leg tile shows the fixture's 40-mile route stop, its holder, and the on-the-road suffix", () => {
+    expect(tileFor(html, "Longest leg")).toContain('<p class="stat">40 miles, Cly D., on the road</p>');
+  });
+
+  test("M1 leg (b): the on-the-road suffix is absent when a milesIn figure (1,200) is the largest instead", () => {
+    const bigLeg = odoChain.map((s, i) => (i === 1 ? { ...s, milesIn: 1200 } : s));
+    const tile = tileFor(odometerTiles(odoData(bigLeg)), "Longest leg");
+    expect(tile).toContain('<p class="stat">1,200 miles, Bly R.</p>');
+    expect(tile).not.toContain("on the road");
+  });
+
+  test("M2 leg (c): in renderHopeCoin, odometerTiles lands at or after coinHero's own markup ends, and before The journey heading", () => {
+    const data = odoData(odoChain);
+    const full = renderHopeCoin(data);
+    const hero = coinHero(data);
+    const heroIdx = full.indexOf(hero);
+    expect(heroIdx).toBeGreaterThan(-1);
+    const tilesIdx = full.indexOf(odometerTiles(data));
+    const journeyIdx = full.indexOf("The journey");
+    expect(tilesIdx).toBeGreaterThanOrEqual(heroIdx + hero.length);
+    expect(tilesIdx).toBeLessThan(journeyIdx);
+  });
+
+  test("M3 leg (d): exactly stopCount-1 route-leg items, none before the first stop, each a bare stat span", () => {
+    const full = renderHopeCoin(odoData(odoChain));
+    const legOpenTags = full.match(/<li class="route-leg">/g) ?? [];
+    expect(legOpenTags.length).toBe(4);
+
+    const legMatches = [...full.matchAll(/<li class="route-leg"><span class="stat">([^<]*)<\/span><\/li>/g)];
+    expect(legMatches.length).toBe(4);
+    // Stop 2 through 5's own figures, in order: 12, 8, unmeasured, 25.
+    expect(legMatches.map((m) => m[1])).toEqual(["12 miles", "8 miles", "unmeasured", "25 miles"]);
+
+    // The very first <li> inside the <ol> is a route-stop, not a leg: no
+    // leg precedes the first stop.
+    const olIdx = full.indexOf('<ol class="route">');
+    const firstLiIdx = full.indexOf("<li", olIdx);
+    expect(full.startsWith('<li class="route-stop', firstLiIdx)).toBe(true);
+
+    // For stops 2 through 5, the gap between that stop's own leg's closing
+    // </li> and the stop's opening <li class="route-stop is whitespace
+    // only - the leg sits immediately ahead of its own stop, not batched
+    // as a block elsewhere in the list.
+    const stopOpenTags = [...full.matchAll(/<li class="route-stop[^"]*">/g)];
+    expect(stopOpenTags.length).toBe(5);
+    for (let i = 0; i < legMatches.length; i++) {
+      const legEnd = legMatches[i].index! + legMatches[i][0].length;
+      const stopStart = stopOpenTags[i + 1].index!;
+      expect(full.slice(legEnd, stopStart).trim()).toBe("");
+    }
+  });
+
+  test("M5 leg (f): the tiles and the leg labels carry no em dash, \"about,\" or \"roughly\"", () => {
+    const full = renderHopeCoin(odoData(odoChain));
+    const legsHtml = (full.match(/<li class="route-leg">[\s\S]*?<\/li>/g) ?? []).join("\n");
+    for (const forbidden of ["—", "about", "roughly"]) {
+      expect(html).not.toContain(forbidden);
+      expect(legsHtml).not.toContain(forbidden);
+    }
+  });
+});
+
+// Task 7 (#48): the stint loops. A stop whose holder drove the Coin around
+// carries a `route` (the places it rode through) and `milesHeld`, and that
+// trip is drawn as a loop off the journey's line inside that stop's own
+// <li>. The chain below invents its places, as every fixture in this file
+// does, EXCEPT the border test further down: the flag is keyed on a name
+// containing "British Columbia", so that one leg has to spell a real
+// crossing or it would not be testing the rule the site actually ships.
+//
+// Two routed stops (2 and 4) with three plain stops around and between
+// them, so a renderer that drew only the first routed stop, only the last,
+// or a loop on every stop all fail the placement leg below.
+const loopChain: HopeCoinStop[] = [
+  { holder: "ada-w", to: "2024-01-01", place: "Tumbleweed Flat",
+    how: "Held it since before anyone kept records." },
+  { holder: "bly-r", from: "2024-01-01", to: "2024-03-01", milesIn: 12, milesHeld: 1234,
+    route: ["Cinder Bend", "Marrow Gap", "Ochre Ridge"],
+    how: "Drove it the whole way in the RV." },
+  { holder: "cly-d", from: "2024-03-01", to: "2024-06-01", milesIn: 8, place: "Salt Pan",
+    how: "Kept it on the shelf all spring." },
+  { holder: "dre-k", from: "2024-06-01", to: "2024-09-01", milesIn: 30, milesHeld: 640,
+    route: ["Quarry Row", "Lantern Creek"],
+    how: "Took it out on the second trip." },
+  { holder: "eli-n", from: "2024-09-01", milesIn: 25, place: "Fresno",
+    how: "Took the coin at the final table." },
+];
+
+// The three-name stint the M1 legs measure, pulled out by name so a leg
+// reads as "this stop" rather than "index 1 of the chain".
+const threeNameStop = loopChain[1]!;
+
+// Pulls each `<g class="route-tick">...</g>` group out whole, in document
+// order - the same non-greedy whole-block extraction routeStopBlocks uses
+// above, and exact for the same reason: tick groups never nest, so a match
+// to the next `</g>` cannot bleed into the neighboring tick.
+function tickGroups(svg: string): string[] {
+  return [...svg.matchAll(/<g class="route-tick">[\s\S]*?<\/g>/g)].map((m) => m[0]);
+}
+
+// The text content of one tick group's own `<text>` element (the place
+// name, plus the border sentence on the one crossing). Returns "" when the
+// group carries no text at all, so a leg asserting on the name fails on the
+// name rather than on a thrown match error.
+function tickText(group: string): string {
+  return /<text[^>]*>([\s\S]*?)<\/text>/.exec(group)?.[1] ?? "";
+}
+
+describe("routeLoop and the stint loops (Task 7, #48)", () => {
+  const loop = routeLoop(threeNameStop);
+
+  test("M1 leg (a): the loop is an <svg class=\"route-loop\"> carrying a viewBox and exactly one route-loop-path", () => {
+    expect(loop).toStartWith('<svg class="route-loop" viewBox="');
+    expect(loop).toMatch(/^<svg class="route-loop" viewBox="[\d .]+"/);
+    expect(loop.match(/class="route-loop-path"/g)?.length).toBe(1);
+  });
+
+  test("M1 leg (a): exactly three tick groups, their texts the three place names in route order, no fourth", () => {
+    const groups = tickGroups(loop);
+    expect(groups.length).toBe(3);
+    expect(groups.map(tickText)).toEqual(["Cinder Bend", "Marrow Gap", "Ochre Ridge"]);
+  });
+
+  test("M1 leg (a): each tick group holds exactly one <circle>", () => {
+    for (const group of tickGroups(loop)) {
+      expect(group.match(/<circle\b/g)?.length).toBe(1);
+    }
+  });
+
+  test('M1 leg (a): exactly one miles text, reading the formatted milesHeld plus " miles on the road"', () => {
+    const miles = [...loop.matchAll(/<text class="route-loop-miles"[^>]*>([\s\S]*?)<\/text>/g)];
+    expect(miles.length).toBe(1);
+    expect(miles[0]![1]).toBe("1,234 miles on the road");
+  });
+
+  test("M2 leg (b): a stop with no route renders exactly the empty string", () => {
+    const parked: HopeCoinStop = {
+      holder: "cly-d", from: "2024-03-01", to: "2024-06-01", place: "Salt Pan",
+      how: "Kept it on the shelf all spring.",
+    };
+    expect(routeLoop(parked)).toBe("");
+  });
+
+  test("M2 leg (b): renderHopeCoin draws a loop inside each routed stop's own <li>, after its how paragraph, and nowhere else", () => {
+    const full = renderHopeCoin(odoData(loopChain));
+    expect(full.match(/<svg class="route-loop"/g)?.length).toBe(2);
+
+    const blocks = routeStopBlocks(full);
+    expect(blocks.length).toBe(5);
+    for (const [i, how] of [[1, "Drove it the whole way in the RV."], [3, "Took it out on the second trip."]] as const) {
+      const block = blocks[i]!;
+      const howHtml = `<p>${how}</p>`;
+      expect(block).toContain(howHtml);
+      // The loop lands AFTER the how sentence, inside the same stop's <li>.
+      expect(block.indexOf('<svg class="route-loop"')).toBeGreaterThan(block.indexOf(howHtml));
+    }
+    for (const i of [0, 2, 4]) {
+      expect(blocks[i]!).not.toContain("route-loop");
+    }
+  });
+
+  const borderStop: HopeCoinStop = {
+    holder: "bly-r", from: "2024-01-01", to: "2024-03-01", milesIn: 12, milesHeld: 2400,
+    route: ["Cinder Bend", "Hope, British Columbia", "Marrow Gap"],
+    how: "Drove it north and back.",
+  };
+  const borderLoop = routeLoop(borderStop);
+
+  test("M3 leg (c): exactly one route-flag, inside the British Columbia tick, whose text names the crossing", () => {
+    expect(borderLoop.match(/class="route-flag"/g)?.length).toBe(1);
+    const groups = tickGroups(borderLoop);
+    expect(groups.length).toBe(3);
+    const flagged = groups.filter((g) => g.includes("route-flag"));
+    expect(flagged.length).toBe(1);
+    expect(tickText(flagged[0]!)).toBe("Hope, British Columbia, the coin's one border crossing");
+  });
+
+  test("M3 leg (c): the other two ticks carry neither the flag nor the border sentence", () => {
+    const plain = tickGroups(borderLoop).filter((g) => !g.includes("British Columbia"));
+    expect(plain.length).toBe(2);
+    for (const group of plain) {
+      expect(group).not.toContain("route-flag");
+      expect(group).not.toContain("border crossing");
+    }
+  });
+
+  // Review finding (2026-09-05): the first cut re-anchored an overflowing
+  // label to the frame's edge, which for a short route with a long name
+  // traded a right-edge overflow for a left-edge one - the three-name
+  // British Columbia fixture above rendered its 53-character label running
+  // off the left side, clipped by the svg's own viewBox. This leg pins the
+  // numeric bound rather than the anchor, using the same 6.6-units-per-
+  // character estimate routeLoop() measures with, so any future placement
+  // scheme has to keep every label on the drawing to pass.
+  //
+  // The final fix wave (2026-09-05) moved the per-character estimate: the
+  // drawing now emits its own font-size in user units, so a character is
+  // 0.6 of THAT size rather than a flat 6.6 units. The bound this leg
+  // checks is unchanged; only the measurement follows the type.
+  test("every text on the loop stays inside the viewBox, at the shortest route that carries the long border label", () => {
+    const viewBox = /viewBox="0 0 ([\d.]+) [\d.]+"/.exec(borderLoop);
+    expect(viewBox).not.toBeNull();
+    const frameWidth = Number.parseFloat(viewBox![1]!);
+    const charWidth = Number.parseFloat(/font-size="([\d.]+)"/.exec(borderLoop)![1]!) * 0.6;
+
+    const texts = [...borderLoop.matchAll(/<text[^>]*\bx="([\d.-]+)"[^>]*text-anchor="(\w+)"[^>]*>([\s\S]*?)<\/text>/g)];
+    // Three tick names plus the mileage: if this count ever drops, the
+    // regex stopped matching and the bounds below stopped being checked.
+    expect(texts.length).toBe(4);
+    for (const [, xAttr, anchor, content] of texts) {
+      const x = Number.parseFloat(xAttr!);
+      const w = content!.length * charWidth;
+      const start = anchor === "middle" ? x - w / 2 : anchor === "end" ? x - w : x;
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(start + w).toBeLessThanOrEqual(frameWidth);
+    }
+  });
+
+  test("M5 leg (e): neither loop carries an em dash", () => {
+    expect(loop).not.toContain("—");
+    expect(borderLoop).not.toContain("—");
+  });
+});
+
+// The final fix wave (2026-09-05, whole-branch review finding 1). The loops
+// were legible on a desktop and about four pixels tall on a phone, and nine
+// of the eighteen places the Coin has been existed nowhere on the page
+// except inside an SVG. Three changes answer that, and these legs pin all
+// three: the places are printed as text beside the drawing; the type size
+// is emitted in user units so it scales with the frame instead of with the
+// frame's own width; and the drawing sits in a scroll container so a narrow
+// screen pans it rather than shrinking it.
+describe("the stint loops read on a phone (final fix wave, #48)", () => {
+  // The two drawings this block measures, rebuilt here rather than reached
+  // for across the describe above: the three-name stint from the chain, and
+  // the border stint, whose long label gives the frame a different width.
+  const loop = routeLoop(loopChain[1]!);
+  const borderLoop = routeLoop({
+    holder: "bly-r", from: "2024-01-01", to: "2024-03-01", milesIn: 12, milesHeld: 2400,
+    route: ["Cinder Bend", "Hope, British Columbia", "Marrow Gap"],
+    how: "Drove it north and back.",
+  });
+
+  // The type size routeLoop must emit for a frame of `width` user units:
+  // 11px at the 540-unit reference frame `.route-loop`'s max-width sets,
+  // scaled so every loop on the page renders its names at the same size.
+  const expectedFontSize = (width: number) => Number(((11 * width) / 540).toFixed(1));
+
+  test("finding 1a: each routed stop prints its places as text, after the how sentence and before the drawing", () => {
+    const full = renderHopeCoin(odoData(loopChain));
+    const blocks = routeStopBlocks(full);
+    for (const [i, how, places] of [
+      [1, "Drove it the whole way in the RV.", "Cinder Bend \u00b7 Marrow Gap \u00b7 Ochre Ridge"],
+      [3, "Took it out on the second trip.", "Quarry Row \u00b7 Lantern Creek"],
+    ] as const) {
+      const block = blocks[i]!;
+      const line = `<p class="stat">${places}</p>`;
+      expect(block).toContain(line);
+      expect(block.indexOf(line)).toBeGreaterThan(block.indexOf(`<p>${how}</p>`));
+      expect(block.indexOf(line)).toBeLessThan(block.indexOf('<svg class="route-loop"'));
+    }
+    // A stop with no route prints no such line: the places line exists only
+    // where there are places, never as an empty paragraph. Checked on the
+    // separator, not on a place name - one of these three stops carries a
+    // `place`, which is a different line with the same class.
+    for (const i of [0, 2, 4]) {
+      expect(blocks[i]!).not.toContain("\u00b7");
+    }
+  });
+
+  test("finding 1b: every text on a loop carries a font-size in user units, scaled to that loop's frame", () => {
+    for (const svg of [loop, borderLoop]) {
+      const width = Number.parseFloat(/viewBox="0 0 ([\d.]+) /.exec(svg)![1]!);
+      const size = String(expectedFontSize(width));
+      const texts = [...svg.matchAll(/<text[^>]*>/g)].map((m) => m[0]);
+      // Every tick name plus the mileage: a loop that emitted the attribute
+      // on only some of its text would leave those names at the CSS size.
+      expect(texts.length).toBe(4);
+      for (const text of texts) {
+        expect(text).toContain(`font-size="${size}"`);
+      }
+    }
+  });
+
+  test("finding 1b: the two frames differ in width, so the scaling above is actually exercised", () => {
+    const w1 = Number.parseFloat(/viewBox="0 0 ([\d.]+) /.exec(loop)![1]!);
+    const w2 = Number.parseFloat(/viewBox="0 0 ([\d.]+) /.exec(borderLoop)![1]!);
+    expect(w1).not.toBe(w2);
+    expect(expectedFontSize(w1)).not.toBe(expectedFontSize(w2));
+  });
+
+  test("finding 1c: each loop sits inside the repo's own .table-scroll container", () => {
+    const full = renderHopeCoin(odoData(loopChain));
+    const wrapped = [...full.matchAll(/<div class="table-scroll route-scroll"><svg class="route-loop"[\s\S]*?<\/svg><\/div>/g)];
+    expect(wrapped.length).toBe(2);
+    // No loop escapes the container: every route-loop svg on the page is
+    // one of the two matched above.
+    expect(full.match(/<svg class="route-loop"/g)?.length).toBe(2);
+  });
+
+  test("finding 1c: .route-loop carries a min-width so a narrow screen pans instead of shrinking the names", () => {
+    const css = stripCssComments(readFileSync(CSS_PATH, "utf8"));
+    const rule = cssRules(css).find((r) => r.selector === ".route-loop");
+    expect(rule).toBeDefined();
+    const min = declValue(rule!.body, "min-width");
+    expect(min).toMatch(/^\d+px$/);
+    expect(Number.parseFloat(min!)).toBeGreaterThanOrEqual(400);
+    // The scroll container is what absorbs that overflow, so the page body
+    // itself still never scrolls sideways.
+    const scroll = cssRules(css).find((r) => r.selector === ".table-scroll");
+    expect(declValue(scroll!.body, "overflow-x")).toBe("auto");
+  });
+
+  test("finding 7: each loop opens with a <title> naming the holder and the ends of the route", () => {
+    const named = routeLoop(threeNameStop, "Bly R.");
+    expect(named).toContain("<title>Bly R.'s route: Cinder Bend to Ochre Ridge</title>");
+    // The title is the svg's FIRST child: a screen reader announces it as
+    // the drawing's name, which only holds if nothing is drawn ahead of it.
+    expect(named.indexOf("<title>")).toBeLessThan(named.indexOf("<path"));
+    expect(named).not.toContain("—");
+
+    // With no name to hand (the fallback the journey list never takes, kept
+    // so a caller without a display name still gets a titled drawing rather
+    // than a slug printed on the page).
+    expect(loop).toContain("<title>Route: Cinder Bend to Ochre Ridge</title>");
+  });
+
+  test("finding 7: renderHopeCoin gives each drawn loop the holder's display name, never their slug", () => {
+    const full = renderHopeCoin(odoData(loopChain));
+    expect(full).toContain("<title>Bly R.'s route: Cinder Bend to Ochre Ridge</title>");
+    expect(full).toContain("<title>Dre K.'s route: Quarry Row to Lantern Creek</title>");
+    expect(full).not.toContain("bly-r's route");
+  });
+});
+
+// Task 6 (#48), M4: site/styles.css guards for .tiles--4 and the two
+// .route-leg rules. tools/styles.test.ts already owns a general rule finder
+// for the eleven trophy-era classes, but this task's own Files list names
+// only this file, so a second, small copy lives here rather than reaching
+// into that sibling file's unexported internals.
+const CSS_PATH = new URL("../site/styles.css", import.meta.url).pathname;
+
+// Strips /* ... */ comments before any rule extraction runs, matching
+// tools/styles.test.ts's own stripComments - a class or declaration spelled
+// only inside a comment must never read as a real rule.
+function stripCssComments(css: string): string {
+  return css.replace(/\/\*[\s\S]*?\*\//g, "");
+}
+
+// Splits (already comment-free) CSS text into its leaf-level rules --
+// {selector, body} pairs whose body holds no nested braces. Because the
+// regex only matches an innermost `{...}`, a rule nested inside an @media
+// wrapper comes out with the exact same selector and body a top-level rule
+// would - which is why the 900px check below extracts each @media block's
+// own text FIRST and only then runs this over that inner text alone.
+function cssRules(css: string): { selector: string; body: string }[] {
+  const out: { selector: string; body: string }[] = [];
+  const re = /([^{}]+)\{([^{}]*)\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(css))) out.push({ selector: m[1].trim(), body: m[2].trim() });
+  return out;
+}
+
+// Every `@media (min-width: 900px) { ... }` block's own inner text, brace-
+// balanced by hand (a plain regex cannot count nested braces, and a 900px
+// block always holds at least one nested rule). Takes comment-free CSS;
+// returns one string per matching block, in file order.
+function mediaBlocks900(css: string): string[] {
+  const out: string[] = [];
+  const re = /@media \(min-width: 900px\)\s*\{/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(css))) {
+    let depth = 1;
+    let i = re.lastIndex;
+    const start = i;
+    while (depth > 0 && i < css.length) {
+      if (css[i] === "{") depth++;
+      else if (css[i] === "}") depth--;
+      i++;
+    }
+    out.push(css.slice(start, i - 1));
+  }
+  return out;
+}
+
+// The trimmed value of one declaration inside a rule body (matched right
+// after the body's start or a preceding `;`, so searching for "left" can
+// never match inside "padding-left"). Returns null when the body carries
+// no such declaration at all.
+function declValue(body: string, prop: string): string | null {
+  const re = new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`);
+  return re.exec(body)?.[1]?.trim() ?? null;
+}
+
+describe("site/styles.css: .tiles--4 and .route-leg (Task 6, #48, M4)", () => {
+  const css = stripCssComments(readFileSync(CSS_PATH, "utf8"));
+
+  test(".tiles--4 sits inside a 900px media query, with four grid-template-columns tracks", () => {
+    const rule = mediaBlocks900(css).flatMap(cssRules).find((r) => r.selector === ".tiles--4");
+    expect(rule).toBeDefined();
+    const value = declValue(rule!.body, "grid-template-columns");
+    expect(value).not.toBeNull();
+    expect(value!.split(/\s+/).filter(Boolean).length).toBe(4);
+  });
+
+  test(".route-leg carries padding-left: 2rem and margin: -0.75rem 0 0.75rem", () => {
+    const rule = cssRules(css).find((r) => r.selector === ".route-leg");
+    expect(rule).toBeDefined();
+    expect(declValue(rule!.body, "padding-left")).toBe("2rem");
+    expect(declValue(rule!.body, "margin")).toBe("-0.75rem 0 0.75rem");
+  });
+
+  test(".route-leg::before draws no bead: display: none", () => {
+    const rule = cssRules(css).find((r) => r.selector === ".route-leg::before");
+    expect(rule).toBeDefined();
+    expect(declValue(rule!.body, "display")).toBe("none");
+  });
+});
+
+// Task 7 (#48), M4: site/styles.css guards for the five stint-loop rules.
+// Each declaration gets its own check, by name, so a loop that lost its
+// stroke, its fill, or its small monospace face fails on the declaration
+// that went missing rather than on a vague "the rule changed."
+describe("site/styles.css: the stint loop (Task 7, #48, M4)", () => {
+  const css = stripCssComments(readFileSync(CSS_PATH, "utf8"));
+  const ruleFor = (selector: string) => cssRules(css).find((r) => r.selector === selector);
+
+  test(".route-loop is sized by CSS: width 100%, height auto, and a max-width", () => {
+    const rule = ruleFor(".route-loop");
+    expect(rule).toBeDefined();
+    expect(declValue(rule!.body, "width")).toBe("100%");
+    expect(declValue(rule!.body, "height")).toBe("auto");
+    expect(declValue(rule!.body, "max-width")).not.toBeNull();
+  });
+
+  test(".route-loop-path is a drawn pewter line, never a filled shape", () => {
+    const rule = ruleFor(".route-loop-path");
+    expect(rule).toBeDefined();
+    expect(declValue(rule!.body, "stroke")).toBe("var(--pewter-deep)");
+    expect(declValue(rule!.body, "fill")).toBe("none");
+  });
+
+  test(".route-tick circle is filled pewter", () => {
+    const rule = ruleFor(".route-tick circle");
+    expect(rule).toBeDefined();
+    expect(declValue(rule!.body, "fill")).toBe("var(--pewter-deep)");
+  });
+
+  test(".route-flag is filled foil, the one accent on the loop", () => {
+    const rule = ruleFor(".route-flag");
+    expect(rule).toBeDefined();
+    expect(declValue(rule!.body, "fill")).toBe("var(--foil-deep)");
+  });
+
+  test(".route-tick text carries a font-family and a font-size of at most 11px", () => {
+    const rule = ruleFor(".route-tick text");
+    expect(rule).toBeDefined();
+    expect(declValue(rule!.body, "font-family")).not.toBeNull();
+    const size = declValue(rule!.body, "font-size");
+    expect(size).toMatch(/^\d+(\.\d+)?px$/);
+    expect(Number.parseFloat(size!)).toBeLessThanOrEqual(11);
+  });
+});
+
+// Task 8 (#48): "Who has held it" - the donut, the tenure strip, and the
+// legend table holdersSection(data) draws beneath the journey.
+//
+// Every fixture below is invented: made-up slugs, and month spans chosen so
+// the arithmetic is checkable by hand (a 3, 6, 3 chain is 25%, 50%, 25% and
+// nothing else). The real chain is twelve stops of Beau's chain of custody
+// and would make every number here a puzzle rather than an assertion.
+
+// Wraps one history array plus a list of game dates in the rest of the
+// GamesData shape holdersSection needs. Takes the dates in whatever order
+// the caller wants them - the caption leg below passes them deliberately
+// out of order, because "the latest game" is max(date), never the first or
+// last entry of the array.
+function heldData(history: HopeCoinStop[], gameDates: string[]): GamesData {
+  const last = history[history.length - 1]!;
+  return {
+    nextGame: { date: "2026-10-13", time: "7:00pm PT" },
+    hopeCoin: { holder: last.holder, since: last.from ?? "2020-01", history },
+    players: [
+      { slug: "fen-o", name: "Fen O.", aka: ["feno"] },
+      { slug: "gil-p", name: "Gil P.", aka: ["gilp"] },
+      { slug: "hax-q", name: "Hax Q.", aka: ["haxq"] },
+      { slug: "ash-r", name: "Ash R.", aka: ["ashr"] },
+      { slug: "bru-s", name: "Bru S.", aka: ["brus"] },
+      { slug: "cyd-t", name: "Cyd T.", aka: ["cydt"] },
+      { slug: "dov-u", name: "Dov U.", aka: ["dovu"] },
+      { slug: "eve-v", name: "Eve V.", aka: ["evev"] },
+      { slug: "fyn-w", name: "Fyn W.", aka: ["fynw"] },
+      { slug: "gus-x", name: "Gus X.", aka: ["gusx"] },
+      { slug: "ivy-y", name: "Ivy Y.", aka: ["ivyy"] },
+      { slug: "jem-z", name: "Jem Z.", aka: ["jemz"] },
+    ],
+    games: gameDates.map((date) => ({
+      date, hands: 100, startingStack: 5000, buyIn: 50, entries: 1, pot: 50,
+      results: [{ slug: "fen-o", handle: "feno", finish: 1, payout: 50, rebuys: 0, trophies: [] }],
+    })),
+  };
+}
+
+// The 3, 6, 3 chain of leg (a) and leg (c): fen-o holds three months, gil-p
+// six, hax-q three and still holds it. Share order (gil-p, fen-o, hax-q) is
+// deliberately NOT chain order, so a donut or a legend drawn straight down
+// the history array fails rather than passing by coincidence.
+const chain363: HopeCoinStop[] = [
+  { holder: "fen-o", from: "2025-01", to: "2025-04", place: "Cinder Bend", how: "Won the season." },
+  { holder: "gil-p", from: "2025-04", to: "2025-10", place: "Marrow Gap", how: "Won the season." },
+  { holder: "hax-q", from: "2025-10", place: "Ochre Ridge", how: "Took it on the third skull." },
+];
+const held363 = holdersSection(heldData(chain363, ["2026-01-13"]));
+
+// The A, B, A chain of leg (b) and the second half of leg (c): ash-r holds
+// 2024-12 to 2025-02 (2 months), bru-s to 2025-08 (6), ash-r again to the
+// latest game (4). Chain order is ash-r, bru-s, ash-r while share order is
+// ash-r then bru-s (tied on 6 months, ash-r first by first appearance), and
+// the widths 2, 6, 4 are not a palindrome, so a strip drawn per holder, in
+// share order, reversed, or with equal widths all fail.
+const chainABA: HopeCoinStop[] = [
+  { holder: "ash-r", from: "2024-12", to: "2025-02", place: "Cinder Bend", how: "Won the season." },
+  { holder: "bru-s", from: "2025-02", to: "2025-08", place: "Marrow Gap", how: "Won the season." },
+  { holder: "ash-r", from: "2025-08", place: "Cinder Bend", how: "Took it back." },
+];
+const heldABA = holdersSection(heldData(chainABA, ["2025-12-09"]));
+
+// Every `<path class="donut-arc...">` element, whole, in document order.
+function donutArcs(html: string): string[] {
+  return [...html.matchAll(/<path class="donut-arc[^"]*"[^>]*\/>/g)].map((m) => m[0]);
+}
+
+// Every donut label's text, in document order.
+function donutLabels(html: string): string[] {
+  return [...html.matchAll(/<text class="donut-label"[^>]*>([\s\S]*?)<\/text>/g)].map((m) => m[1]!);
+}
+
+// Every `<rect class="strip-seg">` element, whole, in document order.
+function stripSegs(html: string): string[] {
+  return [...html.matchAll(/<rect class="strip-seg"[^>]*\/>/g)].map((m) => m[0]);
+}
+
+// One attribute's value off a single SVG element, or "" when it carries
+// none - so a leg asserting on a fill fails on the fill, not on a throw.
+function attr(el: string, name: string): string {
+  return new RegExp(`\\b${name}="([^"]*)"`).exec(el)?.[1] ?? "";
+}
+
+// Every strip tick's text, in document order.
+function stripTicks(html: string): string[] {
+  return [...html.matchAll(/<text class="strip-tick"[^>]*>([\s\S]*?)<\/text>/g)].map((m) => m[1]!);
+}
+
+// The legend's body rows, each as its list of `<td>` texts, in document
+// order. Reads inside `<tbody>` on purpose: the header row is `<th>`, and a
+// leg counting four cells per row must not be satisfied by the header.
+function legendRows(html: string): string[][] {
+  const body = /<tbody>([\s\S]*?)<\/tbody>/.exec(html)?.[1] ?? "";
+  return [...body.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].map((row) =>
+    [...row[1]!.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((cell) => cell[1]!));
+}
+
+// The final fix wave (2026-09-05, whole-branch review finding 2). The strip
+// renders around 340px wide on a desktop and on a phone alike, so its year
+// ticks at 11 viewBox units came out near six pixels: a number nobody can
+// read. The type is raised to 19 units and the box given the four extra
+// units of height that type needs to sit under the bar.
+describe("the tenure strip's year ticks are legible (final fix wave, #48)", () => {
+  test("finding 2: the strip's viewBox is 48 units tall, the room the bigger year type needs", () => {
+    expect(heldABA).toContain('<svg class="tenure-strip" viewBox="0 0 600 48">');
+  });
+
+  test("finding 2: every year sits inside that box, below the bar", () => {
+    const texts = [...heldABA.matchAll(/<text class="strip-tick"[^>]*\by="([\d.]+)"/g)];
+    expect(texts.length).toBeGreaterThan(0);
+    for (const t of texts) {
+      const y = Number.parseFloat(t[1]!);
+      // Below the bar (top 2, height 20) and on the drawing.
+      expect(y).toBeGreaterThan(22);
+      expect(y).toBeLessThanOrEqual(48);
+    }
+  });
+
+  test("finding 2: .strip-tick sets a font-size of at least 19px, in the strip's own viewBox units", () => {
+    const css = stripCssComments(readFileSync(CSS_PATH, "utf8"));
+    const rule = cssRules(css).find((r) => r.selector === ".strip-tick");
+    expect(rule).toBeDefined();
+    const size = declValue(rule!.body, "font-size");
+    expect(size).toMatch(/^\d+(\.\d+)?px$/);
+    expect(Number.parseFloat(size!)).toBeGreaterThanOrEqual(19);
+  });
+});
+
+describe("holdersSection: who has held it (Task 8, #48)", () => {
+  test("M1 leg (a): a band-dark section headed Who has held it, with one donut arc per holder in share order and one marked current", () => {
+    expect(held363).toStartWith('<section class="band-dark">');
+    expect(held363).toContain("Who has held it");
+    expect(held363).toMatch(/<svg class="coin-donut" viewBox="[\d .]+"/);
+
+    const arcs = donutArcs(held363);
+    expect(arcs.length).toBe(3);
+    // Exactly one arc is the current holder's, and it is hax-q's: the third
+    // arc in share order, which is neither first nor last in chain order.
+    const currentFlags = arcs.map((a) => a.includes("donut-arc--current"));
+    expect(currentFlags).toEqual([false, false, true]);
+  });
+
+  test("M1 leg (a): one donut label per holder, name then percent, in share order not chain order", () => {
+    expect(donutLabels(held363)).toEqual(["Gil P. 50%", "Fen O. 25%", "Hax Q. 25%"]);
+  });
+
+  test("M2 leg (b): the tenure strip carries a viewBox and one rect per segment, in chain order, widths proportional to months", () => {
+    expect(heldABA).toMatch(/<svg class="tenure-strip" viewBox="[\d .]+"/);
+    const segs = stripSegs(heldABA);
+    expect(segs.length).toBe(3);
+    expect(segs.map((s) => attr(s, "width"))).toEqual(["100", "300", "200"]);
+  });
+
+  test("M2 leg (b): exactly one January tick, reading 2025, and none on either edge of the range", () => {
+    // 2024-12 to 2025-12: January 2025 is the only January strictly inside.
+    expect(stripTicks(heldABA)).toEqual(["2025"]);
+
+    // Same chain, latest game 2026-01-13: January 2026 sits ON the range's
+    // end edge, so it is not a tick.
+    const endEdge = holdersSection(heldData(chainABA, ["2026-01-13"]));
+    expect(stripTicks(endEdge)).toEqual(["2025"]);
+
+    // A chain whose first dated stop starts in January: the range's start
+    // edge is not a tick either.
+    const startEdge = holdersSection(heldData([
+      { holder: "cyd-t", from: "2025-01", to: "2025-06", place: "Cinder Bend", how: "Won the season." },
+      { holder: "dov-u", from: "2025-06", place: "Marrow Gap", how: "Took it on the third skull." },
+    ], ["2025-12-09"]));
+    expect(stripTicks(startEdge)).toEqual([]);
+
+    // A long chain crosses three Januaries and must draw all three, in
+    // order: a renderer that stops after the first fails here.
+    const threeYears = holdersSection(heldData([
+      { holder: "cyd-t", from: "2023-06", to: "2024-09", place: "Cinder Bend", how: "Won the season." },
+      { holder: "dov-u", from: "2024-09", place: "Marrow Gap", how: "Took it on the third skull." },
+    ], ["2026-03-10"]));
+    expect(stripTicks(threeYears)).toEqual(["2024", "2025", "2026"]);
+  });
+
+  test("M3 leg (c): the legend is one tenure-legend table, one four-cell row per holder in share order", () => {
+    expect(held363.match(/<table class="tenure-legend">/g)?.length).toBe(1);
+    expect(legendRows(held363)).toEqual([
+      ["Gil P.", "1", "6", "50%"],
+      ["Fen O.", "1", "3", "25%"],
+      ["Hax Q.", "1", "3", "25%"],
+    ]);
+  });
+
+  test("M3 leg (c): a holder with two reigns is one row counting both, ahead of the holder it ties on months", () => {
+    expect(legendRows(heldABA)).toEqual([
+      ["Ash R.", "2", "6", "50%"],
+      ["Bru S.", "1", "6", "50%"],
+    ]);
+  });
+
+  test("M4 leg (d): the caption names the month of the latest game, which is neither the first nor the last game in the array", () => {
+    const outOfOrder = holdersSection(heldData(chain363, ["2025-08-12", "2025-11-11", "2025-10-14"]));
+    expect(outOfOrder).toContain("Months, as of the November 2025 game.");
+  });
+
+  test("M4 leg (d): an undated first stop's time is called out as uncounted, and a dated one says nothing of the kind", () => {
+    const undatedFirst = holdersSection(heldData([
+      { holder: "fen-o", to: "2025-02", place: "Marrow Gap", how: "Held it since before anyone kept records." },
+      { holder: "gil-p", from: "2025-02", to: "2025-08", place: "Cinder Bend", how: "Won the season." },
+      { holder: "hax-q", from: "2025-08", place: "Ochre Ridge", how: "Took it on the third skull." },
+    ], ["2025-11-11"]));
+    expect(undatedFirst).toContain("The coin's time in Marrow Gap before February 2025 is not counted.");
+    expect(held363).not.toContain("is not counted");
+  });
+
+  // Leg (e): eight holders, the current one SECOND in share order, so the
+  // opacity list is walked by "share order skipping the current holder" and
+  // an implementation indexing it by absolute share position fails on the
+  // very first two rows.
+  const chain8: HopeCoinStop[] = [
+    { holder: "fen-o", from: "2020-01", to: "2021-09", place: "Cinder Bend", how: "Won the season." },
+    { holder: "gil-p", from: "2021-09", to: "2022-06", place: "Marrow Gap", how: "Won the season." },
+    { holder: "hax-q", from: "2022-06", to: "2023-02", place: "Ochre Ridge", how: "Won the season." },
+    { holder: "ash-r", from: "2023-02", to: "2023-09", place: "Salt Pan", how: "Won the season." },
+    { holder: "bru-s", from: "2023-09", to: "2024-03", place: "Cinder Bend", how: "Won the season." },
+    { holder: "cyd-t", from: "2024-03", to: "2024-08", place: "Marrow Gap", how: "Won the season." },
+    { holder: "dov-u", from: "2024-08", to: "2024-12", place: "Ochre Ridge", how: "Won the season." },
+    { holder: "eve-v", from: "2024-12", place: "Salt Pan", how: "Took it on the third skull." },
+  ];
+  // Months: 20, 9, 8, 7, 6, 5, 4 and the current holder's 10, so share order
+  // runs fen-o (20), eve-v (10, current), gil-p (9), hax-q (8), ash-r (7),
+  // bru-s (6), cyd-t (5), dov-u (4).
+  const held8 = holdersSection(heldData(chain8, ["2025-10-14"]));
+
+  test("M5 leg (e): the current holder is drawn in foil and every other holder in a tint of the ink, in share order skipping the current one", () => {
+    const arcs = donutArcs(held8);
+    const segs = stripSegs(held8);
+    expect(arcs.length).toBe(8);
+    expect(segs.length).toBe(8);
+
+    // The donut is in share order; the strip is in chain order. Keying each
+    // one by the label/holder it belongs to is what lets the last leg below
+    // compare the two without assuming they are drawn in the same order.
+    const arcFills = arcs.map((a) => [attr(a, "fill"), attr(a, "fill-opacity")]);
+    expect(arcFills).toEqual([
+      ["var(--ink)", "1"],
+      ["var(--foil-deep)", ""],
+      ["var(--ink)", ".8"],
+      ["var(--ink)", ".62"],
+      ["var(--ink)", ".46"],
+      ["var(--ink)", ".32"],
+      ["var(--ink)", ".2"],
+      ["var(--ink)", ".12"],
+    ]);
+  });
+
+  test("M5 leg (e): no fill in the section names any value but the foil and the ink, and each holder's strip segment matches their own arc", () => {
+    for (const value of [...held8.matchAll(/\bfill="([^"]*)"/g)].map((m) => m[1]!)) {
+      expect(["var(--foil-deep)", "var(--ink)"]).toContain(value);
+    }
+
+    // Chain order for this fixture is fen-o, gil-p, hax-q, ash-r, bru-s,
+    // cyd-t, dov-u, eve-v, and every holder appears exactly once, so the
+    // strip's segments line up with those holders by position. Share order
+    // (the donut's order) is fen-o, eve-v, gil-p, hax-q, ash-r, bru-s,
+    // cyd-t, dov-u - a different order, which is the point.
+    const chainOrder = ["fen-o", "gil-p", "hax-q", "ash-r", "bru-s", "cyd-t", "dov-u", "eve-v"];
+    const shareOrder = ["fen-o", "eve-v", "gil-p", "hax-q", "ash-r", "bru-s", "cyd-t", "dov-u"];
+    const arcs = donutArcs(held8);
+    const segs = stripSegs(held8);
+    for (let i = 0; i < chainOrder.length; i++) {
+      const arc = arcs[shareOrder.indexOf(chainOrder[i]!)]!;
+      const seg = segs[i]!;
+      expect(attr(seg, "fill")).toBe(attr(arc, "fill"));
+      expect(attr(seg, "fill-opacity")).toBe(attr(arc, "fill-opacity"));
+    }
+  });
+
+  // Round 1 review (2026-09-05): the donut's box used to be a 200 by 200
+  // square, which left a right-anchored label only 42 units before the edge
+  // - about eight characters at the per-character estimate the renderer
+  // itself measures with. Every real label is 11 to 13 characters, so the
+  // edge clamp dragged them back ON TOP of the ring, and the longest one
+  // ("Chris G. 44%") printed its first characters in ink over its own
+  // full-opacity ink arc: invisible. The fixture below is shaped like the
+  // real chain - six holders, shares near 44/25/10/10/6/5, display names
+  // that make 11 to 13 character labels - and the leg checks the two things
+  // that were broken: every label's estimated span stays inside the box,
+  // and none of it crosses the ring's outer radius at its own baseline.
+  const realShaped: HopeCoinStop[] = [
+    // 10 + 44 + 10 + 6 + 25 + 5 = 100 months, in a chain order that is not
+    // share order, with the current holder (jem-z) holding the smallest.
+    { holder: "fen-o", from: "2017-01", to: "2017-11", place: "Cinder Bend", how: "Won the season." },
+    { holder: "gil-p", from: "2017-11", to: "2021-07", place: "Marrow Gap", how: "Won the season." },
+    { holder: "hax-q", from: "2021-07", to: "2022-05", place: "Ochre Ridge", how: "Won the season." },
+    { holder: "ivy-y", from: "2022-05", to: "2022-11", place: "Salt Pan", how: "Won the season." },
+    { holder: "ash-r", from: "2022-11", to: "2024-12", place: "Cinder Bend", how: "Won the season." },
+    { holder: "jem-z", from: "2024-12", place: "Marrow Gap", how: "Took it on the third skull." },
+  ];
+
+  test("no donut label crosses the ring or runs off the box, at the label lengths the real chain produces", () => {
+    // The shares come out 44%, 25%, 10%, 10%, 6%, 5% - the real chain's own
+    // shape - and these display names make labels 11 to 13 characters long,
+    // the length that used to be clamped back over the ring.
+    const base = heldData(realShaped, ["2025-05-12"]);
+    const html = holdersSection({
+      ...base,
+      players: [
+        { slug: "gil-p", name: "Vesper G.", aka: ["vesperg"] },
+        { slug: "ash-r", name: "Corwin R.", aka: ["corwinr"] },
+        { slug: "fen-o", name: "Isolde O.", aka: ["isoldeo"] },
+        { slug: "hax-q", name: "Bram Q.", aka: ["bramq"] },
+        { slug: "ivy-y", name: "Perrin Y.", aka: ["perriny"] },
+        { slug: "jem-z", name: "Odile Z.", aka: ["odilez"] },
+      ],
+    });
+    expect(legendRows(html).map((r) => r[3])).toEqual(["44%", "25%", "10%", "10%", "6%", "5%"]);
+
+    const box = /<svg class="coin-donut" viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(html);
+    expect(box).not.toBeNull();
+    const boxW = Number.parseFloat(box![1]!);
+    const boxH = Number.parseFloat(box![2]!);
+    const cx = boxW / 2;
+    const cy = boxH / 2;
+    // The same estimate tools/render.ts measures its own labels with, and
+    // the ring's own outer radius. Both are duplicated here on purpose: a
+    // test that imported the renderer's constants could not catch the
+    // renderer changing them out from under the drawing.
+    const CHAR = 4.8;
+    const R_OUT = 52;
+
+    const labels = [...html.matchAll(/<text class="donut-label" x="([\d.-]+)" y="([\d.-]+)" text-anchor="(\w+)">([^<]*)<\/text>/g)];
+    expect(labels.length).toBe(6);
+    for (const [, xAttr, yAttr, anchor, text] of labels) {
+      const x = Number.parseFloat(xAttr!);
+      const y = Number.parseFloat(yAttr!);
+      const w = text!.length * CHAR;
+      expect(text!.length).toBeGreaterThanOrEqual(11);
+      const start = anchor === "start" ? x : anchor === "end" ? x - w : x - w / 2;
+      const end = start + w;
+      // Inside the drawing.
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeLessThanOrEqual(boxW);
+      // Clear of the ring. At this baseline the ring covers the horizontal
+      // span cx +/- half its own chord; the label must not reach into it,
+      // or it prints ink on ink and disappears.
+      const dy = y - cy;
+      const half = Math.abs(dy) >= R_OUT ? 0 : Math.sqrt(R_OUT * R_OUT - dy * dy);
+      const clearsRight = start >= cx + half;
+      const clearsLeft = end <= cx - half;
+      expect(clearsRight || clearsLeft).toBe(true);
+    }
+  });
+
+  test("M6 leg (f): the section carries no em dash", () => {
+    expect(held363).not.toContain("—");
+    expect(heldABA).not.toContain("—");
+    expect(held8).not.toContain("—");
+  });
+
+  test("renderHopeCoin appends the section after the journey, and its footer band alternates away from it", () => {
+    const data = heldData(chain363, ["2026-01-13"]);
+    const full = renderHopeCoin(data);
+    const section = holdersSection(data);
+    const sectionIdx = full.indexOf(section);
+    expect(sectionIdx).toBeGreaterThan(-1);
+    expect(sectionIdx).toBeGreaterThan(full.indexOf('<h2 class="rule-label">The journey</h2>'));
+    // Two adjacent bands never share a tone (docs/brand.md), and the new
+    // section is the last thing above the footer.
+    expect(full).toContain('<footer class="band-light"');
   });
 });

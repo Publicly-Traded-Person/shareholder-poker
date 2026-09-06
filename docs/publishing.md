@@ -174,6 +174,36 @@ Coin's journey is complete when it is not; forgetting to remove it once the
 history really is finished would keep the page apologizing for a gap that
 no longer exists.
 
+## The Hope Coin page
+
+The coin's own photograph lives as two files under
+`site/hope-coin/assets/`: `coin.png` (900 by 900, the hero image at the top
+of the page, cropped to the coin's own rim with a circular alpha mask so it
+sits on the page as a disc, not a square photo with the background still
+showing at the corners) and `coin-og.png` (1200 by 630, that same coin
+centered on a felt canvas - the `og:image` every share of `/hope-coin/`
+unfurls with, no matter who currently holds the Coin). Both were made once
+from Mike's own photograph of the coin with ImageMagick (`magick` on Mike's
+machine): crop to the rim, mask the crop with a circle so everything
+outside it turns transparent, resize to 900 square for `coin.png`; then,
+for `coin-og.png`, place that same circular crop, resized smaller, at the
+center of a 1200 by 630 felt canvas.
+
+The original photograph itself is not a repo input: it is never copied into
+the tree, the same privacy line this runbook already draws around anything
+that did not start life as game data (RSVP rows, raw PokerNow logs). Redoing
+either asset needs that photograph pulled from wherever Mike keeps it,
+never from this repo.
+
+Everything else on the page - the miles, the loops, and the charts
+describing the Coin's own life - derives from `hopeCoin.history` (see
+"Hope Coin handoff" above), the one source of truth the journey list
+already reads. A new stop, a corrected mile figure, or any other change to
+the Coin's own life is a `games.json` edit followed by `bun tools/render.ts`;
+neither `coin.png` nor `coin-og.png` needs touching for that, because
+neither one changes with the data - they are the coin's own portrait, not a
+chart of it.
+
 ## Cards (per set, still manual by design)
 
 Card copy is judgment; it does not automate. Render per

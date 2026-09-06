@@ -563,6 +563,24 @@ function relSorted(root: string, files: string[]): string[] {
   return files.map((f) => f.slice(root.length + 1)).sort();
 }
 
+// Drops a root's own top-level `assets/` directory from a relative file
+// list (controller ruling, Task 5 of the hope-coin-infographics plan, #48):
+// site/hope-coin/assets/, the same convention site/cards/<set>/assets/
+// already uses, holds INPUTS the renderer references from an
+// <img src="..."> but never writes itself - the coin's two photographs.
+// Without this filter, every file the generator was never asked to produce
+// would show up as "committed but missing from the fresh render" and fail a
+// check that exists to catch a stale or hand-only PAGE, not a photograph
+// sitting beside one. Takes a relSorted() list, whose entries are relative
+// to one of the two roots the caller loops over ("player" and "hope-coin");
+// returns it without the entries whose path begins "assets/", which is that
+// root's own assets directory and nothing deeper (an assets directory
+// nested under a subdirectory, which neither root has, would still be
+// compared).
+function excludeAssets(rels: string[]): string[] {
+  return rels.filter((rel) => !rel.startsWith("assets/"));
+}
+
 // True only when both relative-path lists are identical - same count, same
 // names, once sorted. Extracted as its own function (rather than inlined in
 // the test below) for the same reason tools/site.test.ts's card cross-check
@@ -624,8 +642,8 @@ describe("the generator, run into an empty directory, produces exactly what's co
     test(`site/${sub}/: the generated file set matches the committed one`, () => {
       const committedRoot = join(SITE, sub);
       const generatedRoot = join(tempRoot, "site", sub);
-      const committed = relSorted(committedRoot, filesUnder(committedRoot));
-      const generated = relSorted(generatedRoot, filesUnder(generatedRoot));
+      const committed = excludeAssets(relSorted(committedRoot, filesUnder(committedRoot)));
+      const generated = excludeAssets(relSorted(generatedRoot, filesUnder(generatedRoot)));
       expect(
         fileSetsMatch(committed, generated),
         `committed: ${JSON.stringify(committed)}\ngenerated: ${JSON.stringify(generated)}`
@@ -635,7 +653,7 @@ describe("the generator, run into an empty directory, produces exactly what's co
     test(`site/${sub}/: every generated file is byte-identical to its committed twin`, () => {
       const committedRoot = join(SITE, sub);
       const generatedRoot = join(tempRoot, "site", sub);
-      const rels = relSorted(committedRoot, filesUnder(committedRoot));
+      const rels = excludeAssets(relSorted(committedRoot, filesUnder(committedRoot)));
       for (const rel of rels) {
         const committedBytes = readFileSync(join(committedRoot, rel), "utf8");
         const generatedBytes = readFileSync(join(generatedRoot, rel), "utf8");
@@ -747,6 +765,78 @@ describe("site/hope-coin/index.html exists and carries its own unfurl tags (#27,
     expect(metaProp(html, "og:url")).toBe(`${ORIGIN}/hope-coin/`);
     expect(metaProp(html, "og:type")).toBe("website");
   });
+});
+
+// Task 9 (#48, 2026-09-05-hope-coin-infographics plan; spec §9, §10). The
+// hero, the odometer, the two route loops, the "who has held it" donut and
+// tenure strip, and the twelve-stop journey (eleven legs between them) all
+// landed on the renderer in earlier tasks of this same plan, but none of
+// those tasks were allowed to commit the regenerated page - this task is
+// the single owner of that regeneration, so these are the first assertions
+// that ever read the committed bytes for these pieces. Every count below is
+// exact, not "at least", because a duplicate loop or a dropped leg is a
+// silent content bug a ">=" check would let through.
+describe("site/hope-coin/index.html carries the hero, the loops, and the journey (#48, Task 9, M2)", () => {
+  const pagePath = join(SITE, "hope-coin", "index.html");
+  const html = readPage(pagePath);
+
+  test("hero photo is /hope-coin/assets/coin.png", () => {
+    expect(html).toContain("/hope-coin/assets/coin.png");
+  });
+
+  // The share-link image is the coin's own hero photo, not whichever card
+  // set happens to be newest that month - a link to /hope-coin/ should
+  // always preview the Coin itself. See render.ts's own comment on this
+  // page()'s image option.
+  test("og:image is the coin's own hero photo", () => {
+    expect(metaProp(html, "og:image")).toBe(
+      "https://poker.kmikeym.com/hope-coin/assets/coin-og.png"
+    );
+  });
+
+  test('carries the odometer\'s " miles on record" figure', () => {
+    expect(html).toContain(" miles on record");
+  });
+
+  // Two route-loop SVGs: one per RV stint Beau took the coin on. Matched on
+  // the exact class attribute value so a loop's own child elements
+  // (route-loop-path, route-loop-miles) can never inflate this count - see
+  // the count convention already used above (html.split(X).length - 1).
+  test("exactly two route-loop SVGs (Beau's two stints)", () => {
+    expect(html.split('class="route-loop"').length - 1).toBe(2);
+  });
+
+  test("exactly one coin-donut (who has held it, by share of time)", () => {
+    expect(html.split('class="coin-donut"').length - 1).toBe(1);
+  });
+
+  test("exactly one tenure-strip (who has held it, in order)", () => {
+    expect(html.split('class="tenure-strip"').length - 1).toBe(1);
+  });
+
+  // Eleven route-leg items: the twelve-stop chain minus one, because a leg
+  // sits BETWEEN two stops, not on one.
+  test("exactly eleven route-leg items (the twelve-stop chain minus one)", () => {
+    expect(html.split('class="route-leg"').length - 1).toBe(11);
+  });
+
+  test("no em dash on the page", () => {
+    expect(html.split("\u2014").length - 1).toBe(0);
+  });
+});
+
+// Task 9 (#48), M3: the two photographs the page above links to are real
+// files on disk, not just strings the renderer happened to write into an
+// <img src>. A missing or zero-byte asset would still let every M2 check
+// above pass, because those only ever look at the HTML text.
+describe("site/hope-coin/assets/ holds both real, non-empty photographs (#48, Task 9, M3)", () => {
+  for (const name of ["coin.png", "coin-og.png"]) {
+    test(`${name} exists and is not empty`, () => {
+      const assetPath = join(SITE, "hope-coin", "assets", name);
+      expect(existsSync(assetPath), `${assetPath} is missing`).toBe(true);
+      expect(statSync(assetPath).size).toBeGreaterThan(0);
+    });
+  }
 });
 
 describe("site/standings/index.html links every player on the spine and the Hope Coin page (#27, Task 10, M5)", () => {

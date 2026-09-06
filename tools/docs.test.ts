@@ -183,3 +183,28 @@ describe("CLAUDE.md no longer parks the trophies/rarity-ladder bullet [M4]", () 
     );
   });
 });
+
+describe("docs/publishing.md: The Hope Coin page section [Task 5, #48, M4]", () => {
+  // sectionByHeading throws if the heading is missing or ambiguous - a
+  // second heading also matching "the hope coin page" would be exactly the
+  // kind of drift this test exists to catch, so letting it throw here
+  // rather than swallowing the error is the assertion, not a side effect.
+  const coinPageStep = sectionByHeading(docs, "the hope coin page");
+
+  test("names both asset files", () => {
+    expect(coinPageStep.body).toContain("coin.png");
+    expect(coinPageStep.body).toContain("coin-og.png");
+  });
+
+  test("names the tool the assets were made with", () => {
+    expect(coinPageStep.body).toContain("magick");
+  });
+
+  // Charlie's whole reason to read this section is "can I redo these
+  // assets myself" - the answer is no without Mike's original photograph,
+  // and this is the sentence that has to say so in words a search for
+  // "repo input" would actually find.
+  test("states the original photograph is not a repo input", () => {
+    expect(coinPageStep.body).toContain("not a repo input");
+  });
+});
