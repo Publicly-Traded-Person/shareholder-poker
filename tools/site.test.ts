@@ -817,7 +817,7 @@ describe("site/hope-coin/index.html carries the hero, the loops, and the journey
   });
 
   test("no em dash on the page", () => {
-    expect(html.split("—").length - 1).toBe(0);
+    expect(html.split("\u2014").length - 1).toBe(0);
   });
 });
 
