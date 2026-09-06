@@ -563,16 +563,20 @@ function relSorted(root: string, files: string[]): string[] {
   return files.map((f) => f.slice(root.length + 1)).sort();
 }
 
-// Drops anything under an `assets/` subdirectory from a relative file list
-// (controller ruling, Task 5 of the hope-coin-infographics plan, #48): an
-// assets directory (site/hope-coin/assets/, the same convention
-// site/cards/<set>/assets/ already uses) holds INPUTS the renderer
-// references from an <img src="..."> but never writes itself - the coin's
-// two photographs, a card's art. Without this filter, every file the
-// generator was never asked to produce would show up as "committed but
-// missing from the fresh render" and fail a check that exists to catch a
-// stale or hand-only PAGE, not a photograph sitting beside one. Takes a
-// relSorted() list; returns it with any "assets/..." entry removed.
+// Drops a root's own top-level `assets/` directory from a relative file
+// list (controller ruling, Task 5 of the hope-coin-infographics plan, #48):
+// site/hope-coin/assets/, the same convention site/cards/<set>/assets/
+// already uses, holds INPUTS the renderer references from an
+// <img src="..."> but never writes itself - the coin's two photographs.
+// Without this filter, every file the generator was never asked to produce
+// would show up as "committed but missing from the fresh render" and fail a
+// check that exists to catch a stale or hand-only PAGE, not a photograph
+// sitting beside one. Takes a relSorted() list, whose entries are relative
+// to one of the two roots the caller loops over ("player" and "hope-coin");
+// returns it without the entries whose path begins "assets/", which is that
+// root's own assets directory and nothing deeper (an assets directory
+// nested under a subdirectory, which neither root has, would still be
+// compared).
 function excludeAssets(rels: string[]): string[] {
   return rels.filter((rel) => !rel.startsWith("assets/"));
 }

@@ -629,8 +629,17 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
    the journey's line, inside the stop it belongs to. Sized here, never by
    width/height attributes on the svg itself, so every loop on the page
    changes size together. max-width keeps a nine-name loop from stretching
-   its text into a headline on a wide screen. */
-.route-loop { display: block; width: 100%; height: auto; max-width: 540px; margin: .6rem 0 .2rem; }
+   its text into a headline on a wide screen.
+   min-width is the phone half of that (whole-branch review finding 1,
+   2026-09-05): a loop squeezed into a 343px phone column drew its place
+   names at four pixels, so below 480px the drawing keeps its size and its
+   own .route-scroll box pans instead. The page body still never scrolls
+   sideways, because that overflow stops at the scroll box. */
+.route-loop { display: block; width: 100%; height: auto; max-width: 540px; min-width: 480px; }
+/* The loop's scroll box: .table-scroll supplies the panning and the card
+   treatment, and this class supplies only the spacing a drawing inside a
+   journey stop needs, which is tighter than a full-width ledger table's. */
+.route-scroll { margin: .6rem 0 .2rem; }
 /* The loop itself is a drawn line, never a filled shape: light page, dark
    objects (docs/brand.md). Pewter, not a rarity metal, for the same reason
    .route's own spine is a hairline -- this is structure, not a signal. */
@@ -642,16 +651,20 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
    accent (the coin itself is drawn in foil above), and it is spent on
    exactly one tick in the whole journey. */
 .route-flag { fill: var(--foil-deep); }
-/* Place names in the same small monospace face .stat uses, at a fixed
-   pixel size: the svg is scaled by its viewBox, so an em-based size here
-   would shrink and grow with the drawing instead of staying legible. */
+/* Place names in the same small monospace face .stat uses. The size here
+   is the FALLBACK: tools/render.ts emits a font-size attribute on every
+   text in the drawing, scaled to that loop's own viewBox width so a wide
+   loop and a narrow one print their names at the same size (see
+   LOOP_REF_WIDTH there). This 11px is the size at the 540-unit reference
+   frame max-width sets above, and it is what a text with no attribute
+   would get. */
 .route-tick text { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 11px; fill: var(--ink); }
-/* The stint's mileage, inside the loop at its far end. Same face as the
-   names, muted so the places read first. */
+/* The stint's mileage, inside the loop at its far end. Same face and same
+   fallback size as the names, muted so the places read first. */
 .route-loop-miles { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 11px; fill: var(--muted-ink); }
 
 /* The coin's own photo frame (Task 5, #48): the hero at the top of
-   /hope-coin/ (site/hope-coin/assets/coin.png), and the frame later
+   /hope-coin/ (site/hope-coin/assets/coin.png), and the frame that later
    infographics on this page reuse. Copies .card-frame's border and
    box-shadow -- the same "dark object gets real presentation" look every
    card gets -- but circular, not rounded-rectangle, because the coin itself
@@ -746,7 +759,12 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
    on the donut is the size tools/render.ts measures its labels against
    (DONUT_CHAR); changing one without the other slides them off-center. */
 .donut-label { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 8px; fill: var(--ink); }
-.strip-tick { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 11px; fill: var(--muted-ink); }
+/* The strip's years. 19, not 11, because this drawing is NOT scaled up the
+   way the donut is: its 600-unit box renders around 340px wide on a desktop
+   and on a phone alike, so 11 units printed a year at six pixels
+   (whole-branch review finding 2, 2026-09-05). STRIP_H in tools/render.ts
+   was raised to 48 in the same change to seat this type under the bar. */
+.strip-tick { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 19px; fill: var(--muted-ink); }
 /* The January hairline: a drawn line, pewter like every other piece of
    structure on this page, never a rarity metal (a year boundary is not a
    signal, it is a ruler mark). */

@@ -1445,10 +1445,16 @@ describe("routeLoop and the stint loops (Task 7, #48)", () => {
   // numeric bound rather than the anchor, using the same 6.6-units-per-
   // character estimate routeLoop() measures with, so any future placement
   // scheme has to keep every label on the drawing to pass.
+  //
+  // The final fix wave (2026-09-05) moved the per-character estimate: the
+  // drawing now emits its own font-size in user units, so a character is
+  // 0.6 of THAT size rather than a flat 6.6 units. The bound this leg
+  // checks is unchanged; only the measurement follows the type.
   test("every text on the loop stays inside the viewBox, at the shortest route that carries the long border label", () => {
     const viewBox = /viewBox="0 0 ([\d.]+) [\d.]+"/.exec(borderLoop);
     expect(viewBox).not.toBeNull();
     const frameWidth = Number.parseFloat(viewBox![1]!);
+    const charWidth = Number.parseFloat(/font-size="([\d.]+)"/.exec(borderLoop)![1]!) * 0.6;
 
     const texts = [...borderLoop.matchAll(/<text[^>]*\bx="([\d.-]+)"[^>]*text-anchor="(\w+)"[^>]*>([\s\S]*?)<\/text>/g)];
     // Three tick names plus the mileage: if this count ever drops, the
@@ -1456,7 +1462,7 @@ describe("routeLoop and the stint loops (Task 7, #48)", () => {
     expect(texts.length).toBe(4);
     for (const [, xAttr, anchor, content] of texts) {
       const x = Number.parseFloat(xAttr!);
-      const w = content!.length * 6.6;
+      const w = content!.length * charWidth;
       const start = anchor === "middle" ? x - w / 2 : anchor === "end" ? x - w : x;
       expect(start).toBeGreaterThanOrEqual(0);
       expect(start + w).toBeLessThanOrEqual(frameWidth);
@@ -1466,6 +1472,115 @@ describe("routeLoop and the stint loops (Task 7, #48)", () => {
   test("M5 leg (e): neither loop carries an em dash", () => {
     expect(loop).not.toContain("—");
     expect(borderLoop).not.toContain("—");
+  });
+});
+
+// The final fix wave (2026-09-05, whole-branch review finding 1). The loops
+// were legible on a desktop and about four pixels tall on a phone, and nine
+// of the eighteen places the Coin has been existed nowhere on the page
+// except inside an SVG. Three changes answer that, and these legs pin all
+// three: the places are printed as text beside the drawing; the type size
+// is emitted in user units so it scales with the frame instead of with the
+// frame's own width; and the drawing sits in a scroll container so a narrow
+// screen pans it rather than shrinking it.
+describe("the stint loops read on a phone (final fix wave, #48)", () => {
+  // The two drawings this block measures, rebuilt here rather than reached
+  // for across the describe above: the three-name stint from the chain, and
+  // the border stint, whose long label gives the frame a different width.
+  const loop = routeLoop(loopChain[1]!);
+  const borderLoop = routeLoop({
+    holder: "bly-r", from: "2024-01-01", to: "2024-03-01", milesIn: 12, milesHeld: 2400,
+    route: ["Cinder Bend", "Hope, British Columbia", "Marrow Gap"],
+    how: "Drove it north and back.",
+  });
+
+  // The type size routeLoop must emit for a frame of `width` user units:
+  // 11px at the 540-unit reference frame `.route-loop`'s max-width sets,
+  // scaled so every loop on the page renders its names at the same size.
+  const expectedFontSize = (width: number) => Number(((11 * width) / 540).toFixed(1));
+
+  test("finding 1a: each routed stop prints its places as text, after the how sentence and before the drawing", () => {
+    const full = renderHopeCoin(odoData(loopChain));
+    const blocks = routeStopBlocks(full);
+    for (const [i, how, places] of [
+      [1, "Drove it the whole way in the RV.", "Cinder Bend, Marrow Gap, Ochre Ridge"],
+      [3, "Took it out on the second trip.", "Quarry Row, Lantern Creek"],
+    ] as const) {
+      const block = blocks[i]!;
+      const line = `<p class="stat">${places}</p>`;
+      expect(block).toContain(line);
+      expect(block.indexOf(line)).toBeGreaterThan(block.indexOf(`<p>${how}</p>`));
+      expect(block.indexOf(line)).toBeLessThan(block.indexOf('<svg class="route-loop"'));
+    }
+    // A stop with no route prints no such line: the places line exists only
+    // where there are places, never as an empty paragraph.
+    for (const i of [0, 2, 4]) {
+      expect(blocks[i]!).not.toContain('<p class="stat">Salt Pan, ');
+    }
+  });
+
+  test("finding 1b: every text on a loop carries a font-size in user units, scaled to that loop's frame", () => {
+    for (const svg of [loop, borderLoop]) {
+      const width = Number.parseFloat(/viewBox="0 0 ([\d.]+) /.exec(svg)![1]!);
+      const size = String(expectedFontSize(width));
+      const texts = [...svg.matchAll(/<text[^>]*>/g)].map((m) => m[0]);
+      // Every tick name plus the mileage: a loop that emitted the attribute
+      // on only some of its text would leave those names at the CSS size.
+      expect(texts.length).toBe(4);
+      for (const text of texts) {
+        expect(text).toContain(`font-size="${size}"`);
+      }
+    }
+  });
+
+  test("finding 1b: the two frames differ in width, so the scaling above is actually exercised", () => {
+    const w1 = Number.parseFloat(/viewBox="0 0 ([\d.]+) /.exec(loop)![1]!);
+    const w2 = Number.parseFloat(/viewBox="0 0 ([\d.]+) /.exec(borderLoop)![1]!);
+    expect(w1).not.toBe(w2);
+    expect(expectedFontSize(w1)).not.toBe(expectedFontSize(w2));
+  });
+
+  test("finding 1c: each loop sits inside the repo's own .table-scroll container", () => {
+    const full = renderHopeCoin(odoData(loopChain));
+    const wrapped = [...full.matchAll(/<div class="table-scroll route-scroll"><svg class="route-loop"[\s\S]*?<\/svg><\/div>/g)];
+    expect(wrapped.length).toBe(2);
+    // No loop escapes the container: every route-loop svg on the page is
+    // one of the two matched above.
+    expect(full.match(/<svg class="route-loop"/g)?.length).toBe(2);
+  });
+
+  test("finding 1c: .route-loop carries a min-width so a narrow screen pans instead of shrinking the names", () => {
+    const css = stripCssComments(readFileSync(CSS_PATH, "utf8"));
+    const rule = cssRules(css).find((r) => r.selector === ".route-loop");
+    expect(rule).toBeDefined();
+    const min = declValue(rule!.body, "min-width");
+    expect(min).toMatch(/^\d+px$/);
+    expect(Number.parseFloat(min!)).toBeGreaterThanOrEqual(400);
+    // The scroll container is what absorbs that overflow, so the page body
+    // itself still never scrolls sideways.
+    const scroll = cssRules(css).find((r) => r.selector === ".table-scroll");
+    expect(declValue(scroll!.body, "overflow-x")).toBe("auto");
+  });
+
+  test("finding 7: each loop opens with a <title> naming the holder and the ends of the route", () => {
+    const named = routeLoop(threeNameStop, "Bly R.");
+    expect(named).toContain("<title>Bly R.'s route: Cinder Bend to Ochre Ridge</title>");
+    // The title is the svg's FIRST child: a screen reader announces it as
+    // the drawing's name, which only holds if nothing is drawn ahead of it.
+    expect(named.indexOf("<title>")).toBeLessThan(named.indexOf("<path"));
+    expect(named).not.toContain("—");
+
+    // With no name to hand (the fallback the journey list never takes, kept
+    // so a caller without a display name still gets a titled drawing rather
+    // than a slug printed on the page).
+    expect(loop).toContain("<title>Route: Cinder Bend to Ochre Ridge</title>");
+  });
+
+  test("finding 7: renderHopeCoin gives each drawn loop the holder's display name, never their slug", () => {
+    const full = renderHopeCoin(odoData(loopChain));
+    expect(full).toContain("<title>Bly R.'s route: Cinder Bend to Ochre Ridge</title>");
+    expect(full).toContain("<title>Dre K.'s route: Quarry Row to Lantern Creek</title>");
+    expect(full).not.toContain("bly-r's route");
   });
 });
 
@@ -1695,6 +1810,37 @@ function legendRows(html: string): string[][] {
   return [...body.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].map((row) =>
     [...row[1]!.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((cell) => cell[1]!));
 }
+
+// The final fix wave (2026-09-05, whole-branch review finding 2). The strip
+// renders around 340px wide on a desktop and on a phone alike, so its year
+// ticks at 11 viewBox units came out near six pixels: a number nobody can
+// read. The type is raised to 19 units and the box given the four extra
+// units of height that type needs to sit under the bar.
+describe("the tenure strip's year ticks are legible (final fix wave, #48)", () => {
+  test("finding 2: the strip's viewBox is 48 units tall, the room the bigger year type needs", () => {
+    expect(heldABA).toContain('<svg class="tenure-strip" viewBox="0 0 600 48">');
+  });
+
+  test("finding 2: every year sits inside that box, below the bar", () => {
+    const texts = [...heldABA.matchAll(/<text class="strip-tick"[^>]*\by="([\d.]+)"/g)];
+    expect(texts.length).toBeGreaterThan(0);
+    for (const t of texts) {
+      const y = Number.parseFloat(t[1]!);
+      // Below the bar (top 2, height 20) and on the drawing.
+      expect(y).toBeGreaterThan(22);
+      expect(y).toBeLessThanOrEqual(48);
+    }
+  });
+
+  test("finding 2: .strip-tick sets a font-size of at least 19px, in the strip's own viewBox units", () => {
+    const css = stripCssComments(readFileSync(CSS_PATH, "utf8"));
+    const rule = cssRules(css).find((r) => r.selector === ".strip-tick");
+    expect(rule).toBeDefined();
+    const size = declValue(rule!.body, "font-size");
+    expect(size).toMatch(/^\d+(\.\d+)?px$/);
+    expect(Number.parseFloat(size!)).toBeGreaterThanOrEqual(19);
+  });
+});
 
 describe("holdersSection: who has held it (Task 8, #48)", () => {
   test("M1 leg (a): a band-dark section headed Who has held it, with one donut arc per holder in share order and one marked current", () => {

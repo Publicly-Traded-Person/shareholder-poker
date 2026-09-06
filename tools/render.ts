@@ -854,42 +854,6 @@ function hopeCoinStopDate(history: HopeCoinStop[], i: number): string {
   return next?.from !== undefined ? `before ${monthYear(next.from)}` : "";
 }
 
-// A slug's newest carded image (Task 4 of the 2026-09-02 final fix wave:
-// renderHopeCoin used to pass no `image` option at all, so every unfurl of
-// /hope-coin/ showed page()'s DEFAULT_OG_IMAGE - July's foil champion card -
-// regardless of who actually held the Coin). As of Task 5 (#48), the Hope
-// Coin page no longer calls this: its own og:image is now the coin's own
-// hero photo (coin-og.png) every time, never a card, because a shared link
-// to a page about the Coin should show the Coin, not whichever card the
-// current holder happens to have. This function is kept rather than
-// deleted - it stays what its name says, "a slug's newest carded image," for
-// a player page to reach for later, mirroring renderPlayer's own "carded
-// games, newest first" scan above rather than calling renderPlayer itself
-// (that returns a whole document, not an image URL). Takes the parsed
-// games.json and a slug; returns the absolute card image URL for their most
-// recent carded game, or undefined when they have never been carded - a
-// pre-spine holder (nick-m's own predecessor, gene, in the fixture below)
-// legitimately has no card at all, and undefined is what reaches page()'s
-// own `image` default parameter, the same fallback every other uncarded
-// page already gets (see renderPlayer's own comment on passing undefined
-// deliberately).
-function newestCardImage(data: GamesData, slug: string): string | undefined {
-  const carded = data.games
-    .filter((g) => g.results.some((r) => r.slug === slug && r.card))
-    .sort((a, b) => b.date.localeCompare(a.date));
-  const newest = carded[0];
-  if (!newest) return undefined;
-  const result = newest.results.find((r) => r.slug === slug)!;
-  // The card cross-check in tools/site.test.ts already refuses to publish
-  // any game that carries a `card` on a result without also carrying
-  // `cardSet` on the game, so this can only fire on a data bug that check
-  // missed - never a normal state, hence throw rather than guess a path.
-  if (!newest.cardSet) {
-    throw new Error(`newestCardImage: ${slug}'s card for ${newest.date} needs cardSet on the game`);
-  }
-  return `https://poker.kmikeym.com/cards/${newest.cardSet}/assets/${result.card!.file}`;
-}
-
 // coinHero renders the grid that opens the Hope Coin page (Task 5, #48,
 // M1): the coin's own photograph, framed to a circle and captioned, beside
 // the copy that used to open this page on its own - the display heading,
@@ -1068,18 +1032,41 @@ export function odometerTiles(data: GamesData): string {
 // it produces, and the two must never disagree about its length.
 const BORDER_LABEL = ", the coin's one border crossing";
 
+// The reference frame every loop's type size is quoted against: 540 viewBox
+// units, which is `.route-loop`'s own max-width in site/styles.css, and the
+// 11px `.route-tick text` sets there. A loop drawn in a wider viewBox is
+// scaled DOWN by that CSS to fit the same 540px box, so a fixed 11-unit
+// type size meant Beau's 850-unit Alaska loop printed its place names at
+// seven pixels on a desktop and under four on a phone (whole-branch review
+// finding 1, 2026-09-05). Emitting the size in user units as
+// LOOP_REF_SIZE * width / LOOP_REF_WIDTH cancels that scaling exactly, so
+// every loop on the page renders its names at the same size no matter how
+// many places it carries.
+const LOOP_REF_WIDTH = 540;
+const LOOP_REF_SIZE = 11;
+// A monospace face's advance is 0.6 of its size, which is all the character
+// width any of this needs: the measurements below only decide how much room
+// to leave and where a label may sit, so an estimate that runs a little
+// wide is the safe direction and a wrong one shifts a label rather than
+// breaking the drawing.
+const CHAR_RATIO = 0.6;
+// One character's width at the reference size, the unit the frame's own
+// width is measured in below.
+const REF_CHAR = LOOP_REF_SIZE * CHAR_RATIO;
+
 // The widest of a set of route-loop labels, in viewBox units. Takes the
 // label strings as they will actually read on screen (unescaped: a browser
-// draws the "&" in "&amp;", not five characters); returns the width of the
-// longest, or 0 for an empty list. Throws nothing.
+// draws the "&" in "&amp;", not five characters) and the width of one
+// character in the units being measured; returns the width of the longest
+// label, or 0 for an empty list. Throws nothing.
 //
-// 6.6 units per character is the monospace face's advance at the 11px size
-// `.route-tick text` sets in site/styles.css. It is an estimate, and it is
-// only ever used to decide how much room to leave and where a label may
-// sit, so an estimate that runs a little wide is the safe direction and a
-// wrong one shifts a label rather than breaking the drawing.
-function widestLabel(labels: string[]): number {
-  return labels.reduce((widest, label) => Math.max(widest, label.length * 6.6), 0);
+// The per-character width is a parameter rather than a constant because
+// the two callers measure in two different scales: the frame's width is
+// decided before the type size is known, so it measures at REF_CHAR, while
+// the label placement inside the finished frame measures at the size that
+// frame actually emits.
+function widestLabel(labels: string[], perChar: number): number {
+  return labels.reduce((widest, label) => Math.max(widest, label.length * perChar), 0);
 }
 
 // routeLoop draws one stop's road trip as a loop hanging off the journey's
@@ -1087,10 +1074,15 @@ function widestLabel(labels: string[]): number {
 // returning to it, one tick per place the Coin actually rode through, the
 // place names beside the ticks, the stint's mileage inside the loop, and a
 // small drawn flag on the one tick that crossed a border. Takes a single
-// HopeCoinStop; returns the `<svg>` markup alone, which renderHopeCoin
-// splices inside that stop's own `<li>` after its `how` sentence - or the
-// empty string for a stop with no `route`, which is most of them, so the
-// caller can splice the result unconditionally instead of branching.
+// HopeCoinStop and, optionally, the holder's display name for the drawing's
+// `<title>` (renderHopeCoin always passes it, from the same name map the
+// rest of the journey list uses, so a slug never reaches the title; the
+// no-name form exists for a caller that has only a stop in hand, and titles
+// the drawing "Route: ..." rather than printing a slug). Returns the
+// `<svg>` markup alone, which renderHopeCoin splices inside that stop's own
+// `<li>` after its `how` sentence - or the empty string for a stop with no
+// `route`, which is most of them, so the caller can splice the result
+// unconditionally instead of branching.
 // Throws nothing: a `route` never arrives without `milesHeld` (see the
 // field's own comment in tools/lib/standings.ts), and a stop that somehow
 // had one would draw "0 miles on the road" rather than crash, because a
@@ -1119,7 +1111,7 @@ function widestLabel(labels: string[]): number {
 // crosses a second border, that becomes a field on the stop - a second
 // hardcoded country name here would be a guess about data that does not
 // exist yet.
-export function routeLoop(stop: HopeCoinStop): string {
+export function routeLoop(stop: HopeCoinStop, holderName?: string): string {
   const route = stop.route;
   if (!route || route.length === 0) return "";
 
@@ -1145,7 +1137,17 @@ export function routeLoop(stop: HopeCoinStop): string {
   // and 850 units against a longest label near 350), so it changes nothing
   // on the page today and keeps a future short route with a long name from
   // losing its tail.
-  const width = Math.max(90 * route.length + 40, Math.ceil(widestLabel(route.map(labelText)) + 4));
+  const width = Math.max(90 * route.length + 40, Math.ceil(widestLabel(route.map(labelText), REF_CHAR) + 4));
+  // The type size, in user units, so that CSS scaling it back to the
+  // reference frame lands every loop's names at the same pixel size (see
+  // LOOP_REF_WIDTH above). One decimal is as fine as an svg font size ever
+  // needs and keeps the attribute readable in the committed page.
+  const fontSize = Number(((LOOP_REF_SIZE * width) / LOOP_REF_WIDTH).toFixed(1));
+  // One character at THAT size, which is what the label placement below
+  // measures in: measuring the placement at the reference size instead
+  // would drag every end label far further inside the frame than it needs
+  // to be, away from the tick it names.
+  const charWidth = fontSize * CHAR_RATIO;
   const height = 150;
   const left = 20;
   const right = width - 20;
@@ -1186,10 +1188,13 @@ export function routeLoop(stop: HopeCoinStop): string {
     // either end would run past the viewBox edge, and an svg clips there.
     // Every label is centered on its own tick and then slid back inside the
     // frame if it has to be - never re-anchored to an edge, which only
-    // trades one overflow for the opposite one. Both clamps can never fight
-    // each other, because `width` above is already at least as wide as the
-    // longest label.
-    const halfLabel = widestLabel([labelText(name)]) / 2;
+    // trades one overflow for the opposite one. The two clamps can never
+    // fight each other: a label fills `charWidth * length` of the frame,
+    // which is `length * 6.6 / 540` of it whatever the frame's width, so
+    // anything under about eighty characters leaves room on both sides, and
+    // `width` above is in any case never narrower than the longest label at
+    // the reference size.
+    const halfLabel = widestLabel([labelText(name)], charWidth) / 2;
     const labelX = round(Math.min(Math.max(x, 2 + halfLabel), width - 2 - halfLabel));
     // The flag points into the loop, where nothing else is drawn at this
     // end, rather than out into the name's own space.
@@ -1203,15 +1208,25 @@ export function routeLoop(stop: HopeCoinStop): string {
     // anyway (see its comment at the top of this file).
     const label = esc(name) + (border ? BORDER_LABEL : "");
 
-    return `<g class="route-tick"><circle cx="${x}" cy="${y}" r="3.5"/>${flag}<text x="${labelX}" y="${labelY}" text-anchor="middle">${label}</text></g>`;
+    return `<g class="route-tick"><circle cx="${x}" cy="${y}" r="3.5"/>${flag}<text x="${labelX}" y="${labelY}" text-anchor="middle" font-size="${fontSize}">${label}</text></g>`;
   }).join("");
 
   const path = `<path class="route-loop-path" d="M ${runStart} ${top} H ${runEnd} A ${rx} ${rx} 0 0 1 ${runEnd} ${bottom} H ${runStart} A ${rx} ${rx} 0 0 1 ${runStart} ${top} Z"/>`;
   // The mileage sits inside the loop at its far end, the one part of the
   // drawing with empty room at every route length.
-  const miles = `<text class="route-loop-miles" x="${right - rx - 6}" y="${(top + bottom) / 2 + 4}" text-anchor="end">${formatMiles(stop.milesHeld ?? 0)} miles on the road</text>`;
+  const miles = `<text class="route-loop-miles" x="${right - rx - 6}" y="${(top + bottom) / 2 + 4}" text-anchor="end" font-size="${fontSize}">${formatMiles(stop.milesHeld ?? 0)} miles on the road</text>`;
 
-  return `<svg class="route-loop" viewBox="0 0 ${width} ${height}">${path}${ticks}${miles}</svg>`;
+  // The drawing's name, first child of the svg so a screen reader announces
+  // it before anything drawn (the donut and the tenure strip both carry one
+  // already; these two loops were the only untitled graphics on the page).
+  // Built from the ends of the route, which is what a title can say without
+  // repeating the whole list the places line beside the drawing already
+  // prints. A one-place route names that place rather than saying "X to X".
+  const ends = route.length > 1 ? `${route[0]} to ${route[route.length - 1]}` : route[0]!;
+  const titleText = holderName ? `${holderName}'s route: ${ends}` : `Route: ${ends}`;
+  const title = `<title>${esc(titleText)}</title>`;
+
+  return `<svg class="route-loop" viewBox="0 0 ${width} ${height}">${title}${path}${ticks}${miles}</svg>`;
 }
 
 // The ink tints the non-current holders are drawn in, darkest first, in
@@ -1257,10 +1272,15 @@ const DONUT_CHAR = 4.8;
 // of each other.
 const DONUT_LABEL_GAP = 9.6;
 
-// The tenure strip's geometry, in its own 600 by 40 viewBox: a 600-unit
+// The tenure strip's geometry, in its own 600 by 48 viewBox: a 600-unit
 // bar of segments with the January ticks and their years beneath it.
 const STRIP_W = 600;
-const STRIP_H = 40;
+// Raised from 40 for legibility (whole-branch review finding 2,
+// 2026-09-05): the strip draws around 340px wide on a desktop and on a
+// phone alike, so its 11-unit years came out near six pixels. `.strip-tick`
+// is now 19 units, and the box needs these eight extra units of height to
+// seat that type under the bar.
+const STRIP_H = 48;
 const STRIP_BAR_TOP = 2;
 const STRIP_BAR_HEIGHT = 20;
 
@@ -1598,12 +1618,30 @@ export function renderHopeCoin(data: GamesData): string {
     // around gets that trip drawn inside its own <li>, under the sentence
     // that says what happened. routeLoop() returns "" for every other stop,
     // which is why this splices unconditionally rather than branching here.
-    const loop = routeLoop(stop);
-    const loopHtml = loop ? `\n        ${loop}` : "";
+    //
+    // The loop is wrapped in .table-scroll, the same overflow-x container
+    // every committed table on the site already uses (whole-branch review
+    // finding 1, 2026-09-05): a phone pans a drawing held at a readable
+    // size instead of shrinking its place names to four pixels, and the
+    // page body itself still never scrolls sideways because the overflow
+    // lives inside that box.
+    const loop = routeLoop(stop, name);
+    const loopHtml = loop ? `\n        <div class="table-scroll route-scroll">${loop}</div>` : "";
+
+    // The same places, as text, right above the drawing. Nine of the
+    // eighteen places the Coin has been used to exist nowhere on this page
+    // except inside an SVG, which fails the site's own rule that every
+    // chart also states its information in words (the plan's Global
+    // Constraints, and docs/brand.md). Names only, in route order, joined
+    // by commas: the border sentence stays on the drawing, where it labels
+    // the one tick it belongs to.
+    const routeText = stop.route?.length
+      ? `\n        <p class="stat">${esc(stop.route.join(", "))}</p>`
+      : "";
 
     stopBlocks.push(`      <li class="route-stop${isCurrent ? " route-stop--current" : ""}">
         <p><strong>${name}</strong>${dateHtml}</p>${placeHtml}
-        <p>${esc(stop.how)}</p>${loopHtml}
+        <p>${esc(stop.how)}</p>${routeText}${loopHtml}
       </li>`);
   }
   const stops = stopBlocks.join("\n");
@@ -1653,10 +1691,10 @@ ${holdersSection(data)}`;
   // image: the coin's own hero photo (Task 5, #48, M2), not whichever card
   // the current holder happens to have - a shared link to /hope-coin/ should
   // show the Coin, the same object the page is about, no matter who holds it
-  // this month. This is a literal, not newestCardImage(data, ...): that
-  // function used to supply this option (final fix wave, item 4) and is
-  // kept in this file rather than deleted (see its own comment above), but
-  // this page no longer calls it.
+  // this month. It is a literal because it is the same image on every
+  // render: the helper that used to pick a card for this option had no
+  // other caller once this page stopped asking for one, and was deleted
+  // with it (whole-branch review finding 3, 2026-09-05).
   // The footer band is band-light because holdersSection() above ends the
   // page on a band-dark section, and two adjacent bands never share a tone
   // (docs/brand.md).

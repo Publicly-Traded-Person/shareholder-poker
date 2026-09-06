@@ -105,7 +105,9 @@ export type HolderShare = { holder: string; reigns: number; months: number; perc
 //    only checks their shape.
 //
 // Throws: Error, with a message naming the specific stop(s) involved (by
-// 1-based position and holder) and the dates in conflict, matching the
+// 1-based position and holder) and the values that broke the rule - the
+// dates in conflict for rules 0 through 4, the offending mileage or route
+// name for rule 5 - matching the
 // refuse-to-publish voice in tools/publish-game.ts — this message is what
 // Charlie reads at night right after he broke the chain, so it says what
 // is wrong, not just that something is wrong.
