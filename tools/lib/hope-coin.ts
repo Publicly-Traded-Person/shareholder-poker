@@ -31,6 +31,16 @@ import type { GamesData } from "./standings";
 //
 // Every other check below assumes at least one stop exists. In order:
 //
+// 0. Format: every `from` and `to` present is YYYY-MM-DD, or YYYY-MM when
+//    the record knows the handoff only to the month (Beau's chain of
+//    custody, 2026-09-05, dates seven of the twelve real handoffs that
+//    way). Checked first because every comparison below is a plain string
+//    comparison, which orders "2022-4" and "04/2022" wrongly without a
+//    murmur; the page prints month and year either way, so the shorter
+//    form loses nothing on screen. Two adjacent stops must still match on
+//    the identical string at the handoff (rule 3), so a month-only `to`
+//    meets a month-only `from`, never a full date.
+//
 // 1. Presence: only the first stop may omit `from` (nobody remembers when
 //    the Coin arrived there — see the HopeCoinStop comment in standings.ts)
 //    and only the last stop may omit `to` (it is the only stop still
@@ -74,6 +84,20 @@ import type { GamesData } from "./standings";
 export function validateCoinHistory(data: GamesData): void {
   const history = data.hopeCoin.history;
   if (history === undefined || history.length === 0) return;
+
+  // 0. Format.
+  const DATE = /^\d{4}-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?$/;
+  for (let i = 0; i < history.length; i++) {
+    const stop = history[i];
+    for (const [field, value] of [["from", stop.from], ["to", stop.to]] as const) {
+      if (value !== undefined && !DATE.test(value)) {
+        throw new Error(
+          `hopeCoin.history stop ${i + 1} (${stop.holder}) has a "${field}" of "${value}". Dates are ` +
+          `YYYY-MM-DD, or YYYY-MM when only the month is on record; nothing else. Fix the value.`
+        );
+      }
+    }
+  }
 
   // 1. Presence.
   for (let i = 0; i < history.length; i++) {

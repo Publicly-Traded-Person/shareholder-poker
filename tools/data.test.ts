@@ -61,17 +61,35 @@ describe("hope coin chain (Task 6)", () => {
   test("validateCoinHistory does not throw on the committed data", () => {
     expect(() => validateCoinHistory(data)).not.toThrow();
   });
-  test("history carries exactly the one seeded stop: nick-m from 2026-04-14, still current", () => {
-    // Mike, 2026-09-02: ship with only the one stop the record already
-    // knows; every earlier stop is his to reconstruct from memory and
-    // arrives later as a data-only commit. Never let this test's shape grow
-    // to expect more than one stop until that commit actually lands.
+  // Beau's chain of custody, 2026-09-05: twelve stops from the coin's first
+  // home to Nick today. This replaced the one-stop seed of 2026-09-02, and
+  // the pending flag came off in the same commit because the chain now
+  // starts where the coin did. If a stop is ever added or corrected, update
+  // the count and the endpoints here in the same commit, on purpose: this
+  // test is the record's own statement of how long the journey is.
+  test("history is Beau's twelve-stop chain: starts with kmikeym, undated, ends with nick-m since 2026-04-14", () => {
     const history = data.hopeCoin.history ?? [];
-    expect(history.length).toBe(1);
-    expect(history[0].holder).toBe("nick-m");
-    expect(history[0].from).toBe("2026-04-14");
-    expect(history[0].to).toBeUndefined();
-    expect(history[0].how.length).toBeGreaterThan(0);
+    expect(history.length).toBe(12);
+    expect(history[0].holder).toBe("kmikeym");
+    expect(history[0].from).toBeUndefined();
+    expect(history[history.length - 1].holder).toBe("nick-m");
+    expect(history[history.length - 1].from).toBe("2026-04-14");
+    expect(history[history.length - 1].to).toBeUndefined();
+    for (const stop of history) expect(stop.how.length).toBeGreaterThan(0);
+  });
+  test("every stop's holder is on the roster, so the page has a name to print", () => {
+    const roster = new Set(data.players.map(p => p.slug));
+    for (const stop of data.hopeCoin.history ?? []) expect(roster.has(stop.holder)).toBe(true);
+  });
+  test("the journey reaches the coin's first stop, so historyPending is gone", () => {
+    expect(data.hopeCoin.historyPending).toBeUndefined();
+  });
+  test("stop dates are YYYY-MM-DD, or YYYY-MM when only the month is on record", () => {
+    for (const stop of data.hopeCoin.history ?? []) {
+      for (const d of [stop.from, stop.to]) {
+        if (d !== undefined) expect(d).toMatch(/^\d{4}-\d{2}(-\d{2})?$/);
+      }
+    }
   });
 });
 

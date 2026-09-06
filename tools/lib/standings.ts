@@ -23,6 +23,10 @@ export type CardRef = {
 // absent only on the last stop, because that one is still current. Never
 // invent either date: an unknown boundary stays absent rather than guessed,
 // because a wrong date on the coin page is worse than a gap.
+// Dates are YYYY-MM-DD, or YYYY-MM when the record knows the handoff only
+// to the month (most of the 2021 to 2023 stops, per Beau's chain of
+// custody); validateCoinHistory rejects anything else, and the page prints
+// month and year for both forms.
 export type HopeCoinStop = {
   holder: string;   // a slug in players; may be a slug with no games
   from?: string;    // absent only on the first stop, when nobody remembers

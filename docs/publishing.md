@@ -127,6 +127,10 @@ instead:
 - Leave the new stop's `from` off entirely when Mike does not remember the
   exact date the Coin arrived there. Only the first stop in the array may
   omit `from`, and after this edit the new stop IS the first one.
+- Write a date as `YYYY-MM-DD`, or as `YYYY-MM` when the record knows the
+  handoff only to the month (most of the 2021 to 2023 stops are like this).
+  Never fill in a day to make it look complete; the page prints month and
+  year either way, and the suite rejects any other shape.
 - If the remembered holder has never appeared in `hopeCoin.history` or on
   any game's roster, add them to `players` (top of `games.json`) so the
   page has a name to show, not a bare slug. A holder with no games of their
@@ -142,16 +146,16 @@ Run `bun test tools` after a prepend the same as after an append.
 have a separate "prepend mode," it just checks the whole array's shape, so
 a broken prepend fails the exact same rules a broken append would.
 
-### The Coin's history is still being reconstructed
+### If the Coin's history ever has a gap at its start again
 
-The real `hopeCoin.history` today starts with the nick-m stop from April
-2026; the Coin is older than that, and Mike is recovering its earlier stops
-from memory, one prepend at a time, per the section just above. Until every
-stop back to the actual beginning is recovered, `hopeCoin.historyPending`
-(top of `games.json`, beside `holder` and `since`) stays `true`. While it
-is, the Hope Coin page prints one extra sentence under "The journey"
-heading, above the route, saying the journey shown is only what the record
-can currently date. `tools/render.ts`'s `renderHopeCoin` is what prints
+As of 2026-09-05 `hopeCoin.history` runs from the Coin's first home to the
+current holder, twelve stops, from Beau's own chain of custody. Should a
+stop ever be removed pending a correction, so the array no longer reaches
+back to the beginning, set `hopeCoin.historyPending` (top of `games.json`,
+beside `holder` and `since`) to `true` until the chain is whole again.
+While it is set, the Hope Coin page prints one extra sentence under "The
+journey" heading, above the route, saying the journey shown is only what
+the record can currently date. `tools/render.ts`'s `renderHopeCoin` is what prints
 that sentence; it is never typed onto the page by hand, the same reason
 `recordQualifier`'s "being backfilled" line on standings and the games
 index reads `backfillPending` instead of a hardcoded string (see "Known

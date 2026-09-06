@@ -826,6 +826,11 @@ describe("renderHopeCoin", () => {
   test("M1: is a full document that says what the Coin is and that three kills on the holder takes it", () => {
     expect(html).toStartWith("<!doctype html>");
     expect(html).toContain("The Hope Coin is the game's traveling trophy");
+    // Beau's chain of custody (2026-09-05): the coin went to each season's
+    // champion until mid-2024 and has moved on the third skull since. The
+    // intro says so, because the journey below it shows both eras.
+    expect(html).toContain("went to each season's champion until mid-2024");
+    expect(html).toContain("third skull");
     expect(html).toContain("Three kills on the holder takes it.");
   });
 
@@ -876,6 +881,29 @@ describe("renderHopeCoin", () => {
     expect(blocks[0]).toContain("before June 2025"); // gene: no from; chris-g's from is 2025-06-01
     expect(blocks[1]).toContain("June 2025 to April 2026"); // chris-g: 2025-06-01 to 2026-04-14
     expect(blocks[2]).toContain("since April 2026"); // nick-m: from 2026-04-14, current
+  });
+
+  // A month-only stop date (YYYY-MM, allowed since 2026-09-05 for handoffs
+  // the record knows only to the month) prints exactly as a full date does:
+  // month and year. Pins the date helper's behaviour on the shorter string
+  // so a future "parse the day" change cannot start printing "undefined".
+  test("a month-only closed stop prints month and year on both ends", () => {
+    const monthOnly = renderHopeCoin({
+      ...hcData,
+      hopeCoin: {
+        holder: "nick-m", since: "2026-04-14",
+        history: [
+          { holder: "chris-g", to: "2022-04", how: "Where it started." },
+          { holder: "beau-g", from: "2022-04", to: "2022-07", how: "Season champion." },
+          { holder: "nick-m", from: "2022-07", to: "2026-04-14", how: "Season champion." },
+          { holder: "nick-m", from: "2026-04-14", how: "Third skull." },
+        ],
+      },
+    });
+    expect(monthOnly).toContain("April 2022 to July 2022");
+    expect(monthOnly).toContain("before April 2022");
+    expect(monthOnly).not.toContain("undefined");
+    expect(monthOnly).not.toContain("NaN");
   });
 
   // Round 1 review: this branch is not hypothetical. validateCoinHistory

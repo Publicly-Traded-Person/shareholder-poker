@@ -965,7 +965,7 @@ export function renderHopeCoin(data: GamesData): string {
 <section class="band-light">
   <div class="band-inner">
     <h1 class="display">The Hope Coin ${COIN}</h1>
-    <p>The Hope Coin is the game's traveling trophy: it moves to whoever lands the third skull on the current holder.</p>
+    <p>The Hope Coin is the game's traveling trophy. It went to each season's champion until mid-2024, and since then it moves to whoever lands the third skull on the current holder.</p>
     <div class="tile">
       <p><strong>${esc(holderName)}</strong> holds the Coin (since ${s.hopeCoin.since}). Three kills on the holder takes it.</p>
       <ul>
