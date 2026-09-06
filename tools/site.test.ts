@@ -563,6 +563,20 @@ function relSorted(root: string, files: string[]): string[] {
   return files.map((f) => f.slice(root.length + 1)).sort();
 }
 
+// Drops anything under an `assets/` subdirectory from a relative file list
+// (controller ruling, Task 5 of the hope-coin-infographics plan, #48): an
+// assets directory (site/hope-coin/assets/, the same convention
+// site/cards/<set>/assets/ already uses) holds INPUTS the renderer
+// references from an <img src="..."> but never writes itself - the coin's
+// two photographs, a card's art. Without this filter, every file the
+// generator was never asked to produce would show up as "committed but
+// missing from the fresh render" and fail a check that exists to catch a
+// stale or hand-only PAGE, not a photograph sitting beside one. Takes a
+// relSorted() list; returns it with any "assets/..." entry removed.
+function excludeAssets(rels: string[]): string[] {
+  return rels.filter((rel) => !rel.startsWith("assets/"));
+}
+
 // True only when both relative-path lists are identical - same count, same
 // names, once sorted. Extracted as its own function (rather than inlined in
 // the test below) for the same reason tools/site.test.ts's card cross-check
@@ -624,8 +638,8 @@ describe("the generator, run into an empty directory, produces exactly what's co
     test(`site/${sub}/: the generated file set matches the committed one`, () => {
       const committedRoot = join(SITE, sub);
       const generatedRoot = join(tempRoot, "site", sub);
-      const committed = relSorted(committedRoot, filesUnder(committedRoot));
-      const generated = relSorted(generatedRoot, filesUnder(generatedRoot));
+      const committed = excludeAssets(relSorted(committedRoot, filesUnder(committedRoot)));
+      const generated = excludeAssets(relSorted(generatedRoot, filesUnder(generatedRoot)));
       expect(
         fileSetsMatch(committed, generated),
         `committed: ${JSON.stringify(committed)}\ngenerated: ${JSON.stringify(generated)}`
@@ -635,7 +649,7 @@ describe("the generator, run into an empty directory, produces exactly what's co
     test(`site/${sub}/: every generated file is byte-identical to its committed twin`, () => {
       const committedRoot = join(SITE, sub);
       const generatedRoot = join(tempRoot, "site", sub);
-      const rels = relSorted(committedRoot, filesUnder(committedRoot));
+      const rels = excludeAssets(relSorted(committedRoot, filesUnder(committedRoot)));
       for (const rel of rels) {
         const committedBytes = readFileSync(join(committedRoot, rel), "utf8");
         const generatedBytes = readFileSync(join(generatedRoot, rel), "utf8");

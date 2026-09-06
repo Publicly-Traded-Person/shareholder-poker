@@ -853,21 +853,25 @@ function hopeCoinStopDate(history: HopeCoinStop[], i: number): string {
   return next?.from !== undefined ? `before ${monthYear(next.from)}` : "";
 }
 
-// The holder's newest carded image, for the Hope Coin page's own og:image
-// (Task 4 of the 2026-09-02 final fix wave: renderHopeCoin used to pass no
-// `image` option at all, so every unfurl of /hope-coin/ showed page()'s
-// DEFAULT_OG_IMAGE - July's foil champion card - regardless of who actually
-// holds the Coin). Mirrors renderPlayer's own "carded games, newest first"
-// scan above rather than calling renderPlayer itself (that returns a whole
-// document, not an image URL) or exporting a shared helper (nothing else
-// needs one yet, and a one-caller helper kept local is easier for Charlie to
-// find than one more cross-file import). Takes the parsed games.json and the
-// holder's slug; returns the absolute card image URL for their most recent
-// carded game, or undefined when they have never been carded - a pre-spine
-// holder (nick-m's own predecessor, gene, in the fixture below) legitimately
-// has no card at all, and undefined is what reaches page()'s own `image`
-// default parameter, the same fallback every other uncarded page already
-// gets (see renderPlayer's own comment on passing undefined deliberately).
+// A slug's newest carded image (Task 4 of the 2026-09-02 final fix wave:
+// renderHopeCoin used to pass no `image` option at all, so every unfurl of
+// /hope-coin/ showed page()'s DEFAULT_OG_IMAGE - July's foil champion card -
+// regardless of who actually held the Coin). As of Task 5 (#48), the Hope
+// Coin page no longer calls this: its own og:image is now the coin's own
+// hero photo (coin-og.png) every time, never a card, because a shared link
+// to a page about the Coin should show the Coin, not whichever card the
+// current holder happens to have. This function is kept rather than
+// deleted - it stays what its name says, "a slug's newest carded image," for
+// a player page to reach for later, mirroring renderPlayer's own "carded
+// games, newest first" scan above rather than calling renderPlayer itself
+// (that returns a whole document, not an image URL). Takes the parsed
+// games.json and a slug; returns the absolute card image URL for their most
+// recent carded game, or undefined when they have never been carded - a
+// pre-spine holder (nick-m's own predecessor, gene, in the fixture below)
+// legitimately has no card at all, and undefined is what reaches page()'s
+// own `image` default parameter, the same fallback every other uncarded
+// page already gets (see renderPlayer's own comment on passing undefined
+// deliberately).
 function newestCardImage(data: GamesData, slug: string): string | undefined {
   const carded = data.games
     .filter((g) => g.results.some((r) => r.slug === slug && r.card))
@@ -885,21 +889,34 @@ function newestCardImage(data: GamesData, slug: string): string | undefined {
   return `https://poker.kmikeym.com/cards/${newest.cardSet}/assets/${result.card!.file}`;
 }
 
-// Renders the Hope Coin's own page: two sentences saying what the Coin is
-// and what taking it costs, the holder-now tile exactly as standings shows
-// it (name, since date, skull tally - built from the same deriveStandings()
-// call so the two pages can never disagree about a count), and the journey:
-// one `.route-stop` per hopeCoin.history entry, oldest first, the last one
-// marked `.route-stop--current`. While data.hopeCoin.historyPending is true,
-// one more sentence lands under "The journey" heading, above the route,
-// saying the record's earliest datable stop is not the Coin's actual first
-// stop (see journeyIncompleteHtml below); the sentence is absent entirely
-// once that flag is gone. Takes the parsed games.json; returns the full
-// document. Throws nothing of its own: an absent history (the rollout state
-// before any stops existed - see the comment on GamesData.hopeCoin.history)
-// renders a journey with zero rows, and a malformed chain is caught
-// upstream by validateCoinHistory, not here.
-export function renderHopeCoin(data: GamesData): string {
+// coinHero renders the grid that opens the Hope Coin page (Task 5, #48,
+// M1): the coin's own photograph, framed to a circle and captioned, beside
+// the copy that used to open this page on its own - the display heading,
+// the "what is the Coin" paragraph, and the holder-now tile (name, since
+// date, skull tally, built from deriveStandings() exactly as renderStandings'
+// own Hope Coin tile is, so the two pages can never disagree about a count).
+// Takes the parsed games.json; returns the `<div class="cols">` markup only,
+// not a whole page or section - renderHopeCoin wraps it in the page's first
+// band-light section below. Exported on its own, per the task's Interface,
+// so a test can check the grid's shape directly without also parsing
+// everything else renderHopeCoin returns.
+//
+// Computes its own deriveStandings() call and name map rather than taking
+// them as arguments: the function's whole contract is "takes the games
+// data," and a cheap derive() call recomputed here costs nothing next to
+// the alternative of a second, wider signature only this one caller would
+// ever fill in. renderHopeCoin needs its own name map too (for the journey
+// below, a different slug lookup entirely), so this is not new duplication,
+// just the existing "recompute rather than thread a wide argument list"
+// pattern the skull tally below has always used.
+//
+// The image itself: a black and silver card guard, showing the two of
+// diamonds and the seven of clubs (Hope's own "hand with its own bounty"),
+// ringed with the words the caption quotes. `coin.png` is 900 by 900,
+// transparent outside the coin's own rim (Task 4), so `.coin-frame`'s
+// border-radius: 50% is what actually makes it read as a disc rather than
+// a square photo with round corners.
+export function coinHero(data: GamesData): string {
   const s = deriveStandings(data);
   const nameOf = new Map(data.players.map((p) => [p.slug, p.name]));
   const holderName = nameOf.get(s.hopeCoin.holder) ?? s.hopeCoin.holder;
@@ -910,7 +927,40 @@ export function renderHopeCoin(data: GamesData): string {
   const skulls = Object.entries(s.hopeCoin.skulls)
     .map(([slug, n]) =>
       `<li>${esc(nameOf.get(slug) ?? slug)}: ${SKULL.repeat(n)}${SKULL_EMPTY.repeat(3 - n)} <span class="stat">${n} of 3</span> skulls</li>`)
-    .join("\n          ");
+    .join("\n            ");
+
+  return `<div class="cols">
+      <figure class="coin-figure">
+        <div class="coin-frame"><img src="/hope-coin/assets/coin.png" width="900" height="900" alt="a black and silver card guard showing the two of diamonds and the seven of clubs, ringed with the words It's not the cards, it's the player."></div>
+        <figcaption class="stat">It's not the cards, it's the player. The coin shows 7-2, the hand with its own bounty.</figcaption>
+      </figure>
+      <div>
+        <h1 class="display">The Hope Coin ${COIN}</h1>
+        <p>The Hope Coin is the game's traveling trophy. It went to each season's champion until mid-2024, and since then it moves to whoever lands the third skull on the current holder.</p>
+        <div class="tile">
+          <p><strong>${esc(holderName)}</strong> holds the Coin (since ${s.hopeCoin.since}). Three kills on the holder takes it.</p>
+          <ul>
+            ${skulls}
+          </ul>
+        </div>
+      </div>
+    </div>`;
+}
+
+// Renders the Hope Coin's own page: the hero grid coinHero() builds (the
+// coin's photo and the "what is the Coin" copy, side by side), and the
+// journey: one `.route-stop` per hopeCoin.history entry, oldest first, the
+// last one marked `.route-stop--current`. While data.hopeCoin.historyPending
+// is true, one more sentence lands under "The journey" heading, above the
+// route, saying the record's earliest datable stop is not the Coin's actual
+// first stop (see journeyIncompleteHtml below); the sentence is absent
+// entirely once that flag is gone. Takes the parsed games.json; returns the
+// full document. Throws nothing of its own: an absent history (the rollout
+// state before any stops existed - see the comment on
+// GamesData.hopeCoin.history) renders a journey with zero rows, and a
+// malformed chain is caught upstream by validateCoinHistory, not here.
+export function renderHopeCoin(data: GamesData): string {
+  const nameOf = new Map(data.players.map((p) => [p.slug, p.name]));
 
   // The journey: oldest stop first, exactly as hopeCoin.history lists them
   // - never re-sorted, because a re-sort would silently paper over a chain
@@ -964,14 +1014,7 @@ export function renderHopeCoin(data: GamesData): string {
   const body = `
 <section class="band-light">
   <div class="band-inner">
-    <h1 class="display">The Hope Coin ${COIN}</h1>
-    <p>The Hope Coin is the game's traveling trophy. It went to each season's champion until mid-2024, and since then it moves to whoever lands the third skull on the current holder.</p>
-    <div class="tile">
-      <p><strong>${esc(holderName)}</strong> holds the Coin (since ${s.hopeCoin.since}). Three kills on the holder takes it.</p>
-      <ul>
-        ${skulls}
-      </ul>
-    </div>
+    ${coinHero(data)}
     <h2 class="rule-label">The journey</h2>${journeyIncompleteHtml}
     <ol class="route">
 ${stops}
@@ -983,15 +1026,17 @@ ${stops}
   // Standings is named explicitly here rather than guessed from the
   // address's shape - the same reasoning renderPlayer's own call documents
   // above, on page()'s PageOptions comment.
-  // image: the CURRENT holder's newest card, not a fixed page image - a
-  // handoff moves the Coin to a new slug, and this page's unfurl should move
-  // with it. newestCardImage() returns undefined for a holder who has never
-  // been carded (a pre-spine holder), which reaches page()'s own default and
-  // falls back to the site-wide default card, same as any other uncarded page.
+  // image: the coin's own hero photo (Task 5, #48, M2), not whichever card
+  // the current holder happens to have - a shared link to /hope-coin/ should
+  // show the Coin, the same object the page is about, no matter who holds it
+  // this month. This is a literal, not newestCardImage(data, ...): that
+  // function used to supply this option (final fix wave, item 4) and is
+  // kept in this file rather than deleted (see its own comment above), but
+  // this page no longer calls it.
   return page(
     "The Hope Coin", body, "band-dark", "/hope-coin/",
     "Every stop the K5M Shareholder Poker Hope Coin has made, and who holds it now.",
-    { navCurrent: "/standings/", image: newestCardImage(data, s.hopeCoin.holder) }
+    { navCurrent: "/standings/", image: "https://poker.kmikeym.com/hope-coin/assets/coin-og.png" }
   );
 }
 

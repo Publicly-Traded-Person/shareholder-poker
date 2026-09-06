@@ -607,6 +607,26 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
 .route-stop--current { font-weight: 800; }
 .route-stop--current::before { background: var(--foil-deep); border-color: var(--foil-deep); }
 
+/* The coin's own photo frame (Task 5, #48): the hero at the top of
+   /hope-coin/ (site/hope-coin/assets/coin.png), and the frame later
+   infographics on this page reuse. Copies .card-frame's border and
+   box-shadow -- the same "dark object gets real presentation" look every
+   card gets -- but circular, not rounded-rectangle, because the coin itself
+   is round, and with no hover lift: the hero sits at the top of the page on
+   its own, not in a clickable gallery, so nothing about it needs to react
+   to a pointer. */
+.coin-frame {
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  box-shadow: 0 6px 24px rgba(26, 28, 32, .16);
+}
+.coin-frame img { display: block; width: 100%; height: auto; }
+/* Browser default figure margin (1em 40px) would push the coin off-center
+   in its half of the .cols grid and shove the caption past the edge, the
+   same reason .card-grid figure { margin: 0 } exists above. */
+.coin-figure { margin: 0; }
+
 /* Trophy tile text block (2026-09-05): a tile is mark + .trophy-text, and the
    text block stacks name, earn line, and (earned only) the count/date line,
    so the earn line can show on EVERY tile without crowding the single row

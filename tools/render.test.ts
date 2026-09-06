@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   esc, recordQualifier, renderStandings, renderGamesIndex, renderNextGameIcs, secondTuesday,
-  playerSlugs, renderPlayer, renderHopeCoin,
+  playerSlugs, renderPlayer, renderHopeCoin, coinHero,
 } from "./render";
 import { deriveStandings, type GamesData } from "./lib/standings";
 import { TROPHIES, displayOrder, visibleTrophies } from "./lib/trophies";
@@ -957,16 +957,56 @@ describe("renderHopeCoin", () => {
     expect(html).not.toContain("btn-primary");
   });
 
-  // Final fix wave, item 4: /hope-coin/ used to pass no `image` option at
-  // all, so every unfurl showed page()'s DEFAULT_OG_IMAGE (July's foil
-  // champion card) no matter who actually held the Coin. Both branches of
-  // newestCardImage() get their own case here rather than trusting hcData's
-  // holder alone, because hcData's own nick-m happens to have no card, so it
-  // only ever exercised the fallback branch.
-  test("M7: og:image is the current holder's newest card when they have one", () => {
-    // nick-m carries no card anywhere in hcData - a real branch worth its
-    // own fixture, since hcData's holder always taking the fallback would
-    // never prove the "holder has a card" branch actually works.
+  // Task 5 (#48), M1, leg (f): the page's first band-light section opens
+  // straight into the coin grid - nothing (not even whitespace-adjacent
+  // markup) gets to stand ahead of the coin photo, and "coin-figure" itself
+  // must not appear anywhere earlier in the document (the masthead, an
+  // og:image URL, a stray comment). A page that puts any element ahead of
+  // the grid or the coin in an earlier block - the old heading-first layout,
+  // say - fails this exact test.
+  test("M1 leg (f): the first band-light section opens directly into the coin grid, coin-figure appears nowhere before it", () => {
+    const sectionIdx = html.indexOf('<section class="band-light">');
+    expect(sectionIdx).toBeGreaterThan(-1);
+    const afterSection = html.slice(sectionIdx);
+    const opener = /^<section class="band-light">\s*<div class="band-inner">\s*<div class="cols">\s*<figure class="coin-figure">/;
+    expect(opener.test(afterSection)).toBe(true);
+    expect(html.indexOf("coin-figure")).toBeGreaterThan(sectionIdx);
+  });
+
+  // Task 5 (#48), M1, leg (a) second half: the grid coinHero() returns is
+  // what actually lands in the page, ahead of "The journey" - not a second,
+  // divergent copy of the same markup.
+  test("M1 leg (a): renderHopeCoin places coinHero's own markup before The journey heading", () => {
+    const hero = coinHero(hcData);
+    const heroIdx = html.indexOf(hero);
+    const journeyIdx = html.indexOf('<h2 class="rule-label">The journey</h2>');
+    expect(heroIdx).toBeGreaterThan(-1);
+    expect(journeyIdx).toBeGreaterThan(heroIdx);
+  });
+
+  // Task 5 (#48), M2: the coin's own hero photo now unfurls every share of
+  // /hope-coin/, replacing the "current holder's newest card" og:image the
+  // two tests below used to pin (that was the final fix wave's own fix for
+  // "every unfurl showed page()'s DEFAULT_OG_IMAGE no matter who held the
+  // Coin" - a real improvement over the site default, but still a card, on
+  // a page about a coin). newestCardImage() stays in tools/render.ts for the
+  // player pages, which still want a player's own newest card - it is simply
+  // no longer this page's `image` option. The carded-holder fixture below is
+  // the same shape the old M7 test built, reused here as the case that
+  // failed before this task landed: it used to carry a `/cards/` og:image,
+  // and after this task it must not.
+  test("M2: og:image is the coin's own unfurl image for an uncarded holder, never a /cards/ URL", () => {
+    expect(html).toContain(
+      '<meta property="og:image" content="https://poker.kmikeym.com/hope-coin/assets/coin-og.png">'
+    );
+    expect(html).not.toMatch(/og:image" content="https:\/\/poker\.kmikeym\.com\/cards\//);
+  });
+
+  test("M2: og:image stays the coin's own unfurl image even when the current holder HAS a card", () => {
+    // nick-m carries no card anywhere in hcData, so this fixture (identical
+    // to the old M7 test's) is what actually exercises the "holder has a
+    // card" branch of newestCardImage() - proving this page's og:image no
+    // longer reaches for it, not merely that hcData never triggered it.
     const cardedData: GamesData = {
       ...hcData,
       games: [
@@ -984,18 +1024,9 @@ describe("renderHopeCoin", () => {
     };
     const cardedHtml = renderHopeCoin(cardedData);
     expect(cardedHtml).toContain(
-      '<meta property="og:image" content="https://poker.kmikeym.com/cards/2026-04/assets/card-1-nick-m.png">'
+      '<meta property="og:image" content="https://poker.kmikeym.com/hope-coin/assets/coin-og.png">'
     );
-  });
-
-  test("M7: og:image falls back to the site default when the current holder has never been carded", () => {
-    // hcData's holder, nick-m, has no `card` on any result in the fixture -
-    // the legitimate "pre-spine holder" shape (see newestCardImage's own
-    // comment in tools/render.ts), so this must fall back rather than 404
-    // on a card that does not exist.
-    expect(html).toContain(
-      '<meta property="og:image" content="https://poker.kmikeym.com/cards/2026-07/assets/card-1-lewd.png">'
-    );
+    expect(cardedHtml).not.toMatch(/og:image" content="https:\/\/poker\.kmikeym\.com\/cards\//);
   });
 
   // M8 (spec follow-up 2026-09-03, task 11): hopeCoin.historyPending. The
@@ -1048,5 +1079,61 @@ describe("renderHopeCoin", () => {
       hopeCoin: { ...hcData.hopeCoin, historyPending: false },
     });
     expect(falseHtml).not.toContain(SENTENCE);
+  });
+});
+
+// Task 5 (#48): coinHero(data) is the grid that opens the Hope Coin page -
+// the coin's own photo beside the copy that used to open the page on its
+// own (the display heading, the "what is the Coin" paragraph, the holder
+// tile). Exported on its own (the task's Interface) so these tests can
+// check the grid's shape directly, without also parsing the rest of the
+// document renderHopeCoin returns.
+describe("coinHero (Task 5, #48)", () => {
+  const hero = coinHero(hcData);
+
+  test("M1: opens with the cols grid, whose first child is the coin figure holding the framed, captioned coin image", () => {
+    expect(hero).toStartWith('<div class="cols">');
+    const figureIdx = hero.indexOf('<figure class="coin-figure">');
+    expect(figureIdx).toBeGreaterThan(-1);
+    // Nothing but the grid opener and whitespace stands ahead of the figure.
+    expect(hero.slice(0, figureIdx).replace(/\s/g, "")).toBe('<divclass="cols">');
+
+    // The framed image: the right source, both dimensions, and a real alt
+    // (non-empty, so a screen reader gets something other than a blank).
+    const img = /<div class="coin-frame"><img src="\/hope-coin\/assets\/coin\.png" width="900" height="900" alt="([^"]+)">/
+      .exec(hero);
+    expect(img).not.toBeNull();
+    expect(img![1].trim().length).toBeGreaterThan(0);
+
+    // The caption, verbatim - Beau's own words for what the coin's engraving
+    // says about itself, quoted exactly rather than paraphrased.
+    expect(hero).toContain(
+      '<figcaption class="stat">It\'s not the cards, it\'s the player. The coin shows 7-2, the hand with its own bounty.</figcaption>'
+    );
+  });
+
+  test("M1: the grid's second child carries the display heading, then the intro paragraph, then the holder tile, in that order", () => {
+    const figureCloseIdx = hero.indexOf("</figure>");
+    const headingIdx = hero.indexOf('<h1 class="display">The Hope Coin');
+    const introIdx = hero.indexOf("The Hope Coin is the game's traveling trophy");
+    const tileIdx = hero.indexOf('<div class="tile">');
+    expect(figureCloseIdx).toBeGreaterThan(-1);
+    // All three land after the coin figure closes - inside the grid's
+    // SECOND child, not stuffed into the figure itself.
+    expect(headingIdx).toBeGreaterThan(figureCloseIdx);
+    expect(introIdx).toBeGreaterThan(headingIdx);
+    expect(tileIdx).toBeGreaterThan(introIdx);
+  });
+
+  test("M1: still shows the current holder, their since date, and a real skull tally - the tile this grid carries forward unchanged", () => {
+    const s = deriveStandings(hcData);
+    expect(hero).toContain("Nick M.");
+    expect(hero).toContain(hcData.hopeCoin.since);
+    expect(hero).toContain(`<span class="stat">${s.hopeCoin.skulls["nick-m"]} of 3</span> skulls`);
+  });
+
+  test("M5: the grid's own markup carries no em dash and no btn-primary", () => {
+    expect(hero).not.toContain("—");
+    expect(hero).not.toContain("btn-primary");
   });
 });
