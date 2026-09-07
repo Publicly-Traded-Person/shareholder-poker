@@ -1,0 +1,33 @@
+{
+ "tasks": {
+  "1": {
+   "hash": "22185138500919f3646429e3eb9f4de3516c4898f75cbbe5067acc954031e492",
+   "verdict": "pass",
+   "reason": "M1 at the constant (exact five pairs, length 5). M2 by a positive run plus a lowercase-name mutation that must throw. Every enumerated M3 case (a) through (j) has its own leg calling validateArchive with the specific bad input and requiring the Error to name the date or season id. M4's three name/handle cases in one leg each. Round 1."
+  },
+  "2": {
+   "hash": "c3338c7936f516f8edfcda5e6b8be77daa2accb1212ab50cd7a4187af77725a3",
+   "verdict": "pass",
+   "reason": "Rendered-markup layer throughout. M2 and M3 use orders neither file order nor its reverse reproduces, check tone alternation and name the absent cases, plus strictly increasing card-part indices. M4 has a leg per case (slugged and unslugged podium and bounty entries, the chop). M1 exact title, og:url, description, intro. M5 both parities at the footer. M6 negations on the full render and escaping driven through name, bounty holder, handle, game note, season note. Round 3."
+  },
+  "3": {
+   "hash": "b4d852b0d80f57cf92563129fa93161933f2313a2f8d888252be1a314874604e",
+   "verdict": "pass",
+   "reason": "M1 by exact string on a fixture with the earliest game in the middle plus the empty-games throw. M2 by a grep Run over every named location whose empty output is read plus a canonical round trip. M3 and M4 by reading the committed files: the old sentence absent and the new bullet present in the block; the retired key absent and archive present twice in the named section; the docs test spells the key as two halves so the grep stays clean. Round 4."
+  },
+  "4": {
+   "hash": "5df613cc5b9172820a4bf2b3c4120ea2dd8eb532e77a241a936900cf656ce565",
+   "verdict": "pass",
+   "reason": "Committed-file layer throughout. M1 by the validator on the committed pair; M2 and M3 by exact ordered equality on ids, titles, notes, and per-season date lists (all thirty 2020 dates written out) with counts; M4's seven spot games each pinned in full; M5 by subset, name-to-slug, and josh-b/matt-w absence; M6 by byte round trip; M7 by slicing the README section and asserting URL count, zero pipe lines, at most three lines, and zero 2020 rows in any date form. Round 3."
+  },
+  "5": {
+   "hash": "4c8a91f5ad1d08eb9a44e7a236b397027ca9ce3d2ebb1d54316c598aa35583a5",
+   "verdict": "pass",
+   "reason": "M1 by an unknown-slug fixture only the games data can reject and a no-generated-paths assertion after the failed run. M2 by a grep positioned inside the watched array and a byte-identical-then-flipped-byte check on the archive root. M3 and M4 enumerated with one leg per case at the committed-file layer. M5 by reading the suite's exit and pass count against the CLAUDE.md comment. Round 2."
+  }
+ },
+ "tally": {
+  "dispatched": 13,
+  "rejected": 8
+ }
+}

@@ -66,13 +66,6 @@ or stash the dirty path, then run `bun test tools` again.
    `bun tools/render.ts`: the season page's next-game card, its upcoming
    projections, and `site/next-game.ics` all derive from `nextGame`, and the
    pre-merge drift check fails if the regeneration is skipped.
-
-   Backfilling an old season instead of publishing a new game? Delete that
-   season from `backfillPending` (top of `games.json`) in the same commit.
-   The "This record starts with ..." line on standings and the games index
-   derives from the earliest game on the spine plus that list; the list is
-   the only thing that knows a season is still missing, so an entry left
-   behind would keep announcing a backfill that already happened.
 6. Review the full diff. Get Mike's explicit go. Push. Cloudflare deploys.
 7. Board: comment results on the month's game issue, close it, open next
    month's issue, add to project #1.
@@ -157,8 +150,8 @@ While it is set, the Hope Coin page prints one extra sentence under "The
 journey" heading, above the route, saying the journey shown is only what
 the record can currently date. `tools/render.ts`'s `renderHopeCoin` is what prints
 that sentence; it is never typed onto the page by hand, the same reason
-`recordQualifier`'s "being backfilled" line on standings and the games
-index reads `backfillPending` instead of a hardcoded string (see "Known
+`recordQualifier`'s "record starts with..." line on standings and the games
+index links the archive page instead of a hardcoded string (see "Known
 open items" in `CLAUDE.md`) - a typed sentence would keep announcing an
 unfinished journey on the day it actually finishes.
 
@@ -166,13 +159,13 @@ When a prepend finally reaches back to the Coin's true first stop - the one
 with no earlier stop still missing - remove `hopeCoin.historyPending`
 entirely in that same commit. Delete the field; do not set it to `false`.
 An absent field is the one state nothing has to guess about, the same
-reason a finished season backfill deletes its own entry from
-`backfillPending` (a few lines up) instead of leaving a `false` behind for
-someone to wonder about later. Removing it early, before the history
-actually reaches back to the beginning, would silently tell visitors the
-Coin's journey is complete when it is not; forgetting to remove it once the
-history really is finished would keep the page apologizing for a gap that
-no longer exists.
+reason the record line on standings and the games index never names a
+season by hand - it always points at the archive instead, so nobody has to
+remember to update it as seasons come and go. Removing it early, before the
+history actually reaches back to the beginning, would silently tell
+visitors the Coin's journey is complete when it is not; forgetting to
+remove it once the history really is finished would keep the page
+apologizing for a gap that no longer exists.
 
 ## The Hope Coin page
 
@@ -316,6 +309,51 @@ an unknown id: fix the row, never the check.
 Chip and a Chair is earned again every game a player appears in, so its
 count on a player page is their nights at the table ("x3" after three).
 Nothing records it; it is derived from the results like Champion is.
+
+## Adding an archived game
+
+`/archive/` (#39) holds every game the club played before the record on
+`/games/` begins in July 2026: 2020's PokerStars seasons, 2025, and early
+2026. When old notes turn up a game from before then, it goes into
+`site/data/archive.json`, never into `games.json` - that file is only for
+games on the spine, and an archive game will always be too early to belong
+there.
+
+Find the right season block in `site/data/archive.json` (or start a new
+one, if the notes cover a season the file does not have yet - see
+`tools/lib/archive.ts`'s own header comment for the season shape) and add
+one entry to its `games` list. Every field but `date` is optional; leave a
+field absent, rather than guessing, whenever the notes genuinely do not say:
+
+- `date` - required, `YYYY-MM-DD`, unique across the whole file, and
+  strictly before the record's own first game.
+- `entrants` - a number, only when the notes recorded a turnout count.
+  Leaving it absent prints "Entrants not recorded" on the page; it is
+  never a good idea to write in a guessed number just to fill the field.
+- podium - up to three finishers, each a `name`, an optional `handle`
+  (the name the notes actually used, if different), and a `slug` only when
+  that player also has a result on the record - that is what turns their
+  name into a link to their own player page. An empty podium is a real,
+  valid shape for a night with no result recorded at all.
+  (podium is written here without backticks on purpose: the docs suite
+  forbids a backticked trophy-registry id, and podium is one.)
+- `bounties` - any of the five recognized kinds the notes recorded (see
+  `tools/lib/archive.ts`'s `BOUNTY_NAMES` for the full list and their
+  wording), same `name`/`handle`/`slug` shape as a podium entry, plus
+  `kind`. An empty list is fine when the notes recorded none.
+- `note` - one line, only when the game needs an explanation a bare
+  podium cannot carry (a chop, a missing result).
+
+Once the entry is added, run `bun tools/render.ts`. It checks the new entry
+against the real record before writing anything - an unknown slug, a date
+that lands on or after the record's own first game, a duplicate date, and
+several other faults all halt the run with a message naming the offending
+game, so a mistyped entry cannot reach the page. Fix what it names and run
+it again. Once it succeeds, review the diff to `site/archive/index.html`
+(and to `site/standings/index.html` and `site/games/index.html`, whose "This
+record starts with..." line links to the archive) the same way any other
+generated-page change gets reviewed, then run `bun test tools` before
+committing.
 
 ## Portrait consent (per set, Tier 2b)
 
