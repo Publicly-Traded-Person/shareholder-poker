@@ -1886,13 +1886,22 @@ describe("site/styles.css: the stint line (Task 7, #48, M4)", () => {
     expect(declValue(rule!.body, "fill")).toBe("var(--foil-deep)");
   });
 
-  test(".route-tick text carries a font-family and a font-size of at most 11px", () => {
-    const rule = ruleFor(".route-tick text");
-    expect(rule).toBeDefined();
-    expect(declValue(rule!.body, "font-family")).not.toBeNull();
-    const size = declValue(rule!.body, "font-size");
-    expect(size).toMatch(/^\d+(\.\d+)?px$/);
-    expect(Number.parseFloat(size!)).toBeLessThanOrEqual(11);
+  // A stylesheet rule beats an SVG presentation attribute, whatever the
+  // attribute says: an 11px font-size here would pin every name to 11
+  // user units and silently undo the per-drawing size the renderer emits
+  // (which is exactly what happened to the loops between 2026-09-05 and
+  // 2026-09-07 - the attribute was there, the CSS overrode it, and Beau's
+  // Alaska names printed at seven pixels while the test that checked for
+  // the attribute passed). So these two rules carry the face and the ink
+  // and NO size; the size is the renderer's alone.
+  test(".route-tick text and .route-line-miles carry a font-family and no font-size, so the renderer's own size wins", () => {
+    for (const selector of [".route-tick text", ".route-line-miles"]) {
+      const rule = ruleFor(selector);
+      expect(rule).toBeDefined();
+      expect(declValue(rule!.body, "font-family")).not.toBeNull();
+      expect(declValue(rule!.body, "fill")).not.toBeNull();
+      expect(declValue(rule!.body, "font-size")).toBeNull();
+    }
   });
 
   // No rule may still answer to the old loop names: a stylesheet that kept

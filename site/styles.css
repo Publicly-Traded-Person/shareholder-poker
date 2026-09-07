@@ -655,17 +655,20 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
    accent (the coin itself is drawn in foil above), and it is spent on
    exactly one tick in the whole journey. */
 .route-flag { fill: var(--foil-deep); }
-/* Place names in the same small monospace face .stat uses. The size here
-   is the FALLBACK: tools/render.ts emits a font-size attribute on every
+/* Place names in the same small monospace face .stat uses. No font-size
+   here, on purpose: tools/render.ts emits a font-size attribute on every
    text in the drawing, scaled to that drawing's own viewBox width so a
    wide route and a narrow one print their names at the same size (see
-   LINE_REF_WIDTH there). This 11px is the size at the 540-unit reference
-   frame max-width sets above, and it is what a text with no attribute
-   would get. */
-.route-tick text { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 11px; fill: var(--ink); }
-/* The stint's mileage, under the line at its right end. Same face and
-   same fallback size as the names, muted so the places read first. */
-.route-line-miles { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 11px; fill: var(--muted-ink); }
+   LINE_REF_WIDTH there), and a stylesheet rule beats an SVG presentation
+   attribute whatever the attribute says. An 11px rule sat here from
+   2026-09-05 to 2026-09-07 and pinned every name to 11 user units, so
+   Beau's Alaska route printed at seven pixels while the renderer's
+   attribute was ignored. tools/render.test.ts guards both halves: every
+   text carries the attribute, and neither rule here carries a size. */
+.route-tick text { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; fill: var(--ink); }
+/* The stint's mileage, under the line at its right end. Same face as the
+   names, sized the same way, muted so the places read first. */
+.route-line-miles { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; fill: var(--muted-ink); }
 
 /* The coin's own photo frame (Task 5, #48): the hero at the top of
    /hope-coin/ (site/hope-coin/assets/coin.png), and the frame that later

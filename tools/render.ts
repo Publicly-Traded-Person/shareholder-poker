@@ -1214,14 +1214,22 @@ const BORDER_LABEL = ", the coin's one border crossing";
 
 // The reference frame every drawing's type size is quoted against: 540
 // viewBox units, which is `.route-line`'s own max-width in site/styles.css,
-// and the 11px `.route-tick text` sets there. A drawing in a wider viewBox
-// is scaled DOWN by that CSS to fit the same 540px box, so a fixed 11-unit
-// type size meant Beau's 850-unit Alaska route printed its place names at
-// seven pixels on a desktop and under four on a phone (whole-branch review
-// finding 1, 2026-09-05). Emitting the size in user units as
+// at 11px of type. A drawing in a wider viewBox is scaled DOWN by that CSS
+// to fit the same 540px box, so a fixed 11-unit type size meant Beau's
+// 850-unit Alaska route printed its place names at seven pixels on a
+// desktop and under four on a phone (whole-branch review finding 1,
+// 2026-09-05). Emitting the size in user units as
 // LINE_REF_SIZE * width / LINE_REF_WIDTH cancels that scaling exactly, so
 // every drawing on the page renders its names at the same size no matter
 // how many places it carries.
+//
+// The attribute only wins if the stylesheet stays silent: a CSS rule beats
+// an SVG presentation attribute whatever the attribute says, and the 11px
+// `.route-tick text` rule the fix wave left in site/styles.css overrode
+// this size on every loop until 2026-09-07 (found in the visual check of
+// the linear redraw: Beau's Alaska names were still at seven pixels, with
+// the attribute right there in the markup). The rules there now carry
+// face and ink only, and tools/render.test.ts guards both ends.
 const LINE_REF_WIDTH = 540;
 const LINE_REF_SIZE = 11;
 // A monospace face's advance is 0.6 of its size, which is all the character
