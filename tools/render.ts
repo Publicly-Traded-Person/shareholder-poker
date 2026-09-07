@@ -1207,62 +1207,58 @@ export function odometerTiles(data: GamesData): string {
 }
 
 // The sentence the one border tick carries after its place name (Task 7,
-// #48, M3). A constant, not a literal typed twice, because routeLoop() both
-// prints it and measures it: the frame has to be wide enough for the label
-// it produces, and the two must never disagree about its length.
+// #48, M3). A constant, not a literal typed twice, because routeLine() both
+// prints it and measures it: the label is placed by the length it
+// produces, and the two must never disagree about that length.
 const BORDER_LABEL = ", the coin's one border crossing";
 
-// The reference frame every loop's type size is quoted against: 540 viewBox
-// units, which is `.route-loop`'s own max-width in site/styles.css, and the
-// 11px `.route-tick text` sets there. A loop drawn in a wider viewBox is
-// scaled DOWN by that CSS to fit the same 540px box, so a fixed 11-unit
-// type size meant Beau's 850-unit Alaska loop printed its place names at
-// seven pixels on a desktop and under four on a phone (whole-branch review
-// finding 1, 2026-09-05). Emitting the size in user units as
-// LOOP_REF_SIZE * width / LOOP_REF_WIDTH cancels that scaling exactly, so
-// every loop on the page renders its names at the same size no matter how
-// many places it carries.
-const LOOP_REF_WIDTH = 540;
-const LOOP_REF_SIZE = 11;
-// A monospace face's advance is 0.6 of its size, which is all the character
-// width any of this needs: the measurements below only decide how much room
-// to leave and where a label may sit, so an estimate that runs a little
-// wide is the safe direction and a wrong one shifts a label rather than
-// breaking the drawing.
-const CHAR_RATIO = 0.6;
-// One character's width at the reference size, the unit the frame's own
-// width is measured in below.
-const REF_CHAR = LOOP_REF_SIZE * CHAR_RATIO;
-
-// The widest of a set of route-loop labels, in viewBox units. Takes the
-// label strings as they will actually read on screen (unescaped: a browser
-// draws the "&" in "&amp;", not five characters) and the width of one
-// character in the units being measured; returns the width of the longest
-// label, or 0 for an empty list. Throws nothing.
+// The reference frame every drawing's type size is quoted against: 540
+// viewBox units, which is `.route-line`'s own max-width in site/styles.css,
+// at 11px of type. A drawing in a wider viewBox is scaled DOWN by that CSS
+// to fit the same 540px box, so a fixed 11-unit type size meant Beau's
+// 850-unit Alaska route printed its place names at seven pixels on a
+// desktop and under four on a phone (whole-branch review finding 1,
+// 2026-09-05). Emitting the size in user units as
+// LINE_REF_SIZE * width / LINE_REF_WIDTH cancels that scaling exactly, so
+// every drawing on the page renders its names at the same size no matter
+// how many places it carries.
 //
-// The per-character width is a parameter rather than a constant because
-// the two callers measure in two different scales: the frame's width is
-// decided before the type size is known, so it measures at REF_CHAR, while
-// the label placement inside the finished frame measures at the size that
-// frame actually emits.
-function widestLabel(labels: string[], perChar: number): number {
-  return labels.reduce((widest, label) => Math.max(widest, label.length * perChar), 0);
-}
+// The attribute only wins if the stylesheet stays silent: a CSS rule beats
+// an SVG presentation attribute whatever the attribute says, and the 11px
+// `.route-tick text` rule the fix wave left in site/styles.css overrode
+// this size on every loop until 2026-09-07 (found in the visual check of
+// the linear redraw: Beau's Alaska names were still at seven pixels, with
+// the attribute right there in the markup). The rules there now carry
+// face and ink only, and tools/render.test.ts guards both ends.
+const LINE_REF_WIDTH = 540;
+const LINE_REF_SIZE = 11;
+// A monospace face's advance is 0.6 of its size, which is all the character
+// width any of this needs: the measurement below only decides where a label
+// may sit, so an estimate that runs a little wide is the safe direction and
+// a wrong one shifts a label rather than breaking the drawing.
+const CHAR_RATIO = 0.6;
 
-// routeLoop draws one stop's road trip as a loop hanging off the journey's
-// line (Task 7, #48, spec §5): a thin pewter path leaving the stop and
-// returning to it, one tick per place the Coin actually rode through, the
-// place names beside the ticks, the stint's mileage inside the loop, and a
-// small drawn flag on the one tick that crossed a border. Takes a single
-// HopeCoinStop and, optionally, the holder's display name for the drawing's
-// `<title>` (renderHopeCoin always passes it, from the same name map the
-// rest of the journey list uses, so a slug never reaches the title; the
-// no-name form exists for a caller that has only a stop in hand, and titles
-// the drawing "Route: ..." rather than printing a slug). Returns the
-// `<svg>` markup alone, which renderHopeCoin splices inside that stop's own
-// `<li>` after its `how` sentence - or the empty string for a stop with no
-// `route`, which is most of them, so the caller can splice the result
-// unconditionally instead of branching.
+// routeLine draws one stop's road trip as a straight line inside the
+// journey (Task 7, #48, spec §5 as amended 2026-09-07): one thin pewter
+// stroke, a tick per place the Coin actually rode through, left to right
+// in the order it passed through them, the place names beside the ticks,
+// the stint's mileage under the line's right end, and a small drawn flag
+// on the one tick that crossed a border. It shipped as a loop (out along
+// the top edge, back along the bottom); Beau, who drove both routes, read
+// the live page and asked for a line ("the loop graphics are kinda weird,
+// should just be linear", relayed by Mike, 2026-09-07), and the loop's
+// out-and-back reading order went with it. A route now reads the way the
+// places line above the drawing reads: start to finish.
+//
+// Takes a single HopeCoinStop and, optionally, the holder's display name
+// for the drawing's `<title>` (renderHopeCoin always passes it, from the
+// same name map the rest of the journey list uses, so a slug never reaches
+// the title; the no-name form exists for a caller that has only a stop in
+// hand, and titles the drawing "Route: ..." rather than printing a slug).
+// Returns the `<svg>` markup alone, which renderHopeCoin splices inside
+// that stop's own `<li>` after its `how` sentence - or the empty string for
+// a stop with no `route`, which is most of them, so the caller can splice
+// the result unconditionally instead of branching.
 // Throws nothing: a `route` never arrives without `milesHeld` (see the
 // field's own comment in tools/lib/standings.ts), and a stop that somehow
 // had one would draw "0 miles on the road" rather than crash, because a
@@ -1273,140 +1269,156 @@ function widestLabel(labels: string[], perChar: number): number {
 // real distances between the places, because the record carries ONE figure
 // for the whole stint (`milesHeld`) and no per-leg distances at all:
 // spacing the ticks by distance would mean inventing the numbers that
-// spacing implies. Half the names run left to right along the loop's top
-// edge and the rest run right to left along the bottom, so reading order
-// follows the drive out and the drive back.
+// spacing implies.
 //
-// The size: 90 viewBox units per tick, with the path inset 20 units at each
-// end, so Beau's six-name and nine-name routes each get the same room per
-// name and neither crowds its text. The svg carries no width or height
-// attributes on purpose - `.route-loop` in site/styles.css sizes it, so one
-// CSS change resizes every loop on the page and none of them can drift
-// apart.
+// The names alternate sides: the first above the line, the second below,
+// and so on, so two neighbours never share a row and a name has twice the
+// tick spacing to itself before it meets the next name on its side. The
+// border name is a whole sentence, wider than that, so it takes a row of
+// its own, one step further from the line than the plain names on its
+// side; that row exists only when the border tick lands on that side, so
+// a route with no crossing (Beau's California run) draws no empty band.
+// The mileage sits on its own row under the lowest name, right-aligned to
+// the line's end, where no name can reach it.
 //
-// The border flag is drawn (a small foil triangle inside the loop), never
-// an emoji, and it keys on the place name containing "British Columbia":
-// the Coin has crossed exactly one border, into Canada, and the place name
-// is the only thing the record carries that says so. If the Coin ever
-// crosses a second border, that becomes a field on the stop - a second
-// hardcoded country name here would be a guess about data that does not
-// exist yet.
-export function routeLoop(stop: HopeCoinStop, holderName?: string): string {
+// The size: 90 viewBox units per tick, with the line inset 20 units at
+// each end, so Beau's six-name and nine-name routes each get the same room
+// per name. Everything vertical is a multiple of the type size, so the
+// rows keep their spacing on screen whatever the frame's width, and the
+// frame is as tall as its rows need and no taller. The svg carries no
+// width or height attributes on purpose - `.route-line` in site/styles.css
+// sizes it, so one CSS change resizes every drawing on the page and none
+// of them can drift apart.
+//
+// What this does NOT guard: two long names two ticks apart on the same
+// side. A label is `length * 0.6` type sizes wide and the type size is
+// `11 * width / 540`, so a name's share of the frame is fixed by its
+// character count alone (about 1/82 of the frame per character, whatever
+// the frame's width), while two same-side neighbours are 180 units apart.
+// Names averaging under seventeen characters fit at nine places, under
+// twenty-five at six; every place on record today fits with room. If a
+// future route breaks that, the fix is the 90-unit spacing constant below,
+// never a shorter name: the record is not edited to fit a drawing.
+//
+// The border flag is drawn (a small foil triangle between the bead and
+// its name), never an emoji, and it keys on the place name
+// containing "British Columbia": the Coin has crossed exactly one border,
+// into Canada, and the place name is the only thing the record carries
+// that says so. If the Coin ever crosses a second border, that becomes a
+// field on the stop - a second hardcoded country name here would be a
+// guess about data that does not exist yet.
+export function routeLine(stop: HopeCoinStop, holderName?: string): string {
   const route = stop.route;
   if (!route || route.length === 0) return "";
 
-  // The labels, decided before the frame is: the border tick carries a
-  // whole sentence, and the frame has to be wide enough to hold the longest
-  // label on the route (see `width` below).
   const isBorder = (name: string) => name.includes("British Columbia");
   const labelText = (name: string) => name + (isBorder(name) ? BORDER_LABEL : "");
-
-  // The frame. Width grows with the tick count (90 units each) so the
-  // drawing gets wider, never denser, as a route gets longer; height is
-  // fixed, because the loop is always one lane out and one lane back.
-  //
-  // The second term is the honest answer to "what if a label is wider than
-  // the whole drawing": widen the drawing. An svg clips at its own viewBox,
-  // so a label longer than the frame cannot be saved by moving it - every
-  // position overflows one edge or the other. The alternative was breaking
-  // the label onto a second <tspan> line, which would put markup inside the
-  // one <text> element M3 reads as the tick's name and make the name harder
-  // to check, not easier. Widening costs nothing: the loop is sized by CSS,
-  // so a wider viewBox just draws the same loop at a slightly smaller scale.
-  // Neither of Beau's two real routes triggers this (their frames are 580
-  // and 850 units against a longest label near 350), so it changes nothing
-  // on the page today and keeps a future short route with a long name from
-  // losing its tail.
-  const width = Math.max(90 * route.length + 40, Math.ceil(widestLabel(route.map(labelText), REF_CHAR) + 4));
-  // The type size, in user units, so that CSS scaling it back to the
-  // reference frame lands every loop's names at the same pixel size (see
-  // LOOP_REF_WIDTH above). One decimal is as fine as an svg font size ever
-  // needs and keeps the attribute readable in the committed page.
-  const fontSize = Number(((LOOP_REF_SIZE * width) / LOOP_REF_WIDTH).toFixed(1));
-  // One character at THAT size, which is what the label placement below
-  // measures in: measuring the placement at the reference size instead
-  // would drag every end label far further inside the frame than it needs
-  // to be, away from the tick it names.
-  const charWidth = fontSize * CHAR_RATIO;
-  const height = 150;
-  const left = 20;
-  const right = width - 20;
-  const top = 44;
-  const bottom = 104;
-  // The end caps are exact semicircles (the radius spans the full height
-  // between the two edges), which is what makes the path read as a loop
-  // drawn in one stroke rather than as a box with rounded corners.
-  const rx = (bottom - top) / 2;
-  // Ticks live only on the straight runs, never on a cap, so a name is
-  // never labeling a curve.
-  const runStart = left + rx;
-  const runEnd = right - rx;
-
-  const topCount = Math.ceil(route.length / 2);
-  const bottomCount = route.length - topCount;
+  // One decimal is as fine as an svg coordinate ever needs and keeps every
+  // attribute readable in the committed page.
   const round = (n: number) => Number(n.toFixed(1));
 
-  const ticks = route.map((name, i) => {
-    const onTop = i < topCount;
-    // The return leg reads right to left: the last name on the route is the
-    // one closest to the stop the loop leaves from, which is where the
-    // Coin came back to.
-    const slot = onTop ? i : bottomCount - 1 - (i - topCount);
-    const count = onTop ? topCount : bottomCount;
-    const x = round(runStart + (runEnd - runStart) * ((slot + 0.5) / count));
-    const y = onTop ? top : bottom;
+  // The frame's width grows with the tick count so the drawing gets wider,
+  // never denser, as a route gets longer. No label can outgrow the frame:
+  // the type size scales with the width (see LINE_REF_WIDTH above), so a
+  // label's share of the frame is set by its character count alone, and
+  // the longest label on record is well under the eighty or so characters
+  // that would fill one. (The loop's frame also widened to its longest
+  // label measured at the reference size; that term dated from before the
+  // type scaled with the frame and had stopped changing anything, so it
+  // is gone.)
+  const width = 90 * route.length + 40;
+  const fontSize = round((LINE_REF_SIZE * width) / LINE_REF_WIDTH);
+  // One character at THAT size, which is what the label placement below
+  // measures in.
+  const charWidth = fontSize * CHAR_RATIO;
 
+  // Which side of the line each name sits on: even slots above, odd below.
+  const above = (i: number) => i % 2 === 0;
+  const borderIndex = route.findIndex(isBorder);
+  const borderAbove = borderIndex >= 0 && above(borderIndex);
+  const borderBelow = borderIndex >= 0 && !above(borderIndex);
+
+  // The rows, top to bottom, each placed from the one before it in type
+  // sizes. `row` is baseline to baseline between the far and the near row
+  // on one side; the far row exists only when the border name lands on
+  // that side (see the function comment).
+  const pad = 2;
+  const row = fontSize * 1.4;
+  // The top row's baseline sits one type size (its ascent) below the
+  // frame's edge, plus the padding.
+  const aboveFar = round(pad + fontSize);
+  const aboveNear = round(borderAbove ? aboveFar + row : aboveFar);
+  // The line is one type size under the nearest name above it: the name's
+  // descenders end a quarter of the way down, the bead's top starts a
+  // third of the way up, and the rest is air.
+  const lineY = round(aboveNear + fontSize);
+  // The first name below needs its own ascent cleared past the bead, so it
+  // sits a little further from the line than the name above does.
+  const belowNear = round(lineY + fontSize * 1.45);
+  const belowFar = round(belowNear + row);
+  const milesY = round((borderBelow ? belowFar : belowNear) + row);
+  // The frame ends after the mileage's descent (a quarter of the type
+  // size, with a little to spare) and the same padding as the top.
+  const height = round(milesY + fontSize * 0.35 + pad);
+
+  const left = 20;
+  const right = width - 20;
+  // The bead's radius and the flag's size, in type sizes, so both keep
+  // their proportion to the names on every frame.
+  const tickR = round(fontSize * 0.32);
+  const flagLength = round(fontSize);
+  const flagHalf = round(fontSize * 0.45);
+
+  const ticks = route.map((name, i) => {
+    // Each tick centered in its own equal share of the line, so the line
+    // runs a little past the first and last tick rather than starting on
+    // one.
+    const x = round(left + (right - left) * ((i + 0.5) / route.length));
     const border = isBorder(name);
-    // Names sit outside the loop (above the top run, below the bottom run)
-    // so they never collide with the path or with the mileage inside it.
-    // The border tick's label carries a whole sentence, so it sits one row
-    // further out than its neighbors rather than running through them.
-    const labelY = onTop
-      ? top - (border ? 26 : 12)
-      : bottom + (border ? 29 : 15);
+    const labelY = above(i)
+      ? (border ? aboveFar : aboveNear)
+      : (border ? belowFar : belowNear);
     // Keeping the label inside the frame: a label centered on a tick near
     // either end would run past the viewBox edge, and an svg clips there.
-    // Every label is centered on its own tick and then slid back inside the
-    // frame if it has to be - never re-anchored to an edge, which only
-    // trades one overflow for the opposite one. The two clamps can never
-    // fight each other: a label fills `charWidth * length` of the frame,
-    // which is `length * 6.6 / 540` of it whatever the frame's width, so
-    // anything under about eighty characters leaves room on both sides, and
-    // `width` above is in any case never narrower than the longest label at
-    // the reference size.
-    const halfLabel = widestLabel([labelText(name)], charWidth) / 2;
+    // Every label is centered on its own tick and then slid back inside
+    // the frame if it has to be - never re-anchored to an edge, which only
+    // trades one overflow for the opposite one (review finding, 2026-09-05).
+    const halfLabel = (labelText(name).length * charWidth) / 2;
     const labelX = round(Math.min(Math.max(x, 2 + halfLabel), width - 2 - halfLabel));
-    // The flag points into the loop, where nothing else is drawn at this
-    // end, rather than out into the name's own space.
+    // The flag flies between the bead and its name, on the name's own
+    // side of the line: the near row there is empty at this tick, because
+    // the border name is the one name that moved out to the far row, and
+    // no neighbour's name reaches in from 180 units away. (Hung on the
+    // other side, its tip came within a pixel of the next name over on
+    // Beau's Alaska route.) It points right, the way the route reads.
+    const flagBase = tickR + 1;
     const flag = border
-      ? (onTop
-        ? `<path class="route-flag" d="M ${x} ${y + 2} L ${x + 11} ${y + 7} L ${x} ${y + 12} Z"/>`
-        : `<path class="route-flag" d="M ${x} ${y - 2} L ${x + 11} ${y - 7} L ${x} ${y - 12} Z"/>`)
+      ? (above(i)
+        ? `<path class="route-flag" d="M ${x} ${round(lineY - flagBase)} L ${round(x + flagLength)} ${round(lineY - flagBase - flagHalf)} L ${x} ${round(lineY - flagBase - 2 * flagHalf)} Z"/>`
+        : `<path class="route-flag" d="M ${x} ${round(lineY + flagBase)} L ${round(x + flagLength)} ${round(lineY + flagBase + flagHalf)} L ${x} ${round(lineY + flagBase + 2 * flagHalf)} Z"/>`)
       : "";
     // The border sentence is appended outside esc() on purpose: it is this
     // file's own copy, not data, and esc() leaves the apostrophe alone
     // anyway (see its comment at the top of this file).
     const label = esc(name) + (border ? BORDER_LABEL : "");
 
-    return `<g class="route-tick"><circle cx="${x}" cy="${y}" r="3.5"/>${flag}<text x="${labelX}" y="${labelY}" text-anchor="middle" font-size="${fontSize}">${label}</text></g>`;
+    return `<g class="route-tick"><circle cx="${x}" cy="${lineY}" r="${tickR}"/>${flag}<text x="${labelX}" y="${labelY}" text-anchor="middle" font-size="${fontSize}">${label}</text></g>`;
   }).join("");
 
-  const path = `<path class="route-loop-path" d="M ${runStart} ${top} H ${runEnd} A ${rx} ${rx} 0 0 1 ${runEnd} ${bottom} H ${runStart} A ${rx} ${rx} 0 0 1 ${runStart} ${top} Z"/>`;
-  // The mileage sits inside the loop at its far end, the one part of the
-  // drawing with empty room at every route length.
-  const miles = `<text class="route-loop-miles" x="${right - rx - 6}" y="${(top + bottom) / 2 + 4}" text-anchor="end" font-size="${fontSize}">${formatMiles(stop.milesHeld ?? 0)} miles on the road</text>`;
+  const path = `<path class="route-line-path" d="M ${left} ${lineY} H ${right}"/>`;
+  const miles = `<text class="route-line-miles" x="${right}" y="${milesY}" text-anchor="end" font-size="${fontSize}">${formatMiles(stop.milesHeld ?? 0)} miles on the road</text>`;
 
   // The drawing's name, first child of the svg so a screen reader announces
   // it before anything drawn (the donut and the tenure strip both carry one
-  // already; these two loops were the only untitled graphics on the page).
-  // Built from the ends of the route, which is what a title can say without
-  // repeating the whole list the places line beside the drawing already
-  // prints. A one-place route names that place rather than saying "X to X".
+  // too). Built from the ends of the route, which is what a title can say
+  // without repeating the whole list the places line beside the drawing
+  // already prints. A one-place route names that place rather than saying
+  // "X to X".
   const ends = route.length > 1 ? `${route[0]} to ${route[route.length - 1]}` : route[0]!;
   const titleText = holderName ? `${holderName}'s route: ${ends}` : `Route: ${ends}`;
   const title = `<title>${esc(titleText)}</title>`;
 
-  return `<svg class="route-loop" viewBox="0 0 ${width} ${height}">${title}${path}${ticks}${miles}</svg>`;
+  return `<svg class="route-line" viewBox="0 0 ${width} ${height}">${title}${path}${ticks}${miles}</svg>`;
 }
 
 // The ink tints the non-current holders are drawn in, darkest first, in
@@ -1443,7 +1455,7 @@ const DONUT_R_LABEL = 58;
 // One character's advance in the donut's label face, in viewBox units:
 // the monospace advance (0.6em) at the 8px size `.donut-label` sets. Used
 // only to keep a long label from running off the edge of the drawing, the
-// same estimate-and-clamp routeLoop() above already uses for its own place
+// same estimate-and-clamp routeLine() above already uses for its own place
 // names, so a wrong guess shifts a label rather than breaking the picture.
 const DONUT_CHAR = 4.8;
 // One full line of clearance between two labels on the same side of the
@@ -1529,7 +1541,7 @@ function donutSegmentPath(cx: number, a0: number, a1: number): string {
 // shape, which tenureMonths deliberately produces no segment for), or a
 // chain whose every stop changed hands inside a single month. Those are
 // the same "splice it unconditionally, let the function decide" contract
-// routeLoop() above keeps: the alternative is a heading over an empty
+// routeLine() above keeps: the alternative is a heading over an empty
 // drawing, which reads as a broken page rather than as an honest absence.
 //
 // Every number here comes from tenureMonths and holderShares in
@@ -1794,19 +1806,19 @@ export function renderHopeCoin(data: GamesData): string {
       stopBlocks.push(`      <li class="route-leg"><span class="stat">${esc(legText)}</span></li>`);
     }
 
-    // The stint loop (Task 7, #48): a stop whose holder drove the Coin
+    // The stint line (Task 7, #48): a stop whose holder drove the Coin
     // around gets that trip drawn inside its own <li>, under the sentence
-    // that says what happened. routeLoop() returns "" for every other stop,
+    // that says what happened. routeLine() returns "" for every other stop,
     // which is why this splices unconditionally rather than branching here.
     //
-    // The loop is wrapped in .table-scroll, the same overflow-x container
+    // The drawing is wrapped in .table-scroll, the same overflow-x container
     // every committed table on the site already uses (whole-branch review
     // finding 1, 2026-09-05): a phone pans a drawing held at a readable
     // size instead of shrinking its place names to four pixels, and the
     // page body itself still never scrolls sideways because the overflow
     // lives inside that box.
-    const loop = routeLoop(stop, name);
-    const loopHtml = loop ? `\n        <div class="table-scroll route-scroll">${loop}</div>` : "";
+    const line = routeLine(stop, name);
+    const lineHtml = line ? `\n        <div class="table-scroll route-scroll">${line}</div>` : "";
 
     // The same places, as text, right above the drawing. Nine of the
     // eighteen places the Coin has been used to exist nowhere on this page
@@ -1827,7 +1839,7 @@ export function renderHopeCoin(data: GamesData): string {
 
     stopBlocks.push(`      <li class="route-stop${isCurrent ? " route-stop--current" : ""}">
         <p><strong>${name}</strong>${dateHtml}</p>${placeHtml}
-        <p>${esc(stop.how)}</p>${routeText}${loopHtml}
+        <p>${esc(stop.how)}</p>${routeText}${lineHtml}
       </li>`);
   }
   const stops = stopBlocks.join("\n");

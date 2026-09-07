@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import {
   esc, recordQualifier, renderStandings, renderGamesIndex, renderNextGameIcs, secondTuesday,
-  playerSlugs, renderPlayer, renderHopeCoin, coinHero, odometerTiles, routeLoop, holdersSection,
+  playerSlugs, renderPlayer, renderHopeCoin, coinHero, odometerTiles, routeLine, holdersSection,
   renderArchive,
 } from "./render";
 import { deriveStandings, type GamesData, type HopeCoinStop } from "./lib/standings";
@@ -1331,18 +1331,23 @@ describe("odometerTiles and the leg labels (Task 6, #48)", () => {
   });
 });
 
-// Task 7 (#48): the stint loops. A stop whose holder drove the Coin around
+// Task 7 (#48): the stint lines. A stop whose holder drove the Coin around
 // carries a `route` (the places it rode through) and `milesHeld`, and that
-// trip is drawn as a loop off the journey's line inside that stop's own
-// <li>. The chain below invents its places, as every fixture in this file
-// does, EXCEPT the border test further down: the flag is keyed on a name
-// containing "British Columbia", so that one leg has to spell a real
-// crossing or it would not be testing the rule the site actually ships.
+// trip is drawn as one straight line inside that stop's own <li>: a tick
+// per place, left to right in the order the Coin passed through them. It
+// shipped on 2026-09-05 as a loop (out along the top edge, back along the
+// bottom) and was redrawn as a line on 2026-09-07 after Beau, who drove
+// both routes, read the live page: "the loop graphics are kinda weird,
+// should just be linear" (relayed by Mike). The chain below invents its
+// places, as every fixture in this file does, EXCEPT the border tests
+// further down: the flag is keyed on a name containing "British
+// Columbia", so those legs have to spell a real crossing or they would
+// not be testing the rule the site actually ships.
 //
 // Two routed stops (2 and 4) with three plain stops around and between
 // them, so a renderer that drew only the first routed stop, only the last,
-// or a loop on every stop all fail the placement leg below.
-const loopChain: HopeCoinStop[] = [
+// or a line on every stop all fail the placement leg below.
+const stintChain: HopeCoinStop[] = [
   { holder: "ada-w", to: "2024-01-01", place: "Tumbleweed Flat",
     how: "Held it since before anyone kept records." },
   { holder: "bly-r", from: "2024-01-01", to: "2024-03-01", milesIn: 12, milesHeld: 1234,
@@ -1359,7 +1364,7 @@ const loopChain: HopeCoinStop[] = [
 
 // The three-name stint the M1 legs measure, pulled out by name so a leg
 // reads as "this stop" rather than "index 1 of the chain".
-const threeNameStop = loopChain[1]!;
+const threeNameStop = stintChain[1]!;
 
 // Pulls each `<g class="route-tick">...</g>` group out whole, in document
 // order - the same non-greedy whole-block extraction routeStopBlocks uses
@@ -1377,29 +1382,113 @@ function tickText(group: string): string {
   return /<text[^>]*>([\s\S]*?)<\/text>/.exec(group)?.[1] ?? "";
 }
 
-describe("routeLoop and the stint loops (Task 7, #48)", () => {
-  const loop = routeLoop(threeNameStop);
+// The frame's width and height, read off the viewBox. NaN for a drawing
+// with no viewBox, so a leg reading them fails on the number rather than
+// on a thrown match.
+function frame(svg: string): { width: number; height: number } {
+  const m = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svg);
+  return {
+    width: m ? Number.parseFloat(m[1]!) : Number.NaN,
+    height: m ? Number.parseFloat(m[2]!) : Number.NaN,
+  };
+}
 
-  test("M1 leg (a): the loop is an <svg class=\"route-loop\"> carrying a viewBox and exactly one route-loop-path", () => {
-    expect(loop).toStartWith('<svg class="route-loop" viewBox="');
-    expect(loop).toMatch(/^<svg class="route-loop" viewBox="[\d .]+"/);
-    expect(loop.match(/class="route-loop-path"/g)?.length).toBe(1);
+// The type size the drawing emits on its texts, read off the first one.
+// NaN when no text carries the attribute.
+function typeSize(svg: string): number {
+  const m = /font-size="([\d.]+)"/.exec(svg);
+  return m ? Number.parseFloat(m[1]!) : Number.NaN;
+}
+
+// The height of the line itself in the frame, read off the drawing's one
+// path. The path is "M <x> <y> H <x2>" (the linearity leg below pins that
+// shape), so its second number is the line's y. NaN when the path is not
+// that shape, so a leg reading it fails on the number, not on a throw.
+function lineY(svg: string): number {
+  const m = /<path class="route-line-path" d="M [\d.]+ ([\d.]+) H [\d.]+"\/>/.exec(svg);
+  return m ? Number.parseFloat(m[1]!) : Number.NaN;
+}
+
+// Where one tick group draws its bead and its name: the circle's center,
+// the text's baseline, and whether this is the tick that carries the
+// border flag. NaN for whichever attribute is missing.
+function tickGeometry(group: string): { cx: number; cy: number; textY: number; border: boolean } {
+  const c = /<circle cx="([\d.]+)" cy="([\d.]+)"/.exec(group);
+  const t = /<text[^>]*\by="([\d.]+)"/.exec(group);
+  return {
+    cx: c ? Number.parseFloat(c[1]!) : Number.NaN,
+    cy: c ? Number.parseFloat(c[2]!) : Number.NaN,
+    textY: t ? Number.parseFloat(t[1]!) : Number.NaN,
+    border: group.includes("route-flag"),
+  };
+}
+
+describe("routeLine and the stint lines (Task 7, #48; a line since 2026-09-07)", () => {
+  const line = routeLine(threeNameStop);
+
+  test("M1 leg (a): the drawing is an <svg class=\"route-line\"> carrying a viewBox and exactly one route-line-path", () => {
+    expect(line).toStartWith('<svg class="route-line" viewBox="');
+    expect(line).toMatch(/^<svg class="route-line" viewBox="[\d .]+"/);
+    expect(line.match(/class="route-line-path"/g)?.length).toBe(1);
+  });
+
+  // Beau's feedback (2026-09-07), pinned: the whole drawing hangs off one
+  // straight horizontal stroke. A path that curves, arcs, closes, or runs
+  // a second segment is the loop coming back.
+  test("the path is one straight horizontal segment: a move and a horizontal line, no arc, no curve, no return", () => {
+    const d = /<path class="route-line-path" d="([^"]+)"/.exec(line)?.[1];
+    expect(d).toMatch(/^M [\d.]+ [\d.]+ H [\d.]+$/);
+  });
+
+  test("every tick sits on the line, left to right in route order, evenly spaced", () => {
+    const y = lineY(line);
+    expect(y).not.toBeNaN();
+    const beads = tickGroups(line).map(tickGeometry);
+    expect(beads.length).toBe(3);
+    for (const bead of beads) expect(bead.cy).toBe(y);
+    const xs = beads.map((b) => b.cx);
+    expect(xs).toEqual([...xs].sort((a, b) => a - b));
+    // Even spacing, to within rounding: the record carries one figure for
+    // the whole stint and no per-leg distances, so the ticks may not
+    // pretend to know them.
+    const gaps = xs.slice(1).map((x, i) => x - xs[i]!);
+    for (const gap of gaps) expect(Math.abs(gap - gaps[0]!)).toBeLessThanOrEqual(0.2);
+  });
+
+  test("names alternate above and below the line, the first name above, so two neighbours never share a row", () => {
+    const y = lineY(line);
+    const [first, second, third] = tickGroups(line).map(tickGeometry);
+    expect(first!.textY).toBeLessThan(y);
+    expect(second!.textY).toBeGreaterThan(y);
+    expect(third!.textY).toBeLessThan(y);
+  });
+
+  test("the mileage sits under the line at its right end, below every place name", () => {
+    const miles = /<text class="route-line-miles" x="([\d.]+)" y="([\d.]+)" text-anchor="end"/.exec(line);
+    expect(miles).not.toBeNull();
+    const x = Number.parseFloat(miles![1]!);
+    const y = Number.parseFloat(miles![2]!);
+    // Anchored at the line's own right end: the path's H value.
+    const lineEnd = Number.parseFloat(/ H ([\d.]+)"/.exec(line)![1]!);
+    expect(x).toBe(lineEnd);
+    expect(y).toBeGreaterThan(lineY(line));
+    for (const bead of tickGroups(line).map(tickGeometry)) expect(bead.textY).toBeLessThan(y);
   });
 
   test("M1 leg (a): exactly three tick groups, their texts the three place names in route order, no fourth", () => {
-    const groups = tickGroups(loop);
+    const groups = tickGroups(line);
     expect(groups.length).toBe(3);
     expect(groups.map(tickText)).toEqual(["Cinder Bend", "Marrow Gap", "Ochre Ridge"]);
   });
 
   test("M1 leg (a): each tick group holds exactly one <circle>", () => {
-    for (const group of tickGroups(loop)) {
+    for (const group of tickGroups(line)) {
       expect(group.match(/<circle\b/g)?.length).toBe(1);
     }
   });
 
   test('M1 leg (a): exactly one miles text, reading the formatted milesHeld plus " miles on the road"', () => {
-    const miles = [...loop.matchAll(/<text class="route-loop-miles"[^>]*>([\s\S]*?)<\/text>/g)];
+    const miles = [...line.matchAll(/<text class="route-line-miles"[^>]*>([\s\S]*?)<\/text>/g)];
     expect(miles.length).toBe(1);
     expect(miles[0]![1]).toBe("1,234 miles on the road");
   });
@@ -1409,12 +1498,12 @@ describe("routeLoop and the stint loops (Task 7, #48)", () => {
       holder: "cly-d", from: "2024-03-01", to: "2024-06-01", place: "Salt Pan",
       how: "Kept it on the shelf all spring.",
     };
-    expect(routeLoop(parked)).toBe("");
+    expect(routeLine(parked)).toBe("");
   });
 
-  test("M2 leg (b): renderHopeCoin draws a loop inside each routed stop's own <li>, after its how paragraph, and nowhere else", () => {
-    const full = renderHopeCoin(odoData(loopChain));
-    expect(full.match(/<svg class="route-loop"/g)?.length).toBe(2);
+  test("M2 leg (b): renderHopeCoin draws a line inside each routed stop's own <li>, after its how paragraph, and nowhere else", () => {
+    const full = renderHopeCoin(odoData(stintChain));
+    expect(full.match(/<svg class="route-line"/g)?.length).toBe(2);
 
     const blocks = routeStopBlocks(full);
     expect(blocks.length).toBe(5);
@@ -1422,11 +1511,11 @@ describe("routeLoop and the stint loops (Task 7, #48)", () => {
       const block = blocks[i]!;
       const howHtml = `<p>${how}</p>`;
       expect(block).toContain(howHtml);
-      // The loop lands AFTER the how sentence, inside the same stop's <li>.
-      expect(block.indexOf('<svg class="route-loop"')).toBeGreaterThan(block.indexOf(howHtml));
+      // The drawing lands AFTER the how sentence, inside the same stop's <li>.
+      expect(block.indexOf('<svg class="route-line"')).toBeGreaterThan(block.indexOf(howHtml));
     }
     for (const i of [0, 2, 4]) {
-      expect(blocks[i]!).not.toContain("route-loop");
+      expect(blocks[i]!).not.toContain("route-line");
     }
   });
 
@@ -1435,11 +1524,11 @@ describe("routeLoop and the stint loops (Task 7, #48)", () => {
     route: ["Cinder Bend", "Hope, British Columbia", "Marrow Gap"],
     how: "Drove it north and back.",
   };
-  const borderLoop = routeLoop(borderStop);
+  const borderLine = routeLine(borderStop);
 
   test("M3 leg (c): exactly one route-flag, inside the British Columbia tick, whose text names the crossing", () => {
-    expect(borderLoop.match(/class="route-flag"/g)?.length).toBe(1);
-    const groups = tickGroups(borderLoop);
+    expect(borderLine.match(/class="route-flag"/g)?.length).toBe(1);
+    const groups = tickGroups(borderLine);
     expect(groups.length).toBe(3);
     const flagged = groups.filter((g) => g.includes("route-flag"));
     expect(flagged.length).toBe(1);
@@ -1447,7 +1536,7 @@ describe("routeLoop and the stint loops (Task 7, #48)", () => {
   });
 
   test("M3 leg (c): the other two ticks carry neither the flag nor the border sentence", () => {
-    const plain = tickGroups(borderLoop).filter((g) => !g.includes("British Columbia"));
+    const plain = tickGroups(borderLine).filter((g) => !g.includes("British Columbia"));
     expect(plain.length).toBe(2);
     for (const group of plain) {
       expect(group).not.toContain("route-flag");
@@ -1455,98 +1544,172 @@ describe("routeLoop and the stint loops (Task 7, #48)", () => {
     }
   });
 
+  // The border name is a whole sentence, wider than the room between two
+  // ticks, so it takes a row of its own on whichever side of the line its
+  // slot falls. Two fixtures, so both sides' far rows are exercised: the
+  // border second (an odd slot, below the line) with a fourth plain name
+  // below it to compare against, and the border first (an even slot,
+  // above) with a plain third name above.
+  const borderBelow = routeLine({ ...borderStop, route: ["Cinder Bend", "Hope, British Columbia", "Marrow Gap", "Ochre Ridge"] });
+  const borderAbove = routeLine({ ...borderStop, route: ["Hope, British Columbia", "Cinder Bend", "Marrow Gap"] });
+
+  test("the border name takes a row of its own, further from the line than the plain names on its side", () => {
+    for (const svg of [borderBelow, borderAbove]) {
+      const y = lineY(svg);
+      const beads = tickGroups(svg).map(tickGeometry);
+      const border = beads.find((b) => b.border);
+      expect(border).toBeDefined();
+      const side = Math.sign(border!.textY - y);
+      const sameSide = beads.filter((b) => !b.border && Math.sign(b.textY - y) === side);
+      // A plain name shares the border's side in both fixtures, so the
+      // comparison below is never vacuous.
+      expect(sameSide.length).toBeGreaterThan(0);
+      for (const bead of sameSide) {
+        expect(Math.abs(border!.textY - y)).toBeGreaterThan(Math.abs(bead.textY - y));
+      }
+    }
+  });
+
+  // The far row leaves the near row empty at the border tick, and that gap
+  // is where the flag flies: between the bead and its own name, never on
+  // the other side of the line where the next name over could reach it
+  // (the first cut hung it there and its tip came within a pixel of
+  // "Cassiar Highway" on Beau's Alaska route).
+  test("the flag flies between the bead and the border name, on the name's own side of the line", () => {
+    for (const svg of [borderBelow, borderAbove]) {
+      const y = lineY(svg);
+      const group = tickGroups(svg).find((g) => g.includes("route-flag"));
+      expect(group).toBeDefined();
+      const nameY = tickGeometry(group!).textY;
+      const d = /class="route-flag" d="([^"]+)"/.exec(group!)![1]!;
+      const ys = [...d.matchAll(/[\d.]+ ([\d.]+)/g)].map((m) => Number.parseFloat(m[1]!));
+      // A triangle: three corners, or the regex stopped reading the path.
+      expect(ys.length).toBe(3);
+      for (const fy of ys) {
+        expect(Math.sign(fy - y)).toBe(Math.sign(nameY - y));
+        expect(Math.abs(fy - y)).toBeLessThan(Math.abs(nameY - y));
+      }
+    }
+  });
+
+  test("rows exist only where a name lands on them: a route with no border name is shorter, in type sizes, than one with", () => {
+    const rows = (svg: string) => frame(svg).height / typeSize(svg);
+    expect(rows(line)).toBeLessThan(rows(borderLine));
+  });
+
   // Review finding (2026-09-05): the first cut re-anchored an overflowing
   // label to the frame's edge, which for a short route with a long name
   // traded a right-edge overflow for a left-edge one - the three-name
   // British Columbia fixture above rendered its 53-character label running
   // off the left side, clipped by the svg's own viewBox. This leg pins the
-  // numeric bound rather than the anchor, using the same 6.6-units-per-
-  // character estimate routeLoop() measures with, so any future placement
-  // scheme has to keep every label on the drawing to pass.
+  // numeric bound rather than the anchor, using the same 0.6-of-the-type-
+  // size character estimate routeLine() measures with, so any future
+  // placement scheme has to keep every label on the drawing to pass.
   //
-  // The final fix wave (2026-09-05) moved the per-character estimate: the
-  // drawing now emits its own font-size in user units, so a character is
-  // 0.6 of THAT size rather than a flat 6.6 units. The bound this leg
-  // checks is unchanged; only the measurement follows the type.
-  test("every text on the loop stays inside the viewBox, at the shortest route that carries the long border label", () => {
-    const viewBox = /viewBox="0 0 ([\d.]+) [\d.]+"/.exec(borderLoop);
-    expect(viewBox).not.toBeNull();
-    const frameWidth = Number.parseFloat(viewBox![1]!);
-    const charWidth = Number.parseFloat(/font-size="([\d.]+)"/.exec(borderLoop)![1]!) * 0.6;
+  // Five drawings: the plain three, the border in every slot the fixtures
+  // above put it in, and a one-place route, the shortest frame that ever
+  // has to hold the long border label.
+  const onePlace = routeLine({ ...borderStop, route: ["Hope, British Columbia"] });
+  const drawings = [line, borderLine, borderBelow, borderAbove, onePlace];
 
-    const texts = [...borderLoop.matchAll(/<text[^>]*\bx="([\d.-]+)"[^>]*text-anchor="(\w+)"[^>]*>([\s\S]*?)<\/text>/g)];
-    // Three tick names plus the mileage: if this count ever drops, the
-    // regex stopped matching and the bounds below stopped being checked.
-    expect(texts.length).toBe(4);
-    for (const [, xAttr, anchor, content] of texts) {
-      const x = Number.parseFloat(xAttr!);
-      const w = content!.length * charWidth;
-      const start = anchor === "middle" ? x - w / 2 : anchor === "end" ? x - w : x;
-      expect(start).toBeGreaterThanOrEqual(0);
-      expect(start + w).toBeLessThanOrEqual(frameWidth);
+  test("every text stays inside the viewBox side to side, down to a one-place route carrying the long border label", () => {
+    for (const svg of drawings) {
+      const { width } = frame(svg);
+      expect(width).not.toBeNaN();
+      const charWidth = typeSize(svg) * 0.6;
+
+      const texts = [...svg.matchAll(/<text[^>]*\bx="([\d.-]+)"[^>]*text-anchor="(\w+)"[^>]*>([\s\S]*?)<\/text>/g)];
+      // Every tick name plus the mileage: if this count ever drops, the
+      // regex stopped matching and the bounds below stopped being checked.
+      expect(texts.length).toBe(tickGroups(svg).length + 1);
+      for (const [, xAttr, anchor, content] of texts) {
+        const x = Number.parseFloat(xAttr!);
+        const w = content!.length * charWidth;
+        const start = anchor === "middle" ? x - w / 2 : anchor === "end" ? x - w : x;
+        expect(start).toBeGreaterThanOrEqual(0);
+        expect(start + w).toBeLessThanOrEqual(width);
+      }
     }
   });
 
-  test("M5 leg (e): neither loop carries an em dash", () => {
-    expect(loop).not.toContain("—");
-    expect(borderLoop).not.toContain("—");
+  test("every text stays inside the viewBox top to bottom, whichever side the border row lands on", () => {
+    for (const svg of drawings) {
+      const { height } = frame(svg);
+      const size = typeSize(svg);
+      const ys = [...svg.matchAll(/<text[^>]*\by="([\d.]+)"/g)].map((m) => Number.parseFloat(m[1]!));
+      expect(ys.length).toBe(tickGroups(svg).length + 1);
+      for (const y of ys) {
+        // Ascent above the baseline and descent below it, as fractions of
+        // the type size: generous on purpose, so a row that only just
+        // fits the frame fails here before it clips on a screen.
+        expect(y - size * 0.8).toBeGreaterThanOrEqual(0);
+        expect(y + size * 0.25).toBeLessThanOrEqual(height);
+      }
+    }
+  });
+
+  test("M5 leg (e): no drawing carries an em dash", () => {
+    for (const svg of drawings) expect(svg).not.toContain("—");
   });
 });
 
-// The final fix wave (2026-09-05, whole-branch review finding 1). The loops
-// were legible on a desktop and about four pixels tall on a phone, and nine
-// of the eighteen places the Coin has been existed nowhere on the page
-// except inside an SVG. Three changes answer that, and these legs pin all
-// three: the places are printed as text beside the drawing; the type size
-// is emitted in user units so it scales with the frame instead of with the
-// frame's own width; and the drawing sits in a scroll container so a narrow
-// screen pans it rather than shrinking it.
-describe("the stint loops read on a phone (final fix wave, #48)", () => {
-  // The two drawings this block measures, rebuilt here rather than reached
-  // for across the describe above: the three-name stint from the chain, and
-  // the border stint, whose long label gives the frame a different width.
-  const loop = routeLoop(loopChain[1]!);
-  const borderLoop = routeLoop({
+// The final fix wave (2026-09-05, whole-branch review finding 1). The
+// drawings were legible on a desktop and about four pixels tall on a
+// phone, and nine of the eighteen places the Coin has been existed nowhere
+// on the page except inside an SVG. Three changes answer that, and these
+// legs pin all three: the places are printed as text beside the drawing;
+// the type size is emitted in user units so it scales with the frame
+// instead of with the frame's own width; and the drawing sits in a scroll
+// container so a narrow screen pans it rather than shrinking it.
+describe("the stint lines read on a phone (final fix wave, #48)", () => {
+  // The drawings this block measures, rebuilt here rather than reached
+  // for across the describe above: the three-name stint and the two-name
+  // stint from the chain (two frame widths), and the border stint, whose
+  // long label is the one most likely to be left at the CSS size.
+  const line = routeLine(stintChain[1]!);
+  const twoName = routeLine(stintChain[3]!);
+  const borderLine = routeLine({
     holder: "bly-r", from: "2024-01-01", to: "2024-03-01", milesIn: 12, milesHeld: 2400,
     route: ["Cinder Bend", "Hope, British Columbia", "Marrow Gap"],
     how: "Drove it north and back.",
   });
 
-  // The type size routeLoop must emit for a frame of `width` user units:
-  // 11px at the 540-unit reference frame `.route-loop`'s max-width sets,
-  // scaled so every loop on the page renders its names at the same size.
+  // The type size routeLine must emit for a frame of `width` user units:
+  // 11px at the 540-unit reference frame `.route-line`'s max-width sets,
+  // scaled so every drawing on the page renders its names at the same size.
   const expectedFontSize = (width: number) => Number(((11 * width) / 540).toFixed(1));
 
   test("finding 1a: each routed stop prints its places as text, after the how sentence and before the drawing", () => {
-    const full = renderHopeCoin(odoData(loopChain));
+    const full = renderHopeCoin(odoData(stintChain));
     const blocks = routeStopBlocks(full);
     for (const [i, how, places] of [
-      [1, "Drove it the whole way in the RV.", "Cinder Bend \u00b7 Marrow Gap \u00b7 Ochre Ridge"],
-      [3, "Took it out on the second trip.", "Quarry Row \u00b7 Lantern Creek"],
+      [1, "Drove it the whole way in the RV.", "Cinder Bend · Marrow Gap · Ochre Ridge"],
+      [3, "Took it out on the second trip.", "Quarry Row · Lantern Creek"],
     ] as const) {
       const block = blocks[i]!;
       const line = `<p class="stat">${places}</p>`;
       expect(block).toContain(line);
       expect(block.indexOf(line)).toBeGreaterThan(block.indexOf(`<p>${how}</p>`));
-      expect(block.indexOf(line)).toBeLessThan(block.indexOf('<svg class="route-loop"'));
+      expect(block.indexOf(line)).toBeLessThan(block.indexOf('<svg class="route-line"'));
     }
     // A stop with no route prints no such line: the places line exists only
     // where there are places, never as an empty paragraph. Checked on the
     // separator, not on a place name - one of these three stops carries a
     // `place`, which is a different line with the same class.
     for (const i of [0, 2, 4]) {
-      expect(blocks[i]!).not.toContain("\u00b7");
+      expect(blocks[i]!).not.toContain("·");
     }
   });
 
-  test("finding 1b: every text on a loop carries a font-size in user units, scaled to that loop's frame", () => {
-    for (const svg of [loop, borderLoop]) {
+  test("finding 1b: every text on a drawing carries a font-size in user units, scaled to that drawing's frame", () => {
+    for (const svg of [line, twoName, borderLine]) {
       const width = Number.parseFloat(/viewBox="0 0 ([\d.]+) /.exec(svg)![1]!);
       const size = String(expectedFontSize(width));
       const texts = [...svg.matchAll(/<text[^>]*>/g)].map((m) => m[0]);
-      // Every tick name plus the mileage: a loop that emitted the attribute
-      // on only some of its text would leave those names at the CSS size.
-      expect(texts.length).toBe(4);
+      // Every tick name plus the mileage: a drawing that emitted the
+      // attribute on only some of its text would leave those names at the
+      // CSS size.
+      expect(texts.length).toBe(tickGroups(svg).length + 1);
       for (const text of texts) {
         expect(text).toContain(`font-size="${size}"`);
       }
@@ -1554,24 +1717,24 @@ describe("the stint loops read on a phone (final fix wave, #48)", () => {
   });
 
   test("finding 1b: the two frames differ in width, so the scaling above is actually exercised", () => {
-    const w1 = Number.parseFloat(/viewBox="0 0 ([\d.]+) /.exec(loop)![1]!);
-    const w2 = Number.parseFloat(/viewBox="0 0 ([\d.]+) /.exec(borderLoop)![1]!);
+    const w1 = Number.parseFloat(/viewBox="0 0 ([\d.]+) /.exec(line)![1]!);
+    const w2 = Number.parseFloat(/viewBox="0 0 ([\d.]+) /.exec(twoName)![1]!);
     expect(w1).not.toBe(w2);
     expect(expectedFontSize(w1)).not.toBe(expectedFontSize(w2));
   });
 
-  test("finding 1c: each loop sits inside the repo's own .table-scroll container", () => {
-    const full = renderHopeCoin(odoData(loopChain));
-    const wrapped = [...full.matchAll(/<div class="table-scroll route-scroll"><svg class="route-loop"[\s\S]*?<\/svg><\/div>/g)];
+  test("finding 1c: each drawing sits inside the repo's own .table-scroll container", () => {
+    const full = renderHopeCoin(odoData(stintChain));
+    const wrapped = [...full.matchAll(/<div class="table-scroll route-scroll"><svg class="route-line"[\s\S]*?<\/svg><\/div>/g)];
     expect(wrapped.length).toBe(2);
-    // No loop escapes the container: every route-loop svg on the page is
-    // one of the two matched above.
-    expect(full.match(/<svg class="route-loop"/g)?.length).toBe(2);
+    // No drawing escapes the container: every route-line svg on the page
+    // is one of the two matched above.
+    expect(full.match(/<svg class="route-line"/g)?.length).toBe(2);
   });
 
-  test("finding 1c: .route-loop carries a min-width so a narrow screen pans instead of shrinking the names", () => {
+  test("finding 1c: .route-line carries a min-width so a narrow screen pans instead of shrinking the names", () => {
     const css = stripCssComments(readFileSync(CSS_PATH, "utf8"));
-    const rule = cssRules(css).find((r) => r.selector === ".route-loop");
+    const rule = cssRules(css).find((r) => r.selector === ".route-line");
     expect(rule).toBeDefined();
     const min = declValue(rule!.body, "min-width");
     expect(min).toMatch(/^\d+px$/);
@@ -1582,8 +1745,8 @@ describe("the stint loops read on a phone (final fix wave, #48)", () => {
     expect(declValue(scroll!.body, "overflow-x")).toBe("auto");
   });
 
-  test("finding 7: each loop opens with a <title> naming the holder and the ends of the route", () => {
-    const named = routeLoop(threeNameStop, "Bly R.");
+  test("finding 7: each drawing opens with a <title> naming the holder and the ends of the route", () => {
+    const named = routeLine(threeNameStop, "Bly R.");
     expect(named).toContain("<title>Bly R.'s route: Cinder Bend to Ochre Ridge</title>");
     // The title is the svg's FIRST child: a screen reader announces it as
     // the drawing's name, which only holds if nothing is drawn ahead of it.
@@ -1593,11 +1756,11 @@ describe("the stint loops read on a phone (final fix wave, #48)", () => {
     // With no name to hand (the fallback the journey list never takes, kept
     // so a caller without a display name still gets a titled drawing rather
     // than a slug printed on the page).
-    expect(loop).toContain("<title>Route: Cinder Bend to Ochre Ridge</title>");
+    expect(line).toContain("<title>Route: Cinder Bend to Ochre Ridge</title>");
   });
 
-  test("finding 7: renderHopeCoin gives each drawn loop the holder's display name, never their slug", () => {
-    const full = renderHopeCoin(odoData(loopChain));
+  test("finding 7: renderHopeCoin gives each drawing the holder's display name, never their slug", () => {
+    const full = renderHopeCoin(odoData(stintChain));
     expect(full).toContain("<title>Bly R.'s route: Cinder Bend to Ochre Ridge</title>");
     expect(full).toContain("<title>Dre K.'s route: Quarry Row to Lantern Creek</title>");
     expect(full).not.toContain("bly-r's route");
@@ -1688,24 +1851,24 @@ describe("site/styles.css: .tiles--4 and .route-leg (Task 6, #48, M4)", () => {
   });
 });
 
-// Task 7 (#48), M4: site/styles.css guards for the five stint-loop rules.
-// Each declaration gets its own check, by name, so a loop that lost its
+// Task 7 (#48), M4: site/styles.css guards for the five stint-line rules.
+// Each declaration gets its own check, by name, so a drawing that lost its
 // stroke, its fill, or its small monospace face fails on the declaration
 // that went missing rather than on a vague "the rule changed."
-describe("site/styles.css: the stint loop (Task 7, #48, M4)", () => {
+describe("site/styles.css: the stint line (Task 7, #48, M4)", () => {
   const css = stripCssComments(readFileSync(CSS_PATH, "utf8"));
   const ruleFor = (selector: string) => cssRules(css).find((r) => r.selector === selector);
 
-  test(".route-loop is sized by CSS: width 100%, height auto, and a max-width", () => {
-    const rule = ruleFor(".route-loop");
+  test(".route-line is sized by CSS: width 100%, height auto, and a max-width", () => {
+    const rule = ruleFor(".route-line");
     expect(rule).toBeDefined();
     expect(declValue(rule!.body, "width")).toBe("100%");
     expect(declValue(rule!.body, "height")).toBe("auto");
     expect(declValue(rule!.body, "max-width")).not.toBeNull();
   });
 
-  test(".route-loop-path is a drawn pewter line, never a filled shape", () => {
-    const rule = ruleFor(".route-loop-path");
+  test(".route-line-path is a drawn pewter stroke, never a filled shape", () => {
+    const rule = ruleFor(".route-line-path");
     expect(rule).toBeDefined();
     expect(declValue(rule!.body, "stroke")).toBe("var(--pewter-deep)");
     expect(declValue(rule!.body, "fill")).toBe("none");
@@ -1717,19 +1880,34 @@ describe("site/styles.css: the stint loop (Task 7, #48, M4)", () => {
     expect(declValue(rule!.body, "fill")).toBe("var(--pewter-deep)");
   });
 
-  test(".route-flag is filled foil, the one accent on the loop", () => {
+  test(".route-flag is filled foil, the one accent on the line", () => {
     const rule = ruleFor(".route-flag");
     expect(rule).toBeDefined();
     expect(declValue(rule!.body, "fill")).toBe("var(--foil-deep)");
   });
 
-  test(".route-tick text carries a font-family and a font-size of at most 11px", () => {
-    const rule = ruleFor(".route-tick text");
-    expect(rule).toBeDefined();
-    expect(declValue(rule!.body, "font-family")).not.toBeNull();
-    const size = declValue(rule!.body, "font-size");
-    expect(size).toMatch(/^\d+(\.\d+)?px$/);
-    expect(Number.parseFloat(size!)).toBeLessThanOrEqual(11);
+  // A stylesheet rule beats an SVG presentation attribute, whatever the
+  // attribute says: an 11px font-size here would pin every name to 11
+  // user units and silently undo the per-drawing size the renderer emits
+  // (which is exactly what happened to the loops between 2026-09-05 and
+  // 2026-09-07 - the attribute was there, the CSS overrode it, and Beau's
+  // Alaska names printed at seven pixels while the test that checked for
+  // the attribute passed). So these two rules carry the face and the ink
+  // and NO size; the size is the renderer's alone.
+  test(".route-tick text and .route-line-miles carry a font-family and no font-size, so the renderer's own size wins", () => {
+    for (const selector of [".route-tick text", ".route-line-miles"]) {
+      const rule = ruleFor(selector);
+      expect(rule).toBeDefined();
+      expect(declValue(rule!.body, "font-family")).not.toBeNull();
+      expect(declValue(rule!.body, "fill")).not.toBeNull();
+      expect(declValue(rule!.body, "font-size")).toBeNull();
+    }
+  });
+
+  // No rule may still answer to the old loop names: a stylesheet that kept
+  // them would style nothing on the page and mislead the next reader.
+  test("no .route-loop rule survives the redraw", () => {
+    expect(cssRules(css).some((r) => r.selector.includes("route-loop"))).toBe(false);
   });
 });
 

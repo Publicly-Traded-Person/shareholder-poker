@@ -928,15 +928,15 @@ describe("standings and games link the archive and drop the retired copy (#39, T
 });
 
 // Task 9 (#48, 2026-09-05-hope-coin-infographics plan; spec §9, §10). The
-// hero, the odometer, the two route loops, the "who has held it" donut and
+// hero, the odometer, the two route lines, the "who has held it" donut and
 // tenure strip, and the twelve-stop journey (eleven legs between them) all
 // landed on the renderer in earlier tasks of this same plan, but none of
 // those tasks were allowed to commit the regenerated page - this task is
 // the single owner of that regeneration, so these are the first assertions
 // that ever read the committed bytes for these pieces. Every count below is
-// exact, not "at least", because a duplicate loop or a dropped leg is a
+// exact, not "at least", because a duplicate drawing or a dropped leg is a
 // silent content bug a ">=" check would let through.
-describe("site/hope-coin/index.html carries the hero, the loops, and the journey (#48, Task 9, M2)", () => {
+describe("site/hope-coin/index.html carries the hero, the route lines, and the journey (#48, Task 9, M2)", () => {
   const pagePath = join(SITE, "hope-coin", "index.html");
   const html = readPage(pagePath);
 
@@ -958,12 +958,15 @@ describe("site/hope-coin/index.html carries the hero, the loops, and the journey
     expect(html).toContain(" miles on record");
   });
 
-  // Two route-loop SVGs: one per RV stint Beau took the coin on. Matched on
-  // the exact class attribute value so a loop's own child elements
-  // (route-loop-path, route-loop-miles) can never inflate this count - see
+  // Two route-line SVGs: one per RV stint Beau took the coin on. Matched on
+  // the exact class attribute value so a drawing's own child elements
+  // (route-line-path, route-line-miles) can never inflate this count - see
   // the count convention already used above (html.split(X).length - 1).
-  test("exactly two route-loop SVGs (Beau's two stints)", () => {
-    expect(html.split('class="route-loop"').length - 1).toBe(2);
+  // The drawings were loops until 2026-09-07 (Beau's feedback on the live
+  // page); a committed page still carrying a loop is a stale regeneration.
+  test("exactly two route-line SVGs (Beau's two stints), and no route-loop left over", () => {
+    expect(html.split('class="route-line"').length - 1).toBe(2);
+    expect(html).not.toContain("route-loop");
   });
 
   test("exactly one coin-donut (who has held it, by share of time)", () => {

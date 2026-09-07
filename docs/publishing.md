@@ -188,7 +188,7 @@ that did not start life as game data (RSVP rows, raw PokerNow logs). Redoing
 either asset needs that photograph pulled from wherever Mike keeps it,
 never from this repo.
 
-Everything else on the page - the miles, the loops, and the charts
+Everything else on the page - the miles, the route lines, and the charts
 describing the Coin's own life - derives from `hopeCoin.history` (see
 "Hope Coin handoff" above), the one source of truth the journey list
 already reads. A new stop, a corrected mile figure, or any other change to
