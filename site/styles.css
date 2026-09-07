@@ -625,25 +625,29 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
    none of .route-stop::before's ring on the spine. */
 .route-leg::before { display: none; }
 
-/* The stint loops (Task 7, #48, spec §5): a road trip drawn as a loop off
-   the journey's line, inside the stop it belongs to. Sized here, never by
-   width/height attributes on the svg itself, so every loop on the page
-   changes size together. max-width keeps a nine-name loop from stretching
-   its text into a headline on a wide screen.
+/* The stint lines (Task 7, #48, spec §5; a line since 2026-09-07): a road
+   trip drawn as one straight line inside the stop it belongs to, a tick
+   per place. It shipped as a loop, and Beau, who drove both routes, asked
+   for a line when he read the live page. Sized here, never by width/height
+   attributes on the svg itself, so every drawing on the page changes size
+   together. max-width keeps a nine-name route from stretching its text
+   into a headline on a wide screen.
    min-width is the phone half of that (whole-branch review finding 1,
-   2026-09-05): a loop squeezed into a 343px phone column drew its place
-   names at four pixels, so below 480px the drawing keeps its size and its
-   own .route-scroll box pans instead. The page body still never scrolls
-   sideways, because that overflow stops at the scroll box. */
-.route-loop { display: block; width: 100%; height: auto; max-width: 540px; min-width: 480px; }
-/* The loop's scroll box: .table-scroll supplies the panning and the card
-   treatment, and this class supplies only the spacing a drawing inside a
-   journey stop needs, which is tighter than a full-width ledger table's. */
+   2026-09-05): a drawing squeezed into a 343px phone column drew its
+   place names at four pixels, so below 480px the drawing keeps its size
+   and its own .route-scroll box pans instead. The page body still never
+   scrolls sideways, because that overflow stops at the scroll box. */
+.route-line { display: block; width: 100%; height: auto; max-width: 540px; min-width: 480px; }
+/* The drawing's scroll box: .table-scroll supplies the panning and the
+   card treatment, and this class supplies only the spacing a drawing
+   inside a journey stop needs, which is tighter than a full-width ledger
+   table's. */
 .route-scroll { margin: .6rem 0 .2rem; }
-/* The loop itself is a drawn line, never a filled shape: light page, dark
-   objects (docs/brand.md). Pewter, not a rarity metal, for the same reason
-   .route's own spine is a hairline -- this is structure, not a signal. */
-.route-loop-path { fill: none; stroke: var(--pewter-deep); stroke-width: 1.5; }
+/* The line itself is a drawn stroke, never a filled shape: light page,
+   dark objects (docs/brand.md). Pewter, not a rarity metal, for the same
+   reason .route's own spine is a hairline -- this is structure, not a
+   signal. */
+.route-line-path { fill: none; stroke: var(--pewter-deep); stroke-width: 1.5; }
 /* One filled bead per place the Coin rode through, matching the pewter
    ring .route-stop::before already draws on the spine. */
 .route-tick circle { fill: var(--pewter-deep); }
@@ -653,15 +657,15 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
 .route-flag { fill: var(--foil-deep); }
 /* Place names in the same small monospace face .stat uses. The size here
    is the FALLBACK: tools/render.ts emits a font-size attribute on every
-   text in the drawing, scaled to that loop's own viewBox width so a wide
-   loop and a narrow one print their names at the same size (see
-   LOOP_REF_WIDTH there). This 11px is the size at the 540-unit reference
+   text in the drawing, scaled to that drawing's own viewBox width so a
+   wide route and a narrow one print their names at the same size (see
+   LINE_REF_WIDTH there). This 11px is the size at the 540-unit reference
    frame max-width sets above, and it is what a text with no attribute
    would get. */
 .route-tick text { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 11px; fill: var(--ink); }
-/* The stint's mileage, inside the loop at its far end. Same face and same
-   fallback size as the names, muted so the places read first. */
-.route-loop-miles { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 11px; fill: var(--muted-ink); }
+/* The stint's mileage, under the line at its right end. Same face and
+   same fallback size as the names, muted so the places read first. */
+.route-line-miles { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 11px; fill: var(--muted-ink); }
 
 /* The coin's own photo frame (Task 5, #48): the hero at the top of
    /hope-coin/ (site/hope-coin/assets/coin.png), and the frame that later
