@@ -17,9 +17,11 @@ const data = JSON.parse(
 ) as GamesData;
 
 describe("player privacy format", () => {
-  test("names are 'First' or 'First L.' — never a full surname", () => {
+  test("names are 'First', 'First L.', or a bare initial — never a full surname", () => {
+    // A bare initial ("J.") is allowed: it is how one player asks to be
+    // named, and it discloses less than a first name, not more.
     for (const p of data.players) {
-      expect(p.name).toMatch(/^[A-Z][a-z]+( [A-Z]\.)?$/);
+      expect(p.name).toMatch(/^([A-Z][a-z]+( [A-Z]\.)?|[A-Z]\.)$/);
     }
   });
   test("slugs carry at most a single-letter surname initial", () => {
