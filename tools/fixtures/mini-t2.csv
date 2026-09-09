@@ -1,0 +1,17 @@
+entry,at,order
+"The player ""hank @ hhh555"" was moved to table #1.",2026-01-01T00:33:00.000Z,1600
+"The player ""gina @ ggg444"" was moved to table #1.",2026-01-01T00:33:00.000Z,1500
+"""hank @ hhh555"" will be playing on table #1 (ID: aaa111).",2026-01-01T00:33:00.000Z,1400
+"""gina @ ggg444"" will be playing on table #1 (ID: aaa111).",2026-01-01T00:33:00.000Z,1300
+"The player ""ivy @ iii666"" quits the game with a stack of 0.",2026-01-01T00:31:00.000Z,1200
+"-- ending hand #3 --",2026-01-01T00:30:00.000Z,1100
+"Player stacks: #1 ""gina @ ggg444"" (1700) | #2 ""hank @ hhh555"" (1300) | #3 ""ivy @ iii666"" (1000)",2026-01-01T00:22:30.000Z,1000
+"-- starting hand #3 (id: b3) (No Limit Texas Hold'em) (dealer: ""ivy @ iii666"") --",2026-01-01T00:22:00.000Z,900
+"Asking to busted players the rebuy decision.",2026-01-01T00:19:00.000Z,800
+"-- ending hand #2 --",2026-01-01T00:18:00.000Z,700
+"Player stacks: #1 ""gina @ ggg444"" (1300) | #2 ""hank @ hhh555"" (1200) | #3 ""ivy @ iii666"" (500)",2026-01-01T00:12:30.000Z,600
+"-- starting hand #2 (id: b2) (No Limit Texas Hold'em) (dealer: ""hank @ hhh555"") --",2026-01-01T00:12:00.000Z,500
+"-- ending hand #1 --",2026-01-01T00:08:00.000Z,400
+"Player stacks: #1 ""gina @ ggg444"" (1000) | #2 ""hank @ hhh555"" (1000) | #3 ""ivy @ iii666"" (1000)",2026-01-01T00:02:31.000Z,300
+"-- starting hand #1 (id: b1) (No Limit Texas Hold'em) (dealer: ""gina @ ggg444"") --",2026-01-01T00:02:00.000Z,200
+"The player ""gina @ ggg444"" joined the game with a stack of 1000.",2026-01-01T00:01:00.000Z,100

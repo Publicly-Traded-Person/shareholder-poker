@@ -47,8 +47,8 @@ D1 `poker-rsvp-db`). Spec: `docs/superpowers/specs/2026-08-17-poker-quarterly-sy
 ```bash
 bun test tools          # the suite (827 tests as of the route-lines redraw, 2026-09-07). Green before any commit, EXCEPT the regeneration commit a publish itself requires: the suite's own drift check re-runs `bun tools/render.ts` and refuses on a dirty generated path, so during a publish the order is regenerate, commit the generated pages, THEN run the suite (docs/publishing.md).
 bun tools/render.ts     # regenerate site/standings/, site/games/, site/next-game.ics, one site/player/<slug>/ per player on the spine, site/hope-coin/, and site/archive/ from games.json and site/data/archive.json
-bun tools/publish-game.ts <log.csv> --date YYYY-MM-DD --results results.json
-bun tools/chip-race.ts <log.csv> --date YYYY-MM-DD --start 5000 --inject site/games/<date>/index.html
+bun tools/publish-game.ts <log1.csv> [log2.csv ...] --date YYYY-MM-DD --results results.json   # one log per table
+bun tools/chip-race.ts <log1.csv> [log2.csv ...] --date YYYY-MM-DD --start 5000 --inject site/games/<date>/index.html
 python3 -m http.server -d site   # local preview
 ```
 
