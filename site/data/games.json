@@ -445,7 +445,12 @@
           "payout": 450,
           "rebuys": 0,
           "trophies": [],
-          "slug": "josh-b"
+          "slug": "josh-b",
+          "card": {
+            "metal": "foil",
+            "file": "card-1-joshb.png",
+            "title": "Champion"
+          }
         },
         {
           "handle": "jfe",
@@ -455,7 +460,12 @@
           "trophies": [
             "two-seven-showdown"
           ],
-          "slug": "j"
+          "slug": "j",
+          "card": {
+            "metal": "sapphire",
+            "file": "card-2-jfe.png",
+            "title": "Runner-up"
+          }
         },
         {
           "handle": "LEWD",
@@ -463,7 +473,12 @@
           "payout": 180,
           "rebuys": 1,
           "trophies": [],
-          "slug": "chris-g"
+          "slug": "chris-g",
+          "card": {
+            "metal": "sapphire",
+            "file": "card-3-lewd.png",
+            "title": "3rd"
+          }
         },
         {
           "handle": "kmikeym",
@@ -471,7 +486,12 @@
           "payout": 0,
           "rebuys": 0,
           "trophies": [],
-          "slug": "kmikeym"
+          "slug": "kmikeym",
+          "card": {
+            "metal": "copper",
+            "file": "card-4-kmikeym.png",
+            "title": "The Founder"
+          }
         },
         {
           "handle": "bg",
@@ -479,7 +499,12 @@
           "payout": 0,
           "rebuys": 0,
           "trophies": [],
-          "slug": "beau-g"
+          "slug": "beau-g",
+          "card": {
+            "metal": "pewter",
+            "file": "card-5-bg.png",
+            "title": "5th"
+          }
         },
         {
           "handle": "MoHDI_Drew",
@@ -489,7 +514,12 @@
           "trophies": [
             "two-seven-showdown"
           ],
-          "slug": "drew-a"
+          "slug": "drew-a",
+          "card": {
+            "metal": "pewter",
+            "file": "card-6-mohdi_drew.png",
+            "title": "6th"
+          }
         },
         {
           "handle": "chrishiggins",
@@ -497,7 +527,12 @@
           "payout": 0,
           "rebuys": 0,
           "trophies": [],
-          "slug": "chris-h"
+          "slug": "chris-h",
+          "card": {
+            "metal": "pewter",
+            "file": "card-7-chrishiggins.png",
+            "title": "7th"
+          }
         },
         {
           "handle": "amaxwell",
@@ -505,7 +540,12 @@
           "payout": 0,
           "rebuys": 0,
           "trophies": [],
-          "slug": "amy-m"
+          "slug": "amy-m",
+          "card": {
+            "metal": "pewter",
+            "file": "card-8-amaxwell.png",
+            "title": "8th"
+          }
         },
         {
           "handle": "U_perfection",
@@ -513,7 +553,12 @@
           "payout": 0,
           "rebuys": 0,
           "trophies": [],
-          "slug": "austin-p"
+          "slug": "austin-p",
+          "card": {
+            "metal": "pewter",
+            "file": "card-9-u_perfection.png",
+            "title": "9th"
+          }
         },
         {
           "handle": "Gamzie",
@@ -521,7 +566,12 @@
           "payout": 0,
           "rebuys": 0,
           "trophies": [],
-          "slug": "jeff-m"
+          "slug": "jeff-m",
+          "card": {
+            "metal": "pewter",
+            "file": "card-10-gamzie.png",
+            "title": "10th"
+          }
         },
         {
           "handle": "MawTTM",
@@ -531,7 +581,12 @@
           "trophies": [
             "cain-and-abel"
           ],
-          "slug": "matt-w"
+          "slug": "matt-w",
+          "card": {
+            "metal": "pewter",
+            "file": "card-11-mawttm.png",
+            "title": "11th"
+          }
         },
         {
           "handle": "spladow",
@@ -539,7 +594,12 @@
           "payout": 0,
           "rebuys": 0,
           "trophies": [],
-          "slug": "thomas-d"
+          "slug": "thomas-d",
+          "card": {
+            "metal": "pewter",
+            "file": "card-12-spladow.png",
+            "title": "12th"
+          }
         },
         {
           "handle": "webvee",
@@ -547,7 +607,12 @@
           "payout": 0,
           "rebuys": 0,
           "trophies": [],
-          "slug": "webvee"
+          "slug": "webvee",
+          "card": {
+            "metal": "pewter",
+            "file": "card-13-webvee.png",
+            "title": "13th"
+          }
         },
         {
           "handle": "exis0008",
@@ -555,9 +620,16 @@
           "payout": 0,
           "rebuys": 2,
           "trophies": [],
-          "slug": "tatiana-p"
+          "slug": "tatiana-p",
+          "card": {
+            "metal": "pewter",
+            "file": "card-14-exis0008.png",
+            "title": "14th"
+          }
         }
-      ]
+      ],
+      "cardSet": "2026-09",
+      "cardSetName": "Seven-Deuce"
     }
   ]
 }
