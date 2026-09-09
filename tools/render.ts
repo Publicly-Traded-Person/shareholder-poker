@@ -358,7 +358,9 @@ export function renderStandings(data: GamesData): string {
     .map(([slug, n]) =>
       `<li>${esc(nameOf.get(slug) ?? slug)}: ${SKULL.repeat(n)}${SKULL_EMPTY.repeat(3 - n)} <span class="stat">${n} of 3</span> skulls</li>`)
     .join("\n          ");
-  // Each row's name is now the way into that player's own page (task 9,
+  // Won sits right after the name because it is the first sort key
+  // (tools/lib/standings.ts, Mike 2026-09-09): the column the table is
+  // ordered by should be the one the eye lands on. Each row's name is now the way into that player's own page (task 9,
   // M1): the anchor wraps the name only, so the champion gem and Coin mark
   // that already followed the name keep sitting outside the link, exactly
   // where they were before this task touched this line.
@@ -366,11 +368,11 @@ export function renderStandings(data: GamesData): string {
     const { earned } = trophyCase(data, r.slug);
     return `      <tr class="finish-${i + 1}">
         <td><a href="/player/${r.slug}/">${esc(r.name)}</a>${r.slug === champ.slug ? " " + GEM("foil") : ""}${r.slug === s.hopeCoin.holder ? " " + COIN : ""}</td>
+        <td class="num">$${r.totalPayout}</td>
         <td class="num">${r.games}</td>
         <td class="num">${r.wins}</td>
         <td class="num">${r.cashes}</td>
         <td class="num">${r.bestFinish}/${r.bestField}</td>
-        <td class="num">$${r.totalPayout}</td>
         <td class="num">${r.rebuys}</td>
         <td>${trophyShelf(earned)}</td>
       </tr>`;
@@ -394,7 +396,7 @@ export function renderStandings(data: GamesData): string {
       </div>
     </div>
     <div class="table-scroll"><table class="ledger">
-      <thead><tr><th>Player</th><th>Games</th><th>Wins</th><th>Cashes</th><th>Best</th><th>Won</th><th>Rebuys</th><th>Trophies</th></tr></thead>
+      <thead><tr><th>Player</th><th>Won</th><th>Games</th><th>Wins</th><th>Cashes</th><th>Best</th><th>Rebuys</th><th>Trophies</th></tr></thead>
       <tbody>
 ${rows}
       </tbody>
