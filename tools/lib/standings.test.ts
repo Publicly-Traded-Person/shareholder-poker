@@ -50,10 +50,34 @@ describe("deriveStandings", () => {
       wins: 1,
       cashes: 2,
       bestFinish: 1,
+      bestField: 3,
       totalPayout: 150,
       rebuys: 0,
       lastPlayed: "2026-08-11",
     });
+  });
+  test("best finish is the one hardest to earn: 4th of 14 beats 4th of 6", () => {
+    const wide: GamesData = {
+      ...data,
+      games: [
+        { ...data.games[0], results: [
+          { slug: "a", handle: "a", finish: 1, payout: 150, rebuys: 0, trophies: [] },
+          { slug: "b", handle: "b", finish: 4, payout: 0, rebuys: 0, trophies: [] },
+          { slug: "c", handle: "c", finish: 2, payout: 0, rebuys: 0, trophies: [] },
+          { slug: "d", handle: "d", finish: 3, payout: 0, rebuys: 0, trophies: [] },
+          { slug: "e", handle: "e", finish: 5, payout: 0, rebuys: 0, trophies: [] },
+          { slug: "f", handle: "f", finish: 6, payout: 0, rebuys: 0, trophies: [] },
+        ] },
+        { ...data.games[1], results: [
+          { slug: "a", handle: "a", finish: 1, payout: 700, rebuys: 0, trophies: [] },
+          { slug: "b", handle: "b", finish: 4, payout: 0, rebuys: 0, trophies: [] },
+          ...Array.from({ length: 12 }, (_, i) => ({ slug: `p${i}`, handle: `p${i}`, finish: i + 2 + (i >= 2 ? 1 : 0), payout: 0, rebuys: 0, trophies: [] as string[] })),
+        ] },
+      ],
+    };
+    const bert = deriveStandings(wide).rows.find((r) => r.slug === "b")!;
+    expect(bert.bestFinish).toBe(4);
+    expect(bert.bestField).toBe(14);
   });
   test("sorts by wins, then cashes, then best finish", () => {
     const s = deriveStandings(data);
