@@ -1,6 +1,6 @@
 {
   "nextGame": {
-    "date": "2026-09-08",
+    "date": "2026-10-13",
     "time": "7:00pm PT"
   },
   "portraitUploads": true,
@@ -183,13 +183,51 @@
     {
       "slug": "josh-b",
       "name": "Josh B.",
-      "aka": []
+      "aka": [
+        "joshb"
+      ]
     },
     {
       "slug": "matt-w",
       "name": "Matt W.",
       "aka": [
         "MawTTM"
+      ]
+    },
+    {
+      "slug": "j-f",
+      "name": "J.",
+      "aka": [
+        "jfe"
+      ]
+    },
+    {
+      "slug": "chris-h",
+      "name": "Chris H.",
+      "aka": [
+        "chrishiggins"
+      ]
+    },
+    {
+      "slug": "austin-p",
+      "name": "Austin P.",
+      "aka": [
+        "U_perfection",
+        "uperfection"
+      ]
+    },
+    {
+      "slug": "jeff-m",
+      "name": "Jeff M.",
+      "aka": [
+        "Gamzie"
+      ]
+    },
+    {
+      "slug": "tatiana-p",
+      "name": "Tatiana P.",
+      "aka": [
+        "exis0008"
       ]
     }
   ],
@@ -390,6 +428,134 @@
             "file": "card-5-kmikeym.png",
             "title": "The Founder"
           }
+        }
+      ]
+    },
+    {
+      "date": "2026-09-08",
+      "hands": 338,
+      "startingStack": 5000,
+      "buyIn": 50,
+      "entries": 18,
+      "pot": 900,
+      "results": [
+        {
+          "handle": "joshb",
+          "finish": 1,
+          "payout": 450,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "josh-b"
+        },
+        {
+          "handle": "jfe",
+          "finish": 2,
+          "payout": 270,
+          "rebuys": 0,
+          "trophies": [
+            "two-seven-showdown"
+          ],
+          "slug": "j-f"
+        },
+        {
+          "handle": "LEWD",
+          "finish": 3,
+          "payout": 180,
+          "rebuys": 1,
+          "trophies": [],
+          "slug": "chris-g"
+        },
+        {
+          "handle": "kmikeym",
+          "finish": 4,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "kmikeym"
+        },
+        {
+          "handle": "bg",
+          "finish": 5,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "beau-g"
+        },
+        {
+          "handle": "MoHDI_Drew",
+          "finish": 6,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [
+            "two-seven-showdown"
+          ],
+          "slug": "drew-a"
+        },
+        {
+          "handle": "chrishiggins",
+          "finish": 7,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "chris-h"
+        },
+        {
+          "handle": "amaxwell",
+          "finish": 8,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "amy-m"
+        },
+        {
+          "handle": "U_perfection",
+          "finish": 9,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "austin-p"
+        },
+        {
+          "handle": "Gamzie",
+          "finish": 10,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "jeff-m"
+        },
+        {
+          "handle": "MawTTM",
+          "finish": 11,
+          "payout": 0,
+          "rebuys": 1,
+          "trophies": [
+            "cain-and-abel"
+          ],
+          "slug": "matt-w"
+        },
+        {
+          "handle": "spladow",
+          "finish": 12,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "thomas-d"
+        },
+        {
+          "handle": "webvee",
+          "finish": 13,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "webvee"
+        },
+        {
+          "handle": "exis0008",
+          "finish": 14,
+          "payout": 0,
+          "rebuys": 2,
+          "trophies": [],
+          "slug": "tatiana-p"
         }
       ]
     }

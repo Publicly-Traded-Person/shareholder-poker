@@ -2,10 +2,10 @@ BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//poker.kmikeym.com//EN
 BEGIN:VEVENT
-UID:poker-kmikeym-2026-09-08
-DTSTAMP:20260908T000000Z
-DTSTART;TZID=America/Los_Angeles:20260908T190000
-DTEND;TZID=America/Los_Angeles:20260908T220000
+UID:poker-kmikeym-2026-10-13
+DTSTAMP:20261013T000000Z
+DTSTART;TZID=America/Los_Angeles:20261013T190000
+DTEND;TZID=America/Los_Angeles:20261013T220000
 SUMMARY:K5M Shareholder Poker
 DESCRIPTION:No-limit Hold'em. Cards on Poker Now\, faces on Zoom. RSVP at poker.kmikeym.com.
 URL:https://poker.kmikeym.com/
