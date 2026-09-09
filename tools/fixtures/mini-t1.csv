@@ -1,0 +1,15 @@
+entry,at,order
+"-- ending hand #3 --",2026-01-01T00:44:00.000Z,1400
+"Player stacks: #1 ""dave @ ddd111"" (1800) | #2 ""erin @ eee222"" (500) | #3 ""frank @ fff333"" (700) | #4 ""gina @ ggg444"" (2200) | #5 ""hank @ hhh555"" (1800)",2026-01-01T00:36:30.000Z,1300
+"-- starting hand #3 (id: a3) (No Limit Texas Hold'em) (dealer: ""frank @ fff333"") --",2026-01-01T00:36:00.000Z,1200
+"The player ""hank @ hhh555"" joined the game with a stack of 1800.",2026-01-01T00:33:01.000Z,1100
+"The player ""gina @ ggg444"" joined the game with a stack of 2200.",2026-01-01T00:33:01.000Z,1000
+"The player ""hank @ hhh555"" will start to play in this table with a stack of 1800.",2026-01-01T00:33:00.000Z,900
+"The player ""gina @ ggg444"" will start to play in this table with a stack of 2200.",2026-01-01T00:33:00.000Z,800
+"-- ending hand #2 --",2026-01-01T00:20:00.000Z,700
+"Player stacks: #1 ""dave @ ddd111"" (1500) | #2 ""erin @ eee222"" (800) | #3 ""frank @ fff333"" (700)",2026-01-01T00:15:30.000Z,600
+"-- starting hand #2 (id: a2) (No Limit Texas Hold'em) (dealer: ""erin @ eee222"") --",2026-01-01T00:15:00.000Z,500
+"-- ending hand #1 --",2026-01-01T00:05:00.000Z,400
+"Player stacks: #1 ""dave @ ddd111"" (1000) | #2 ""erin @ eee222"" (1000) | #3 ""frank @ fff333"" (1000)",2026-01-01T00:02:30.000Z,300
+"-- starting hand #1 (id: a1) (No Limit Texas Hold'em) (dealer: ""dave @ ddd111"") --",2026-01-01T00:02:00.000Z,200
+"The player ""dave @ ddd111"" joined the game with a stack of 1000.",2026-01-01T00:01:00.000Z,100

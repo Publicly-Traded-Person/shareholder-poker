@@ -54,10 +54,20 @@ or stash the dirty path, then run `bun test tools` again.
    JOIN button rather than a seat, which looks like a wall and is not;
    LOG / LEDGER still works. Do it the same night, before the logs age out.
 2. Write `results.json` (the judged part): `[{handle, finish, payout, rebuys, trophies}]`.
-3. Run: `bun tools/publish-game.ts <log.csv> --date YYYY-MM-DD --results results.json`
-   - Halts on chip-conservation mismatch, an unknown handle, or a trophy id
-     in `results.json` that is not one of the ids in `tools/lib/trophies.ts`.
-     Fix the input, never the check.
+3. Run: `bun tools/publish-game.ts <log1.csv> [log2.csv ...] --date YYYY-MM-DD --results results.json`
+   - One path per table. An ordinary game is one log; a multi-table game
+     (step 1) is every table's log, in any order. The tool reads them as
+     one timeline by timestamp: hands are counted across every table, and
+     chip conservation is checked at the final table's last hand, where
+     every chip in play has ended up.
+   - Halts on chip-conservation mismatch, an unknown handle (in
+     `results.json` or in a log), a trophy id in `results.json` that is not
+     one of the ids in `tools/lib/trophies.ts`, or a `results.json` whose
+     set of players differs from everyone seen at any table. That last
+     check is what catches a player who busted on a non-final table and
+     was left out: conservation alone cannot see them, because their entry
+     can hide inside a rebuy count on someone else's row. Fix the input,
+     never the check.
 4. Write the narrative page `site/games/<date>/index.html` (copy an existing
    game page shell). Dignity rule; no em dashes; no collections/owed content.
    Then inject the chip race into it (the shell carries CHIP-RACE markers;
@@ -65,9 +75,17 @@ or stash the dirty path, then run `bun test tools` again.
    via `site/_redirects`):
 
    ```
-   bun tools/chip-race.ts <log.csv> --date YYYY-MM-DD --start 5000 --inject site/games/<date>/index.html
+   bun tools/chip-race.ts <log1.csv> [log2.csv ...] --date YYYY-MM-DD --start 5000 --inject site/games/<date>/index.html
    ```
 
+   Pass the same logs as step 3 (the publish tool's NEXT line prints this
+   command with them filled in). The chart's x axis is wall-clock time in
+   Pacific, never hand number, so a multi-table game draws every player on
+   one clock: a dashed line marks the moment the tables merged, a line
+   that reaches zero is a bust, a jump back up is a rebuy, and a player
+   moved between tables to balance them just continues. Past seven players
+   the lines reuse the seven house colors with a dashed stroke, and the
+   legend swatch carries the same dash.
    The tool halts if the markers are missing (copy the newest game page to
    get them) and overwrites everything between them, so never hand-edit
    inside the marker pair.

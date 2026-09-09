@@ -1,25 +1,41 @@
 // One-command game publish (spec section 6, ratchet pass 1).
-// Usage: bun tools/publish-game.ts <log.csv> --date YYYY-MM-DD --results results.json
+// Usage: bun tools/publish-game.ts <log1.csv> [log2.csv ...] --date YYYY-MM-DD --results results.json
 // results.json: [{handle, finish, payout, rebuys, trophies}]  (the human-judged part)
-// The log stays OUTSIDE the repo; only derived public data is written.
-import { parseRows, stackSnapshots, handCount, entryCount } from "./lib/pokernow";
+// A multi-table tournament (10+ players) exports one log per table; pass all
+// of them (docs/publishing.md, step 1). One log is the ordinary game.
+// The logs stay OUTSIDE the repo; only derived public data is written.
+import { mergeLogs, stackSnapshots, handCount, entryCount } from "./lib/pokernow";
 import { resolveSlug } from "./lib/slugs";
 import { renderStandings, renderGamesIndex } from "./render";
 import { TROPHIES } from "./lib/trophies";
 import type { Game, GamesData } from "./lib/standings";
+import { positionals, flag } from "./lib/args";
 
 export type ResultInput = { handle: string; finish: number; payout: number; rebuys: number; trophies: string[] };
 
+// Derives the game record from every table's log plus the judged results.
+// Takes the logs' CSV text (one per table), the parsed results.json, the
+// current games.json, and the game's date, buy-in, and starting stack.
+// Returns the Game to append. Throws, naming the fix, on: a date already
+// published; final stacks that do not divide by the starting stack; declared
+// entries (players + rebuys) that disagree with chip conservation; finishes
+// that are not dense 1..N; payouts that do not sum to the pot; an unknown
+// trophy id or one recorded on a player it does not belong to; a handle
+// (in results.json OR in a log) that games.json does not know; and a set
+// of players in results.json that differs from the set seen at the tables.
 export function prepareGame(
-  csv: string, results: ResultInput[], data: GamesData,
+  csvs: string[], results: ResultInput[], data: GamesData,
   opts: { date: string; buyIn: number; startingStack?: number }
 ): Game {
   if (data.games.some(g => g.date === opts.date)) {
     throw new Error(`game ${opts.date} already exists in games.json`);
   }
   const startingStack = opts.startingStack ?? 5000;
-  const rows = parseRows(csv);
+  const { rows } = mergeLogs(csvs);
   const snaps = stackSnapshots(rows);
+  // The last snapshot on the merged timeline is the final table's last hand,
+  // where every chip in play has ended up, so conservation still holds
+  // across N tables.
   const final = snaps[snaps.length - 1].stacks;
   const entries = entryCount(final, startingStack);           // throws ChipConservationError
   const declared = results.length + results.reduce((n, r) => n + r.rebuys, 0);
@@ -100,6 +116,28 @@ export function prepareGame(
     }
   }
 
+  // Everyone who sat at any table must have a row in results.json, and
+  // nobody else may. Chip conservation cannot catch a missing player once
+  // there is more than one table: a player who busted on a non-final table
+  // is absent from the final stacks, and their entry can be quietly
+  // absorbed by a rebuy count on someone else's row (2026-09-08: five
+  // players never reached the final table). Compared as slugs, so a handle
+  // spelled differently in results.json and the log still matches through
+  // `aka`; a log handle games.json does not know halts here the same way an
+  // unknown results.json handle does. Fix the input, never the check.
+  const seated = new Set([...new Set(snaps.flatMap(s => Object.keys(s.stacks)))].map(h => resolveSlug(h, data.players)));
+  const declaredSlugs = new Set(resolved.map(r => r.slug));
+  const missing = [...seated].filter(s => !declaredSlugs.has(s));
+  const extra = [...declaredSlugs].filter(s => !seated.has(s));
+  if (missing.length || extra.length) {
+    throw new Error(
+      `player set mismatch between the logs and results.json: ` +
+      (missing.length ? `seated but not in results.json: ${missing.join(", ")}. ` : "") +
+      (extra.length ? `in results.json but never seated: ${extra.join(", ")}. ` : "") +
+      `Every player at any table needs a row (and its rebuys on its own row). Fix results.json; do not publish.`
+    );
+  }
+
   return {
     date: opts.date,
     hands: handCount(rows),
@@ -113,25 +151,26 @@ export function prepareGame(
 
 if (import.meta.main) {
   const args = process.argv.slice(2);
-  const flag = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : undefined; };
-  const date = flag("--date");
-  const resultsPath = flag("--results");
-  if (!args[0] || !date || !resultsPath) {
-    console.error("usage: bun tools/publish-game.ts <log.csv> --date YYYY-MM-DD --results results.json [--buyin 50] [--start 5000]");
+  const paths = positionals(args);
+  const date = flag(args, "--date");
+  const resultsPath = flag(args, "--results");
+  if (!paths.length || !date || !resultsPath) {
+    console.error("usage: bun tools/publish-game.ts <log1.csv> [log2.csv ...] --date YYYY-MM-DD --results results.json [--buyin 50] [--start 5000]");
     process.exit(1);
   }
-  const csv = await Bun.file(args[0]).text();
+  const csvs = await Promise.all(paths.map(p => Bun.file(p).text()));
   const results = JSON.parse(await Bun.file(resultsPath).text()) as ResultInput[];
   const data = JSON.parse(await Bun.file("site/data/games.json").text()) as GamesData;
 
-  const game = prepareGame(csv, results, data, {
-    date, buyIn: Number(flag("--buyin") ?? 50), startingStack: Number(flag("--start") ?? 5000),
+  const game = prepareGame(csvs, results, data, {
+    date, buyIn: Number(flag(args, "--buyin") ?? 50), startingStack: Number(flag(args, "--start") ?? 5000),
   });
 
   data.games.push(game);
   await Bun.write("site/data/games.json", JSON.stringify(data, null, 2) + "\n");
   await Bun.write("site/standings/index.html", renderStandings(data));
   await Bun.write("site/games/index.html", renderGamesIndex(data));
-  console.log(`published ${date}: ${game.entries} entries, $${game.pot} pot, ${game.hands} hands.`);
-  console.log(`NEXT (manual): write site/games/${date}/index.html narrative (the shell carries CHIP-RACE markers), then\n  bun tools/chip-race.ts ${args[0]} --date ${date} --start ${game.startingStack} --inject site/games/${date}/index.html\nthen update nextGame in games.json, review diff, get Mike's go, push.`);
+  const tables = paths.length === 1 ? "" : ` across ${paths.length} tables`;
+  console.log(`published ${date}: ${game.entries} entries, $${game.pot} pot, ${game.hands} hands${tables}.`);
+  console.log(`NEXT (manual): write site/games/${date}/index.html narrative (the shell carries CHIP-RACE markers), then\n  bun tools/chip-race.ts ${paths.join(" ")} --date ${date} --start ${game.startingStack} --inject site/games/${date}/index.html\nthen update nextGame in games.json, review diff, get Mike's go, push.`);
 }
