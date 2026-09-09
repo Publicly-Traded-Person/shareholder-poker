@@ -369,7 +369,7 @@ export function renderStandings(data: GamesData): string {
         <td class="num">${r.games}</td>
         <td class="num">${r.wins}</td>
         <td class="num">${r.cashes}</td>
-        <td class="num">${r.bestFinish}</td>
+        <td class="num">${r.bestFinish}/${r.bestField}</td>
         <td class="num">$${r.totalPayout}</td>
         <td class="num">${r.rebuys}</td>
         <td>${trophyShelf(earned)}</td>

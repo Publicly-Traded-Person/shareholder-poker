@@ -116,6 +116,7 @@ export type StandingRow = {
   wins: number;
   cashes: number;
   bestFinish: number;
+  bestField: number; // players in the game bestFinish came from
   totalPayout: number;
   rebuys: number;
   lastPlayed: string;
@@ -127,12 +128,17 @@ export type Standings = {
 };
 
 // Folds every game on the spine into one row per player. Takes the parsed
-// games.json; returns rows sorted wins-first (then cashes, then best finish,
-// then name, so ties resolve the same way every render) plus the Hope Coin
+// games.json; returns rows sorted wins-first (then cashes, then best finish
+// as a share of the field, then name, so ties resolve the same way every render) plus the Hope Coin
 // tile's skull tally. Throws nothing; a GamesData with no games returns an
 // empty row list. Games are sorted by date before folding so lastPlayed and
 // the skull tally reflect chronological order regardless of games.json's own
 // array order.
+// finish / field. Infinity for the empty row so any real result beats it.
+export function bestShare(finish: number, field: number): number {
+  return field > 0 ? finish / field : Infinity;
+}
+
 export function deriveStandings(data: GamesData): Standings {
   const byId = new Map<string, StandingRow>();
   const skulls: Record<string, number> = {};
@@ -147,6 +153,7 @@ export function deriveStandings(data: GamesData): Standings {
         wins: 0,
         cashes: 0,
         bestFinish: Infinity,
+        bestField: 0,
         totalPayout: 0,
         rebuys: 0,
         lastPlayed: "",
@@ -154,7 +161,15 @@ export function deriveStandings(data: GamesData): Standings {
       row.games++;
       if (r.finish === 1) row.wins++;
       if (r.payout > 0) row.cashes++;
-      row.bestFinish = Math.min(row.bestFinish, r.finish);
+      // "Best" is the finish that was hardest to earn, not the lowest
+      // number: 4th of 14 beats 4th of 6, and 2nd of 14 beats 1st of... no,
+      // a win is a win, but between two non-wins the field size decides.
+      // Rank by finish / field; a smaller share is a better result.
+      const field = game.results.length;
+      if (bestShare(r.finish, field) < bestShare(row.bestFinish, row.bestField)) {
+        row.bestFinish = r.finish;
+        row.bestField = field;
+      }
       row.totalPayout += r.payout;
       row.rebuys += r.rebuys;
       row.lastPlayed = game.date;
@@ -167,7 +182,7 @@ export function deriveStandings(data: GamesData): Standings {
     (a, b) =>
       b.wins - a.wins ||
       b.cashes - a.cashes ||
-      a.bestFinish - b.bestFinish ||
+      bestShare(a.bestFinish, a.bestField) - bestShare(b.bestFinish, b.bestField) ||
       a.name.localeCompare(b.name)
   );
   return { rows, hopeCoin: { ...data.hopeCoin, skulls } };
