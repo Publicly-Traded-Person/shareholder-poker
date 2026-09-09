@@ -447,6 +447,8 @@ set shipped before this feature does not retroactively gain the column.
    card art panel on their own device, and only that finished panel - never
    the original photo - is sent back to us. Using the picture on the page
    IS the approval; there is no separate confirm step for a self-upload.
+   Either kind of yes is standing: it puts the image on every card of that
+   player's from then on (see "Standing portraits" below).
 3b. UPLOAD-ONLY ASKS, for a player nobody has a photo of (added 2026-09-01):
    `bun tools/portrait-asks.ts --stage-upload-only handle=metal[,handle=metal...] --set YYYY-MM`
    mints an ask with NO staged crops. The player's consent page then offers
@@ -502,17 +504,33 @@ Rehearsal: add `--local` to any command to run against `wrangler pages dev`
 state instead of production. Nothing in this flow touches git: candidate
 images live only in R2, answers live only in D1.
 
-### Standing portraits
+### Standing portraits (every approved image, Mike's rule 2026-09-09)
 
-kmikeym's card art is his approved self-upload panel, permanently: he
-approved it on his own consent page (`approved (self)`, 2026-08-29, copper
-duotone) and directed on 2026-09-01 that it be used on Set 1, Set 2, and
-every future set. The panel lives in munger at `ccg/portraits-approved/`
-(and stays in R2; prune spares approved self panels on its own). At render
-time, attach it to his card the same way a staged crop is attached; his
-rarity metal is copper in both existing sets, so the tint already matches.
-No new ask is ever staged for him. If his rarity metal changes in a future
-set, re-tint before rendering rather than shipping a mismatched panel.
+Once a player has approved an image, it is their card art in every set from
+then on. No fresh ask per set, no per-card scope. This replaced the earlier
+rule (a yes covered that image on that card only), and the consent page
+says so before the player answers, so a yes given from 2026-09-09 on is
+informed. Mike extended the four earlier approvals (bg, spladow, webvee,
+nickmershon) by direction the same day; kmikeym's was standing already.
+
+The mechanics, for every set:
+
+- The finished panels live in munger at `ccg/portraits-approved/`, one
+  file per player, with a README row saying where each came from (they
+  also stay in R2; prune spares approved self panels on its own). A panel
+  lands there the first time it ships on a public card, never before.
+- At render time, attach every standing panel whose player is on the set
+  to their card, the same way a staged crop is attached. Never stage a new
+  ask for a player who has a panel; they have answered.
+- Match the metal. A panel is a duotone from the shared ink (#101216) to
+  one rarity tint, and the player's rarity moves set to set. If this set's
+  metal differs from the panel's, re-tint before rendering: recover each
+  pixel's position along the old ramp and re-emit it on the new one (no
+  source photo needed; the Set 3 render did this for bg and spladow).
+  Never ship a mismatched panel.
+- A player who asks for their photo to come down: `--revoke` (step 5
+  above), remove their file and row from munger, and re-render their card
+  as the monogram. The revoke is the record; the ledger keeps the history.
 
 ### Turning uploads off
 
