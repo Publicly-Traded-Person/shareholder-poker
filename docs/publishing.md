@@ -48,9 +48,14 @@ or stash the dirty path, then run `bun test tools` again.
    The audit log also records every seat move and late entry, which is the
    authoritative record of who sat where.
 
-   The host's account sees all of this. If someone else created the
-   tournament (Beau hosted September), the same pages are readable to any
-   player who was registered.
+   The audit log is readable by any registered player, but **a table's
+   LOG / LEDGER is only offered to people who sat at that table, or to the
+   tournament host.** If you were seated at Table 1 the whole night, you
+   cannot export Table 2 yourself; the page shows you a JOIN button
+   instead of a seat. Ask the host (Beau hosted September) or anyone who
+   played at that table to export it and send you the CSV. Best fix for
+   next time: whoever hosts exports every table's log at the end of the
+   night, before anyone closes a tab.
 2. Write `results.json` (the judged part): `[{handle, finish, payout, rebuys, trophies}]`.
 3. Run: `bun tools/publish-game.ts <log.csv> --date YYYY-MM-DD --results results.json`
    - Halts on chip-conservation mismatch, an unknown handle, or a trophy id
