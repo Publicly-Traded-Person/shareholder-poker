@@ -127,18 +127,27 @@ export type Standings = {
   hopeCoin: { holder: string; since: string; skulls: Record<string, number> };
 };
 
-// Folds every game on the spine into one row per player. Takes the parsed
-// games.json; returns rows sorted wins-first (then cashes, then best finish
-// as a share of the field, then name, so ties resolve the same way every render) plus the Hope Coin
-// tile's skull tally. Throws nothing; a GamesData with no games returns an
-// empty row list. Games are sorted by date before folding so lastPlayed and
-// the skull tally reflect chronological order regardless of games.json's own
-// array order.
-// finish / field. Infinity for the empty row so any real result beats it.
-export function bestShare(finish: number, field: number): number {
-  return field > 0 ? finish / field : Infinity;
+// Where a finish ranks for the Best column and the sort. Smaller is better.
+// The rule (Mike, 2026-09-09): a win is always Best, and between two wins
+// the bigger field is the better win; between two non-wins the finish as a
+// share of the field decides, so 4th of 14 beats 4th of 7. Wins map to
+// -field (every win is negative, every non-win is a share in (0, 1], so no
+// non-win can outrank a win), and a row with no result yet maps to
+// Infinity so any real finish replaces it. Takes a finish and the number of
+// players in that game; returns the rank; throws nothing.
+export function bestRank(finish: number, field: number): number {
+  if (field <= 0) return Infinity;
+  return finish === 1 ? -field : finish / field;
 }
 
+// Folds every game on the spine into one row per player. Takes the parsed
+// games.json; returns rows sorted by total winnings, then cashes, then Best
+// (bestRank above), then name, so ties resolve the same way every render
+// (Mike, 2026-09-09: money is the first number, wins are a fact on the row,
+// not a sort key), plus the Hope Coin tile's skull tally. Throws nothing; a
+// GamesData with no games returns an empty row list. Games are sorted by
+// date before folding so lastPlayed and the skull tally reflect
+// chronological order regardless of games.json's own array order.
 export function deriveStandings(data: GamesData): Standings {
   const byId = new Map<string, StandingRow>();
   const skulls: Record<string, number> = {};
@@ -161,12 +170,8 @@ export function deriveStandings(data: GamesData): Standings {
       row.games++;
       if (r.finish === 1) row.wins++;
       if (r.payout > 0) row.cashes++;
-      // "Best" is the finish that was hardest to earn, not the lowest
-      // number: 4th of 14 beats 4th of 6, and 2nd of 14 beats 1st of... no,
-      // a win is a win, but between two non-wins the field size decides.
-      // Rank by finish / field; a smaller share is a better result.
       const field = game.results.length;
-      if (bestShare(r.finish, field) < bestShare(row.bestFinish, row.bestField)) {
+      if (bestRank(r.finish, field) < bestRank(row.bestFinish, row.bestField)) {
         row.bestFinish = r.finish;
         row.bestField = field;
       }
@@ -180,9 +185,9 @@ export function deriveStandings(data: GamesData): Standings {
 
   const rows = [...byId.values()].sort(
     (a, b) =>
-      b.wins - a.wins ||
+      b.totalPayout - a.totalPayout ||
       b.cashes - a.cashes ||
-      bestShare(a.bestFinish, a.bestField) - bestShare(b.bestFinish, b.bestField) ||
+      bestRank(a.bestFinish, a.bestField) - bestRank(b.bestFinish, b.bestField) ||
       a.name.localeCompare(b.name)
   );
   return { rows, hopeCoin: { ...data.hopeCoin, skulls } };
