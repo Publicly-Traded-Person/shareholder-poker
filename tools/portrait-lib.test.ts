@@ -326,6 +326,17 @@ describe("GET /portrait/<token>", () => {
     expectPrivateHeaders(res);
   });
 
+  // The yes is standing (Mike, 2026-09-09): one approval puts the photo on
+  // every card of that player's from then on, so the page has to say so
+  // before they answer. The old line read as a yes for this card only.
+  test("an unanswered page says a yes carries the photo onto every future card", async () => {
+    const { html } = await render([ASK]);
+    expect(html).toContain(
+      "Say yes and your photo goes on this card and on every card of yours from here on. " +
+      "No answer means it stays the monogram.");
+    expect(html).not.toContain("This card ships only if you say yes.");
+  });
+
   // 404, never 403: a probe must not be able to tell a real token from a dead
   // one, so the expired body is byte-identical to the unknown-token body.
   test("an expired ask 404s with the same body as an unknown token", async () => {

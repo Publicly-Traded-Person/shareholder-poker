@@ -157,9 +157,12 @@ export async function onRequestGet({ request, params, env }) {
   // Self-aware wording (redirect, 2026-08-28): `self` is the player's OWN
   // photo, not a crop someone staged for them, so the approval line says so
   // in photo terms. Staged variants keep the original crop wording.
+  // The unanswered line says the yes is standing (Mike's rule, 2026-09-09):
+  // one approval puts the image on every card of theirs from then on, and a
+  // player has to know that before they answer, not after.
   const stateLine =
     current === null
-      ? `This card ships only if you say yes. No answer means it stays the monogram.`
+      ? `Say yes and your photo goes on this card and on every card of yours from here on. No answer means it stays the monogram.`
       : current.answer === "approved"
         ? current.variant === "self"
           ? `You approved your photo on ${escapeHtml(current.answeredAt.slice(0, 10))}. You can change this any time before the set prints.`
