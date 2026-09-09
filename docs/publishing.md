@@ -31,6 +31,26 @@ or stash the dirty path, then run `bun test tools` again.
 ## Game night + day after
 
 1. Export the PokerNow log CSV. It is PRIVATE; it never enters this repo.
+
+   **Big game (10+ players)? There is more than one log.** PokerNow splits a
+   multi-table tournament into one game per table, each with its own game
+   ID and its own log, and merges them into the final table partway through.
+   The final-table log only contains the hands played at that table, so
+   anyone who busted on the other table has zero hands in it, and the
+   chip-conservation check will not add up. Learned 2026-09-08: 14 players,
+   two tables, five players missing from the first export.
+
+   To find every table: open the tournament overview (the "TOURNAMENT
+   OVERVIEW" link on any table page, URL `pokernow.com/mtt/<slug>`), then
+   its **AUDIT LOG** tab. Filter by "Table Creation". Each line reads
+   `Table number N (ID: "<game id>") created with the players: ...`. Open
+   `pokernow.com/games/<game id>` for each and export its log the same way.
+   The audit log also records every seat move and late entry, which is the
+   authoritative record of who sat where.
+
+   The host's account sees all of this. If someone else created the
+   tournament (Beau hosted September), the same pages are readable to any
+   player who was registered.
 2. Write `results.json` (the judged part): `[{handle, finish, payout, rebuys, trophies}]`.
 3. Run: `bun tools/publish-game.ts <log.csv> --date YYYY-MM-DD --results results.json`
    - Halts on chip-conservation mismatch, an unknown handle, or a trophy id
