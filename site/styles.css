@@ -298,7 +298,13 @@ h2.display { font-size: clamp(1.4rem, 4vw, 2rem); margin: 0 0 .6em; }
   box-shadow: 0 1px 3px rgba(26, 28, 32, .06); padding: 1.25rem; display: grid; gap: 1rem;
 }
 @media (min-width: 900px) { .set-row { grid-template-columns: 1fr auto; align-items: center; } }
-.thumb-strip { display: flex; flex-wrap: wrap; gap: .5rem; }
+/* Seven thumbs per row, at most. The row is a grid of text | strip, and the
+   strip column is sized by its content, so a fourteen-card set (Set 3,
+   2026-09-08) would otherwise stretch across the row and squeeze the title
+   into a three-line wrap. Capped at seven, it wraps into two even rows on the
+   right, the same width the six- and seven-card sets already take. */
+.thumb-strip { display: flex; flex-wrap: wrap; gap: .5rem; max-width: calc(7 * 72px + 6 * .5rem); }
+@media (min-width: 900px) { .thumb-strip { justify-content: flex-end; } }
 .thumb-strip img { width: 72px; border-radius: 4px; border: 1px solid var(--line); }
 /* Card back for an unshipped set: felt with a single gold top strip (a
    background strip, not border-image, which breaks on one edge; and not the
