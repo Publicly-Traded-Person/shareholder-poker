@@ -124,6 +124,15 @@ describe("renderStandings", () => {
     }
   });
 
+  test("Won is the second column, next to the name, because it is the first sort key (Mike, 2026-09-09)", () => {
+    expect(html).toContain("<thead><tr><th>Player</th><th>Won</th><th>Games</th><th>Wins</th><th>Cashes</th><th>Best</th><th>Rebuys</th><th>Trophies</th></tr></thead>");
+    for (const row of standingsRowBlocks(html)) {
+      // The first classed cell after the Player anchor is the dollar figure.
+      const firstNum = row.match(/<td class="num">([^<]*)<\/td>/)![1];
+      expect(firstNum).toStartWith("$");
+    }
+  });
+
   test("the header carries a Trophies column, and every row carries exactly one Trophies cell (M2)", () => {
     expect(html).toContain("<th>Trophies</th>");
     const rows = standingsRowBlocks(html);
