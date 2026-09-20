@@ -1248,16 +1248,86 @@ describe("upload-only asks: variants []", () => {
     expect(addVariant("[]", "self")).toBe('["self"]');
   });
 
-  test("page renders the upload block with no approve button, no figure, no picker", async () => {
+  test("page renders the upload block with no approve button and no picker", async () => {
     const { res, html } = await render2([EMPTY_ASK], UPLOADS_ON);
     expect(res.status).toBe(200);
     expect(html).toContain('<div class="upload-block">');
     expect(html).not.toContain('id="approve"');
-    expect(html).not.toContain("<figure");
     expect(html).not.toContain("img/undefined");
     expect(html).not.toContain('aria-label="Crop options"');
     expect(html).toContain('id="decline"');
     expect(html).not.toContain("—"); // copy rule: no em dashes
+  });
+
+  // The monogram card. A player with nothing staged used to be told "your
+  // table card currently carries your monogram" and shown NOTHING, on a page
+  // headed "Your card". One of them told Mike: "I can't preview it or see it.
+  // It's just kind of an idea." The set's design says the card is the pitch,
+  // so the page shows the card that already prints for them.
+  const WITH_CARD = {
+    ...UPLOADS_ON,
+    games: [{ date: "2026-08-11", hands: 100, entries: 3, cardSet: "2026-08",
+      results: [{ slug: "gene-t", handle: "genet", finish: 2, payout: 0, rebuys: 0,
+        trophies: [], card: { metal: "copper", file: "card-2-genet.png", title: "Runner-up" } }] }],
+  };
+
+  test("an upload-only page shows the player's monogram card, sourced from games.json", async () => {
+    const { res, html } = await render2([EMPTY_ASK], WITH_CARD);
+    expect(res.status).toBe(200);
+    expect(html).toContain("<figure");
+    expect(html).toContain('src="/cards/2026-08/assets/card-2-genet.png"');
+    // Still an upload-only ask: nothing to approve, nothing to pick.
+    expect(html).not.toContain('id="approve"');
+    expect(html).not.toContain('aria-label="Crop options"');
+    expect(html).toContain('id="decline"');
+    expect(html).not.toContain("—");
+  });
+
+  test("the monogram card is an image, never a link into the site", async () => {
+    const { html } = await render2([EMPTY_ASK], WITH_CARD);
+    // The page's standing rule (spec s7): a forwarded capability URL must not
+    // become a side door. An <img> is not a way in; an <a> would be.
+    expect(html).not.toContain('<a href="/cards/');
+    expect(html).not.toContain('href="/cards/2026-08/');
+  });
+
+  test("the upload ask comes before the way to decline it", async () => {
+    // It used to render below the decline button and two paragraphs of fine
+    // print, so the only visible control on a page asking for a photo said
+    // "Keep the monogram". Order is the fix, not emphasis: lime is quarantined
+    // to the RSVP CTA in styles.css, so this button stays secondary.
+    const { html } = await render2([EMPTY_ASK], WITH_CARD);
+    expect(html.indexOf('<div class="upload-block">')).toBeGreaterThan(-1);
+    expect(html.indexOf('<div class="upload-block">'))
+      .toBeLessThan(html.indexOf('id="decline"'));
+  });
+
+  test("an upload-only page does not say \"Or\" use a different photo", async () => {
+    // Nothing is staged, so there is nothing for the photo to be an
+    // alternative TO. It is the ask.
+    const { html } = await render2([EMPTY_ASK], WITH_CARD);
+    expect(html).not.toContain("Or use a different photo");
+    expect(html).toContain("Pick a photo and you can frame it right here");
+  });
+
+  test("a staged page keeps the old order and the \"Or\" wording", async () => {
+    // The change is scoped to the upload-only path: a page with crops to
+    // choose between still leads with the choice and offers the photo after.
+    const STAGED: AskRow = { ...EMPTY_ASK, variants: '["a","b"]' };
+    const { html } = await render2([STAGED], WITH_CARD);
+    expect(html).toContain("Or use a different photo");
+    expect(html.indexOf('id="decline"'))
+      .toBeLessThan(html.indexOf('<div class="upload-block">'));
+  });
+
+  test("no card block in the data means no figure, not a broken image", async () => {
+    // Fails closed, the same way the stats line does: a card this page cannot
+    // source is a card it does not show.
+    const { res, html } = await render2([EMPTY_ASK], UPLOADS_ON);
+    expect(res.status).toBe(200);
+    expect(html).not.toContain("<figure");
+    expect(html).not.toContain("/cards/2026-08/assets/");
+    expect(html).not.toContain("undefined");
   });
 
   test("page with uploads off says nothing is staged, renders no upload block", async () => {

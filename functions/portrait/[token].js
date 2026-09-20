@@ -65,6 +65,15 @@ function statsFor(data, setSlug, handle) {
     entrants: game.entries,
     hands: game.hands,
     date: game.date,
+    // The card that already prints for this player, named by the data rather
+    // than derived from finish and handle: a guessed filename is a broken
+    // image on the one page that has to earn a player's trust. Null when the
+    // result carries no card block, and the page then shows no card at all.
+    // Safe to show: `cardSet` only appears on a game after that set's page
+    // exists (docs/publishing.md, pinned by the data suite), so a result
+    // reachable here is art that is already public. It is rendered as an
+    // <img>, never a link, so the page still leads nowhere (spec s7).
+    cardFile: result.card && typeof result.card.file === "string" ? result.card.file : null,
   };
 }
 
@@ -174,9 +183,16 @@ export async function onRequestGet({ request, params, env }) {
   // Renders nothing at all when uploads are not configured for this ask. The
   // page never explains why the block is absent (spec s4): a capability URL
   // should not narrate its own configuration to whoever is holding it.
+  // The lead line depends on whether anything is staged. "Or use a different
+  // photo" only parses as an alternative to something; on an upload-only page
+  // it IS the ask, and reading as an afterthought is part of why these pages
+  // went unanswered.
+  const uploadLead = hasArt
+    ? "Or use a different photo. It never leaves your device; only the finished dithered panel is sent, and only if you approve it."
+    : "Pick a photo and you can frame it right here. It never leaves your device; only the finished dithered panel is sent, and only if you approve it.";
   const uploadBlock = !canUpload ? "" : `
   <div class="upload-block">
-    <p class="fine">Or use a different photo. It never leaves your device; only the finished dithered panel is sent, and only if you approve it.</p>
+    <p class="fine">${uploadLead}</p>
     <input type="file" id="photo-in" accept="image/*">
     <div id="composer" hidden>
       <canvas id="preview" width="620" height="236"></canvas>
@@ -270,19 +286,45 @@ export async function onRequestGet({ request, params, env }) {
   // exists, and when uploads are off it says something neutral rather than
   // rendering a dead end; "nothing is staged" is true in every configuration
   // that reaches it, so the line narrates the ask, not the config (spec s4).
+  // The card the player already has. Before this, a player with nothing staged
+  // got a page headed "Your card" that showed no card: the copy described a
+  // monogram card they had never seen. One of them told Mike, after several
+  // emails, "I can't preview it or see it. It's just kind of an idea." The
+  // set's own design says the card is the pitch and the player answers on a
+  // page showing their own card, which this path quietly dropped.
+  const monogramCard = !hasArt && stats && stats.cardFile
+    ? `/cards/${encodeURIComponent(ask.set_slug)}/assets/${encodeURIComponent(stats.cardFile)}`
+    : null;
+
   const intro = hasArt
     ? `<p>Your table card for the ${setName} set is below, exactly as it would print,
   with your photo on it. ${chooseLine}
   Nothing ships until you say so.</p>`
     : canUpload
-      ? `<p>Your table card for the ${setName} set currently carries your monogram.
+      ? (monogramCard
+        ? `<p>That is your real card from the ${setName} set below, exactly as it
+  prints today. The art slot carries your initial because you have not put a
+  photo there yet. Add one and your face goes in that slot instead, or leave it
+  the way it is. Nothing changes until you say so.</p>`
+        : `<p>Your table card for the ${setName} set currently carries your monogram.
   Add your own photo below and the card prints with your face on it, or leave
-  it exactly as it is. Nothing ships until you say so.</p>`
-      : `<p>Your table card for the ${setName} set currently carries your monogram.
+  it exactly as it is. Nothing ships until you say so.</p>`)
+      : monogramCard
+        ? `<p>That is your real card from the ${setName} set below, exactly as it
+  prints today, with your initial in the art slot. Nothing is staged for you to
+  approve right now. If you were expecting to add a photo here, tell Mike.</p>`
+        : `<p>Your table card for the ${setName} set currently carries your monogram.
   Nothing is staged for you to approve right now. If you were expecting to add
   a photo here, tell Mike.</p>`;
 
-  const figureBlock = !hasArt ? "" : `<figure class="card-shot${isPanel ? " card-shot--panel" : ""}"><img id="card-img" src="${img(selected)}" alt="Your ${setName} player card"><figcaption id="panel-note" class="fine"${isPanel ? "" : " hidden"}>Your art panel; the printed card carries it in the art slot.</figcaption></figure>`;
+  const figureBlock = !hasArt
+    ? (monogramCard
+      // No id="card-img": that element is the crop-picker's swap target, and
+      // there is no picker here. This card is not a preview of a choice, it is
+      // the card that prints right now.
+      ? `<figure class="card-shot"><img src="${monogramCard}" alt="Your ${setName} player card, with your initial in the art slot"><figcaption class="fine">This is the card as it prints today. The art slot is the window under your name.</figcaption></figure>`
+      : "")
+    : `<figure class="card-shot${isPanel ? " card-shot--panel" : ""}"><img id="card-img" src="${img(selected)}" alt="Your ${setName} player card"><figcaption id="panel-note" class="fine"${isPanel ? "" : " hidden"}>Your art panel; the printed card carries it in the art slot.</figcaption></figure>`;
 
   // No approve button without art: approving nothing is not a thing, and the
   // POST endpoint would reject it anyway (variant must be in the list).
@@ -328,12 +370,13 @@ export async function onRequestGet({ request, params, env }) {
   ${figureBlock}
   ${pickerRow}
   ${statsLine}
+  ${hasArt ? "" : uploadBlock}
   <div class="actions">
     ${approveButton}<button type="button" id="decline" class="btn-secondary">${declineLabel}</button>
   </div>
   <p class="state" id="state">${stateLine}</p>
   <p class="fine">Turning it down keeps the monogram card you already have. The photo stays out and the card stays yours.</p>
-  ${uploadBlock}
+  ${hasArt ? uploadBlock : ""}
   <noscript><p class="fine">This page needs JavaScript to record your answer. Tell Mike directly instead; that works too.</p></noscript>
 </main>
 <script>
