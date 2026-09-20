@@ -610,8 +610,14 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
    .card-grid resets it: browser default figure margins (1em 40px) squeeze
    the frame inside itself and push the caption past the edge. */
 .card-gallery { display: flex; flex-wrap: wrap; gap: 1.5rem; margin: 1.25em 0; }
-.card-gallery figure { margin: 0; width: min(240px, 40vw); }
+.card-gallery figure { margin: 0; width: min(240px, 40vw); display: flex; flex-direction: column; }
 .card-gallery img { width: 100%; }
+/* Sets are not all the same height (Set 3 grew 35px when its counter box
+   went to three lines, 2026-09-20), so a player carded in two sets gets two
+   heights side by side. The row already stretches every figure to the
+   tallest; pushing the caption to the bottom keeps the captions on one line
+   instead of leaving the shorter card's caption hanging 12px higher. */
+.card-gallery figcaption { margin-top: auto; }
 
 /* The Hope Coin's route (/hope-coin/, spec §5.2): a vertical line with each
    holder's stop hanging off it, oldest at the top. A plain hairline

@@ -65,16 +65,24 @@ function statsFor(data, setSlug, handle) {
     entrants: game.entries,
     hands: game.hands,
     date: game.date,
-    // The card that already prints for this player, named by the data rather
-    // than derived from finish and handle: a guessed filename is a broken
-    // image on the one page that has to earn a player's trust. Null when the
-    // result carries no card block, and the page then shows no card at all.
-    // Safe to show: `cardSet` only appears on a game after that set's page
-    // exists (docs/publishing.md, pinned by the data suite), so a result
-    // reachable here is art that is already public. It is rendered as an
-    // <img>, never a link, so the page still leads nowhere (spec s7).
-    cardFile: result.card && typeof result.card.file === "string" ? result.card.file : null,
   };
+}
+
+// The card that already prints for this player, named by the data rather than
+// derived from finish and handle: a guessed filename is a broken image on the
+// one page that has to earn a player's trust. Separate from statsFor on
+// purpose: statsFor returns null when any COUNT it prints is not a finite
+// number, and a missing hands count must drop the stats line, not the card.
+// Null when the set, the player, or the card block is missing. Safe to show:
+// `cardSet` only appears on a game after that set's page exists
+// (docs/publishing.md, pinned by the data suite), so a result reachable here
+// is art that is already public. Rendered as an <img>, never a link, so the
+// page still leads nowhere (spec s7).
+function cardFileFor(data, setSlug, handle) {
+  const game = (data.games || []).find((g) => g.cardSet === setSlug);
+  const result = game && (game.results || []).find((r) => r.handle === handle);
+  const file = result && result.card && result.card.file;
+  return typeof file === "string" && file.length > 0 ? file : null;
 }
 
 // Renders the consent page for one ask.
@@ -105,11 +113,13 @@ export async function onRequestGet({ request, params, env }) {
   const current = latestAnswer(answerRows);
 
   let stats = null;
+  let cardFile = null;
   let uploadsOn = false;
   try {
     const res = await env.ASSETS.fetch(new URL("/data/games.json", request.url));
     const data = await res.json();
     stats = statsFor(data, ask.set_slug, ask.handle);
+    cardFile = cardFileFor(data, ask.set_slug, ask.handle);
     // Fail CLOSED: any read failure leaves uploads off. The block simply
     // does not render; a capability URL never narrates its own config.
     uploadsOn = data.portraitUploads === true;
@@ -169,6 +179,23 @@ export async function onRequestGet({ request, params, env }) {
   // The unanswered line says the yes is standing (Mike's rule, 2026-09-09):
   // one approval puts the image on every card of theirs from then on, and a
   // player has to know that before they answer, not after.
+  // After an answer the page is a confirmation, not a question (Mike,
+  // 2026-09-20: the player "doesn't actually HAVE TO DO ANYTHING ... it
+  // should tell them they are done, and the card will be updated soon").
+  // Changing the answer stays possible, below, but it is no longer what the
+  // page is for, so the ask's intro, stats line and fine print do not render
+  // on an answered page at all.
+  const answered = current !== null;
+  const heading = !answered
+    ? `Your card, ${name}`
+    : current.answer === "approved"
+      ? `You are on the card, ${name}`
+      : `Your card stays as it is, ${name}`;
+  const lead = !answered ? "" : current.answer === "approved"
+    ? `<p>That is it. Your photo is in, and the printed card gets updated soon.
+  Nothing else to do.</p>`
+    : `<p>Noted. The photo stays out and the card gets no changes. Nothing else to do.</p>`;
+
   const stateLine =
     current === null
       ? `Say yes and your photo goes on this card and on every card of yours from here on. No answer means your card stays exactly as it is.`
@@ -187,7 +214,9 @@ export async function onRequestGet({ request, params, env }) {
   // photo" only parses as an alternative to something; on an upload-only page
   // it IS the ask, and reading as an afterthought is part of why these pages
   // went unanswered.
-  const uploadLead = hasArt
+  const uploadLead = answered
+    ? "Use a different photo. It never leaves your device; only the finished dithered panel is sent, and only if you approve it."
+    : hasArt
     ? "Or use a different photo. It never leaves your device; only the finished dithered panel is sent, and only if you approve it."
     : "Pick a photo and you can frame it right here. It never leaves your device; only the finished dithered panel is sent, and only if you approve it.";
   const uploadBlock = !canUpload ? "" : `
@@ -292,8 +321,8 @@ export async function onRequestGet({ request, params, env }) {
   // emails, "I can't preview it or see it. It's just kind of an idea." The
   // set's own design says the card is the pitch and the player answers on a
   // page showing their own card, which this path quietly dropped.
-  const monogramCard = !hasArt && stats && stats.cardFile
-    ? `/cards/${encodeURIComponent(ask.set_slug)}/assets/${encodeURIComponent(stats.cardFile)}`
+  const monogramCard = !hasArt && cardFile
+    ? `/cards/${encodeURIComponent(ask.set_slug)}/assets/${encodeURIComponent(cardFile)}`
     : null;
 
   const intro = hasArt
@@ -303,34 +332,36 @@ export async function onRequestGet({ request, params, env }) {
     : canUpload
       ? (monogramCard
         ? `<p>That is your real card from the ${setName} set below, exactly as it
-  prints today. The art slot carries your initial because you have not put a
-  photo there yet. Add one and your face goes in that slot instead, or leave it
-  the way it is. Nothing changes until you say so.</p>`
-        : `<p>Your table card for the ${setName} set carries your initial in the art
-  slot. Add your own photo below and the card prints with your face there
-  instead, or leave it exactly as it is. Nothing ships until you say so.</p>`)
+  prints today. Add a photo and it goes in the art slot, the window under your
+  name, or leave the card the way it is. Nothing changes until you say so.</p>`
+        : `<p>Add your own photo below and your ${setName} card prints with your
+  face in the art slot, or leave it exactly as it is. Nothing ships until you
+  say so.</p>`)
       : monogramCard
         ? `<p>That is your real card from the ${setName} set below, exactly as it
-  prints today, with your initial in the art slot. Nothing is staged for you to
-  approve right now. If you were expecting to add a photo here, tell Mike.</p>`
-        : `<p>Your table card for the ${setName} set carries your initial in the art
-  slot. Nothing is staged for you to approve right now. If you were expecting to
-  add a photo here, tell Mike.</p>`;
+  prints today. Nothing is staged for you to approve right now. If you were
+  expecting to add a photo here, tell Mike.</p>`
+        : `<p>Nothing is staged on your ${setName} card for you to approve right
+  now. If you were expecting to add a photo here, tell Mike.</p>`;
 
   const figureBlock = !hasArt
     ? (monogramCard
       // No id="card-img": that element is the crop-picker's swap target, and
       // there is no picker here. This card is not a preview of a choice, it is
       // the card that prints right now.
-      ? `<figure class="card-shot"><img src="${monogramCard}" alt="Your ${setName} player card, with your initial in the art slot"><figcaption class="fine">This is the card as it prints today. The art slot is the window under your name.</figcaption></figure>`
+      ? `<figure class="card-shot"><img src="${monogramCard}" alt="Your ${setName} player card as it prints today"><figcaption class="fine">Your card as it prints today.</figcaption></figure>`
       : "")
-    : `<figure class="card-shot${isPanel ? " card-shot--panel" : ""}"><img id="card-img" src="${img(selected)}" alt="Your ${setName} player card"><figcaption id="panel-note" class="fine"${isPanel ? "" : " hidden"}>Your art panel; the printed card carries it in the art slot.</figcaption></figure>`;
+    : `<figure class="card-shot${isPanel ? " card-shot--panel" : ""}"><img id="card-img" src="${img(selected)}" alt="Your ${setName} player card"><figcaption id="panel-note" class="fine"${isPanel ? "" : " hidden"}>Your photo, as it goes on the card.</figcaption></figure>`;
 
   // No approve button without art: approving nothing is not a thing, and the
   // POST endpoint would reject it anyway (variant must be in the list).
-  const approveButton = !hasArt ? "" : `<button type="button" id="approve" class="btn-secondary">Use this one</button>
+  const alreadyApproved = answered && current.answer === "approved";
+  const approveButton = !hasArt || (alreadyApproved && !manyCrops) ? "" : `<button type="button" id="approve" class="btn-secondary">Use this one</button>
     `;
-  const declineLabel = hasArt ? "None of these" : "Leave my card as it is";
+  // On a confirmation the decline is the one real change left: take it off.
+  const declineLabel = alreadyApproved
+    ? "Take the photo off"
+    : hasArt ? "None of these" : "Leave my card as it is";
 
   const html = `<!doctype html>
 <html lang="en">
@@ -360,14 +391,27 @@ export async function onRequestGet({ request, params, env }) {
   .actions { display: flex; gap: .75rem; justify-content: center; flex-wrap: wrap; margin: 1.75rem 0 .75rem; }
   .state { text-align: center; color: var(--muted-ink); }
   .fine { color: var(--muted-ink); font-size: .95rem; }
+  /* The change section on a confirmation page: present, not prominent. */
+  .change { margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px solid var(--line, #e2e0d8); }
+  .change .rule-label { margin: 0 0 .5rem; }
 </style>
 </head>
 <body>
 <main class="band-light portrait-page">
   <p class="stat">K5M Shareholder Poker, the ${setName} set</p>
-  <h1>Your card, ${name}</h1>
-  ${intro}
+  <h1>${heading}</h1>
+  ${answered ? lead : intro}
   ${figureBlock}
+  ${answered ? `
+  <section class="change" id="change">
+    <h2 class="rule-label">Change your mind?</h2>
+    <p class="state" id="state">${stateLine}</p>
+    ${pickerRow}
+    <div class="actions">
+      ${approveButton}<button type="button" id="decline" class="btn-secondary">${declineLabel}</button>
+    </div>
+    ${uploadBlock}
+  </section>` : `
   ${pickerRow}
   ${statsLine}
   ${hasArt ? "" : uploadBlock}
@@ -376,7 +420,7 @@ export async function onRequestGet({ request, params, env }) {
   </div>
   <p class="state" id="state">${stateLine}</p>
   <p class="fine">Turning it down changes nothing: the card you see is the card you keep, and the photo stays out.</p>
-  ${hasArt ? uploadBlock : ""}
+  ${hasArt ? uploadBlock : ""}`}
   <noscript><p class="fine">This page needs JavaScript to record your answer. Tell Mike directly instead; that works too.</p></noscript>
 </main>
 <script>

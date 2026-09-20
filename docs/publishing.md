@@ -248,16 +248,20 @@ Card copy is judgment; it does not automate. Render per
 again after any copy edit.** It exits non-zero and names the card when any
 field is cut off. Do not render past a failure.
 
-This is a gate because the failure is silent. Set 3 shipped for two months with
-card 1's counter clamped mid-sentence: `"...he bets"` plus an ellipsis, with
-`"without it."` deleted. A clamped card looks finished. Josh Berezin caught it
-reading his own card, not anyone reviewing the set.
+This is a gate because the failure is silent. Set 3 (minted 2026-09-08)
+shipped with two counters clamped mid-sentence, cards 1 and 3; card 1 read
+`"...he bets"` plus an ellipsis, with `"without it."` deleted. A clamped card
+looks finished. Josh Berezin caught it reading his own card three days later,
+not anyone reviewing the set; it was fixed on 2026-09-20.
 
-The budget each field holds, at the pinned render settings:
+The budget each field holds, at the pinned render settings, **on the Set 3
+sheet (`seven-deuce-cards.html`) and whatever is copied from it.** The Set 1
+and Set 2 sheets still clamp the counter at 2 lines / ~90 characters; their
+shipped copy fits, and they are frozen, so edit them only with the gate.
 
 | field | holds | notes |
 |---|---|---|
-| `.counter p` | ~135 chars (3 lines at 12.5px) | was 2 lines / ~90 until Set 3 was fixed |
+| `.counter p` | ~135 chars (3 lines at 12.5px) | 2 lines / ~90 on the Set 1 and Set 2 sheets |
 | `.sig` | ~120 chars (2 lines at 13.5px) | the longest shipped is 113 - little room |
 | `.arch` | 2 lines | short type lines only |
 | `.name` | the handle, one line | overflows sideways, not down |

@@ -1032,7 +1032,7 @@ describe("GET /portrait/<token> upload block", () => {
     "It never leaves your device",
   ];
 
-  const PANEL_CAPTION = "Your art panel; the printed card carries it in the art slot.";
+  const PANEL_CAPTION = "Your photo, as it goes on the card.";
   const EM_DASH = "—";
 
   // Wraps makePortraitEnv the same way the page block above does: the shared
@@ -1327,6 +1327,99 @@ describe("upload-only asks: variants []", () => {
     expect(html).toContain("Or use a different photo");
     expect(html.indexOf('id="decline"'))
       .toBeLessThan(html.indexOf('<div class="upload-block">'));
+  });
+
+  // After an answer the page is a confirmation, not a question. Mike,
+  // 2026-09-20: "this is just a confirmation page and the user doesn't
+  // actually HAVE TO DO ANYTHING ... it should tell them they are done, and
+  // the card will be updated soon". Changing the answer stays possible but
+  // is no longer what the page is for.
+  const ESSAY = "until you say so";
+  const STATS = "Those are the numbers on the card";
+  async function renderAnswered(answer: "approved" | "declined", data = WITH_CARD) {
+    const made = pageEnv2([{ ...EMPTY_ASK, variants: answer === "approved" ? '["self"]' : "[]" }], data);
+    made.answers.push({ token: TOKEN, answer, variant: answer === "approved" ? "self" : null,
+                        answered_at: "2026-09-20 19:00:00" });
+    const res = await pageGet2({
+      request: new Request(`https://poker.kmikeym.com/portrait/${TOKEN}`),
+      params: { token: TOKEN }, env: made.env,
+    });
+    return { res, html: await res.text() };
+  }
+
+  test("after an upload the page says done, and the card is updated soon", async () => {
+    const { res, html } = await renderAnswered("approved");
+    expect(res.status).toBe(200);
+    expect(html).toContain("<h1>You are on the card, Gene T.</h1>");
+    expect(html).toContain("gets updated soon");
+    expect(html).toContain("You approved your photo on 2026-09-20");
+    expect(html).toContain(`src="/api/portrait/${TOKEN}/img/self"`);
+    expect(html).not.toContain("—");
+  });
+
+  test("a confirmation page carries none of the ask", async () => {
+    const { html } = await renderAnswered("approved");
+    expect(html).not.toContain(ESSAY);
+    expect(html).not.toContain(STATS);
+    expect(html).not.toContain("Turning it down changes nothing");
+    expect(html).not.toContain("Or use a different photo");
+    // The unanswered intro is gone with it.
+    expect(html).not.toContain("exactly as it would print");
+  });
+
+  test("changing the answer is still possible, below the confirmation", async () => {
+    const { html } = await renderAnswered("approved");
+    const done = html.indexOf("gets updated soon");
+    const change = html.indexOf('id="change"');
+    expect(done).toBeGreaterThan(-1);
+    expect(change).toBeGreaterThan(done);
+    expect(html.indexOf('id="decline"')).toBeGreaterThan(change);
+    expect(html.indexOf('<div class="upload-block">')).toBeGreaterThan(change);
+  });
+
+  test("an approved single photo offers no re-approve button, and the decline says what it does", async () => {
+    const { html } = await renderAnswered("approved");
+    expect(html).not.toContain('id="approve"');
+    expect(html).toContain('id="decline" class="btn-secondary">Take the photo off</button>');
+    expect(html).not.toContain("None of these");
+    expect(html).not.toContain("art panel");
+  });
+
+  test("a declined answer confirms the card stays as it is", async () => {
+    const { html } = await renderAnswered("declined");
+    expect(html).toContain("<h1>Your card stays as it is, Gene T.</h1>");
+    expect(html).toContain("You turned the photo down on 2026-09-20");
+    expect(html).not.toContain(ESSAY);
+    // The card they are keeping is still shown.
+    expect(html).toContain('src="/cards/2026-08/assets/card-2-genet.png"');
+  });
+
+  test("an unanswered page keeps the ask, unchanged by the confirmation work", async () => {
+    const { html } = await render2([EMPTY_ASK], WITH_CARD);
+    expect(html).toContain("<h1>Your card, Gene T.</h1>");
+    expect(html).toContain(ESSAY);
+    expect(html).toContain(STATS);
+    expect(html).not.toContain('id="change"');
+  });
+
+  test("the page never claims what is in the art slot", async () => {
+    // A standing panel (Mike's rule, 2026-09-09) means a card can already
+    // carry a face when a fresh upload-only ask is minted, and this page
+    // cannot see the ledger. So it describes the card as "as it prints
+    // today" and says nothing about an initial. Review finding, 2026-09-20.
+    const { html } = await render2([EMPTY_ASK], WITH_CARD);
+    expect(html).not.toContain("your initial");
+    expect(html).not.toContain("initial in the art slot");
+    expect(html).toContain("as it prints today");
+  });
+
+  test("a missing hands count drops the stats line, not the card", async () => {
+    // Review finding, 2026-09-20: the card used to ride on statsFor, which
+    // returns null whenever a count it prints is not a finite number.
+    const NO_HANDS = { ...WITH_CARD, games: [{ ...WITH_CARD.games[0], hands: null }] };
+    const { html } = await render2([EMPTY_ASK], NO_HANDS);
+    expect(html).not.toContain("Those are the numbers on the card");
+    expect(html).toContain('src="/cards/2026-08/assets/card-2-genet.png"');
   });
 
   test("no card block in the data means no figure, not a broken image", async () => {
