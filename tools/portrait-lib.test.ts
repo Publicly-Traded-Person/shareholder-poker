@@ -1251,14 +1251,17 @@ describe("upload-only asks: variants []", () => {
     expect(addVariant("[]", "self")).toBe('["self"]');
   });
 
-  test("page renders the upload block with no approve button and no picker", async () => {
+  test("page renders the upload block with no approve button, no decline, no picker", async () => {
+    // No decline on the ask: not uploading is the no (Mike, 2026-09-20).
     const { res, html } = await render2([EMPTY_ASK], UPLOADS_ON);
     expect(res.status).toBe(200);
     expect(html).toContain('<div class="upload-block">');
     expect(html).not.toContain('id="approve"');
+    expect(html).not.toContain('id="decline"');
     expect(html).not.toContain("img/undefined");
     expect(html).not.toContain('aria-label="Crop options"');
-    expect(html).toContain('id="decline"');
+    // #state stays for the upload script's error line, empty until then.
+    expect(html).toContain('<p class="state" id="state"></p>');
     expect(html).not.toContain("—"); // copy rule: no em dashes
   });
 
@@ -1279,10 +1282,10 @@ describe("upload-only asks: variants []", () => {
     expect(res.status).toBe(200);
     expect(html).toContain("<figure");
     expect(html).toContain('src="/cards/2026-08/assets/card-2-genet.png"');
-    // Still an upload-only ask: nothing to approve, nothing to pick.
+    // Still an upload-only ask: nothing to approve, nothing to pick, no decline.
     expect(html).not.toContain('id="approve"');
     expect(html).not.toContain('aria-label="Crop options"');
-    expect(html).toContain('id="decline"');
+    expect(html).not.toContain('id="decline"');
     expect(html).not.toContain("—");
   });
 
@@ -1294,21 +1297,19 @@ describe("upload-only asks: variants []", () => {
     expect(html).not.toContain('href="/cards/2026-08/');
   });
 
-  test("the decline button does not use the word monogram", async () => {
+  test("the ask is Mike's copy, and nothing on it says monogram", async () => {
+    // For Review, 2026-09-20. The ask is the card, one line saying upload is
+    // open, and the file control. No stats, no state text, no fine print.
     const { html } = await render2([EMPTY_ASK], WITH_CARD);
-    expect(html).toContain("Leave my card as it is");
+    expect(html).toContain("<p>That is your card from the August 2026 set.</p>");
+    expect(html).toContain("<p>You can now upload a photo!</p>");
+    expect(html).toContain("Your card has no art!");
+    expect(html).toContain('Select "Choose File" and upload an image. Some people use a photo, but it can be anything!');
+    expect(html).toContain('id="use-photo" class="btn-secondary">Use this image</button>');
     expect(html).not.toContain("monogram");
-  });
-
-  test("the upload ask comes before the way to decline it", async () => {
-    // It used to render below the decline button and two paragraphs of fine
-    // print, so the only visible control on a page asking for a photo said
-    // "Keep the monogram". Order is the fix, not emphasis: lime is quarantined
-    // to the RSVP CTA in styles.css, so this button stays secondary.
-    const { html } = await render2([EMPTY_ASK], WITH_CARD);
-    expect(html.indexOf('<div class="upload-block">')).toBeGreaterThan(-1);
-    expect(html.indexOf('<div class="upload-block">'))
-      .toBeLessThan(html.indexOf('id="decline"'));
+    expect(html).not.toContain("Those are the numbers on the card");
+    expect(html).not.toContain("Turning it down changes nothing");
+    expect(html).not.toContain("Say yes and your photo goes");
   });
 
   test("an upload-only page does not say \"Or\" use a different photo", async () => {
@@ -1316,7 +1317,6 @@ describe("upload-only asks: variants []", () => {
     // alternative TO. It is the ask.
     const { html } = await render2([EMPTY_ASK], WITH_CARD);
     expect(html).not.toContain("Or use a different photo");
-    expect(html).toContain("Pick a photo and you can frame it right here");
   });
 
   test("a staged page keeps the old order and the \"Or\" wording", async () => {
@@ -1394,23 +1394,39 @@ describe("upload-only asks: variants []", () => {
     expect(html).toContain('src="/cards/2026-08/assets/card-2-genet.png"');
   });
 
-  test("an unanswered page keeps the ask, unchanged by the confirmation work", async () => {
+  test("an unanswered page is the ask, not a confirmation", async () => {
     const { html } = await render2([EMPTY_ASK], WITH_CARD);
     expect(html).toContain("<h1>Your card, Gene T.</h1>");
-    expect(html).toContain(ESSAY);
-    expect(html).toContain(STATS);
+    expect(html).toContain("You can now upload a photo!");
     expect(html).not.toContain('id="change"');
+    expect(html).not.toContain("gets updated soon");
   });
 
-  test("the page never claims what is in the art slot", async () => {
-    // A standing panel (Mike's rule, 2026-09-09) means a card can already
-    // carry a face when a fresh upload-only ask is minted, and this page
-    // cannot see the ledger. So it describes the card as "as it prints
-    // today" and says nothing about an initial. Review finding, 2026-09-20.
+  test("a staged ask keeps its stats line, both buttons and the standing-rule line", async () => {
+    // Mike's edit was to the upload-only ask; the crop-choice page stands.
+    const STAGED: AskRow = { ...EMPTY_ASK, variants: '["a","b"]' };
+    const { html } = await render2([STAGED], WITH_CARD);
+    expect(html).toContain(STATS);
+    expect(html).toContain(ESSAY);
+    expect(html).toContain('id="approve"');
+    expect(html).toContain('id="decline" class="btn-secondary">None of these</button>');
+    expect(html).toContain("on every card of yours from here on");
+  });
+
+  test("a declined confirmation offers no re-decline button", async () => {
+    const { html } = await renderAnswered("declined");
+    expect(html).not.toContain('id="decline"');
+    expect(html).toContain('<div class="upload-block">');
+  });
+
+  test("the ask's caption is Mike's line, which leans on the mint rule", async () => {
+    // "Your card has no art!" is true for every card an upload-only ask can
+    // reach ONLY because munger/ccg/portraits-approved/README.md forbids
+    // minting a new ask for a player with a standing panel. The page cannot
+    // check the ledger; the rule is what makes the sentence safe.
     const { html } = await render2([EMPTY_ASK], WITH_CARD);
+    expect(html).toContain("Your card has no art!");
     expect(html).not.toContain("your initial");
-    expect(html).not.toContain("initial in the art slot");
-    expect(html).toContain("as it prints today");
   });
 
   test("a missing hands count drops the stats line, not the card", async () => {
@@ -1437,7 +1453,7 @@ describe("upload-only asks: variants []", () => {
     expect(res.status).toBe(200);
     expect(html).not.toContain('<div class="upload-block">');
     expect(html).toContain("Nothing is staged");
-    expect(html).toContain('id="decline"');
+    expect(html).not.toContain('id="decline"');
   });
 
   test("an expired upload-only ask still 404s", async () => {

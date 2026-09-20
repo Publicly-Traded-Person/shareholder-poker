@@ -218,7 +218,7 @@ export async function onRequestGet({ request, params, env }) {
     ? "Use a different photo. It never leaves your device; only the finished dithered panel is sent, and only if you approve it."
     : hasArt
     ? "Or use a different photo. It never leaves your device; only the finished dithered panel is sent, and only if you approve it."
-    : "Pick a photo and you can frame it right here. It never leaves your device; only the finished dithered panel is sent, and only if you approve it.";
+    : "Select \"Choose File\" and upload an image. Some people use a photo, but it can be anything!";
   const uploadBlock = !canUpload ? "" : `
   <div class="upload-block">
     <p class="fine">${uploadLead}</p>
@@ -227,7 +227,7 @@ export async function onRequestGet({ request, params, env }) {
       <canvas id="preview" width="620" height="236"></canvas>
       <label class="fine">Zoom <input type="range" id="zoom" min="0.05" max="4" step="0.01"></label>
       <p class="fine">Drag the picture to frame it. The face reads best on the left.</p>
-      <button type="button" id="use-photo" class="btn-secondary">Use this photo</button>
+      <button type="button" id="use-photo" class="btn-secondary">Use this image</button>
     </div>
   </div>`;
 
@@ -331,12 +331,9 @@ export async function onRequestGet({ request, params, env }) {
   Nothing ships until you say so.</p>`
     : canUpload
       ? (monogramCard
-        ? `<p>That is your real card from the ${setName} set below, exactly as it
-  prints today. Add a photo and it goes in the art slot, the window under your
-  name, or leave the card the way it is. Nothing changes until you say so.</p>`
-        : `<p>Add your own photo below and your ${setName} card prints with your
-  face in the art slot, or leave it exactly as it is. Nothing ships until you
-  say so.</p>`)
+        ? `<p>That is your card from the ${setName} set.</p>
+  <p>You can now upload a photo!</p>`
+        : `<p>You can now upload a photo to your ${setName} card!</p>`)
       : monogramCard
         ? `<p>That is your real card from the ${setName} set below, exactly as it
   prints today. Nothing is staged for you to approve right now. If you were
@@ -349,7 +346,7 @@ export async function onRequestGet({ request, params, env }) {
       // No id="card-img": that element is the crop-picker's swap target, and
       // there is no picker here. This card is not a preview of a choice, it is
       // the card that prints right now.
-      ? `<figure class="card-shot"><img src="${monogramCard}" alt="Your ${setName} player card as it prints today"><figcaption class="fine">Your card as it prints today.</figcaption></figure>`
+      ? `<figure class="card-shot"><img src="${monogramCard}" alt="Your ${setName} player card, with no art yet"><figcaption class="fine">Your card has no art!</figcaption></figure>`
       : "")
     : `<figure class="card-shot${isPanel ? " card-shot--panel" : ""}"><img id="card-img" src="${img(selected)}" alt="Your ${setName} player card"><figcaption id="panel-note" class="fine"${isPanel ? "" : " hidden"}>Your photo, as it goes on the card.</figcaption></figure>`;
 
@@ -362,6 +359,14 @@ export async function onRequestGet({ request, params, env }) {
   const declineLabel = alreadyApproved
     ? "Take the photo off"
     : hasArt ? "None of these" : "Leave my card as it is";
+  // The ask for a player with nothing staged has no decline: not uploading IS
+  // the no (Mike, 2026-09-20). A page whose recorded answer is already the
+  // decline gets none either, for the same reason "Use this one" left the
+  // approved page: a button that re-records what is there does nothing.
+  const alreadyDeclined = answered && current.answer === "declined";
+  const declineButton = (!hasArt && !answered) || alreadyDeclined
+    ? ""
+    : `<button type="button" id="decline" class="btn-secondary">${declineLabel}</button>`;
 
   const html = `<!doctype html>
 <html lang="en">
@@ -407,20 +412,20 @@ export async function onRequestGet({ request, params, env }) {
     <h2 class="rule-label">Change your mind?</h2>
     <p class="state" id="state">${stateLine}</p>
     ${pickerRow}
-    <div class="actions">
-      ${approveButton}<button type="button" id="decline" class="btn-secondary">${declineLabel}</button>
-    </div>
+    ${approveButton || declineButton ? `<div class="actions">
+      ${approveButton}${declineButton}
+    </div>` : ""}
     ${uploadBlock}
   </section>` : `
   ${pickerRow}
-  ${statsLine}
+  ${hasArt ? statsLine : ""}
   ${hasArt ? "" : uploadBlock}
-  <div class="actions">
-    ${approveButton}<button type="button" id="decline" class="btn-secondary">${declineLabel}</button>
+  ${hasArt ? `<div class="actions">
+    ${approveButton}${declineButton}
   </div>
   <p class="state" id="state">${stateLine}</p>
   <p class="fine">Turning it down changes nothing: the card you see is the card you keep, and the photo stays out.</p>
-  ${hasArt ? uploadBlock : ""}`}
+  ${uploadBlock}` : `<p class="state" id="state"></p>`}`}
   <noscript><p class="fine">This page needs JavaScript to record your answer. Tell Mike directly instead; that works too.</p></noscript>
 </main>
 <script>
@@ -461,7 +466,10 @@ export async function onRequestGet({ request, params, env }) {
         : `"Approved. You can change this any time before the set prints."`};
     send({ answer: "approved", variant: selected }, doneText);
   });
-  document.getElementById("decline").addEventListener("click", function () {
+  // Null-guarded like approveBtn: the upload-only ask and the declined
+  // confirmation render no decline button at all.
+  var declineBtn = document.getElementById("decline");
+  if (declineBtn) declineBtn.addEventListener("click", function () {
     send({ answer: "declined" },
       "Noted, the photo stays out. You can change this any time before the set prints.");
   });
