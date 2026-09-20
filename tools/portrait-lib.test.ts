@@ -284,9 +284,12 @@ describe("GET /portrait/<token>", () => {
   };
 
   const EM_DASH = "—";
+  // "Monogram" is the design's word for the initial in the art slot, not a
+  // word players use. Mike, 2026-09-20. The card is on the page now, so the
+  // line can point at it instead of naming a thing.
   const MONOGRAM_LINE =
-    "Turning it down keeps the monogram card you already have. " +
-    "The photo stays out and the card stays yours.";
+    "Turning it down changes nothing: the card you see is the card you keep, " +
+    "and the photo stays out.";
 
   // Wraps makePortraitEnv rather than changing it: the factory is shared with
   // Task 5, which has no ASSETS binding to speak of.
@@ -333,7 +336,7 @@ describe("GET /portrait/<token>", () => {
     const { html } = await render([ASK]);
     expect(html).toContain(
       "Say yes and your photo goes on this card and on every card of yours from here on. " +
-      "No answer means it stays the monogram.");
+      "No answer means your card stays exactly as it is.");
     expect(html).not.toContain("This card ships only if you say yes.");
   });
 
@@ -1289,6 +1292,12 @@ describe("upload-only asks: variants []", () => {
     // become a side door. An <img> is not a way in; an <a> would be.
     expect(html).not.toContain('<a href="/cards/');
     expect(html).not.toContain('href="/cards/2026-08/');
+  });
+
+  test("the decline button does not use the word monogram", async () => {
+    const { html } = await render2([EMPTY_ASK], WITH_CARD);
+    expect(html).toContain("Leave my card as it is");
+    expect(html).not.toContain("monogram");
   });
 
   test("the upload ask comes before the way to decline it", async () => {

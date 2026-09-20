@@ -171,7 +171,7 @@ export async function onRequestGet({ request, params, env }) {
   // player has to know that before they answer, not after.
   const stateLine =
     current === null
-      ? `Say yes and your photo goes on this card and on every card of yours from here on. No answer means it stays the monogram.`
+      ? `Say yes and your photo goes on this card and on every card of yours from here on. No answer means your card stays exactly as it is.`
       : current.answer === "approved"
         ? current.variant === "self"
           ? `You approved your photo on ${escapeHtml(current.answeredAt.slice(0, 10))}. You can change this any time before the set prints.`
@@ -306,16 +306,16 @@ export async function onRequestGet({ request, params, env }) {
   prints today. The art slot carries your initial because you have not put a
   photo there yet. Add one and your face goes in that slot instead, or leave it
   the way it is. Nothing changes until you say so.</p>`
-        : `<p>Your table card for the ${setName} set currently carries your monogram.
-  Add your own photo below and the card prints with your face on it, or leave
-  it exactly as it is. Nothing ships until you say so.</p>`)
+        : `<p>Your table card for the ${setName} set carries your initial in the art
+  slot. Add your own photo below and the card prints with your face there
+  instead, or leave it exactly as it is. Nothing ships until you say so.</p>`)
       : monogramCard
         ? `<p>That is your real card from the ${setName} set below, exactly as it
   prints today, with your initial in the art slot. Nothing is staged for you to
   approve right now. If you were expecting to add a photo here, tell Mike.</p>`
-        : `<p>Your table card for the ${setName} set currently carries your monogram.
-  Nothing is staged for you to approve right now. If you were expecting to add
-  a photo here, tell Mike.</p>`;
+        : `<p>Your table card for the ${setName} set carries your initial in the art
+  slot. Nothing is staged for you to approve right now. If you were expecting to
+  add a photo here, tell Mike.</p>`;
 
   const figureBlock = !hasArt
     ? (monogramCard
@@ -330,7 +330,7 @@ export async function onRequestGet({ request, params, env }) {
   // POST endpoint would reject it anyway (variant must be in the list).
   const approveButton = !hasArt ? "" : `<button type="button" id="approve" class="btn-secondary">Use this one</button>
     `;
-  const declineLabel = hasArt ? "None of these" : "Keep the monogram";
+  const declineLabel = hasArt ? "None of these" : "Leave my card as it is";
 
   const html = `<!doctype html>
 <html lang="en">
@@ -375,7 +375,7 @@ export async function onRequestGet({ request, params, env }) {
     ${approveButton}<button type="button" id="decline" class="btn-secondary">${declineLabel}</button>
   </div>
   <p class="state" id="state">${stateLine}</p>
-  <p class="fine">Turning it down keeps the monogram card you already have. The photo stays out and the card stays yours.</p>
+  <p class="fine">Turning it down changes nothing: the card you see is the card you keep, and the photo stays out.</p>
   ${hasArt ? uploadBlock : ""}
   <noscript><p class="fine">This page needs JavaScript to record your answer. Tell Mike directly instead; that works too.</p></noscript>
 </main>
