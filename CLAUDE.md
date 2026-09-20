@@ -82,6 +82,15 @@ python3 -m http.server -d site   # local preview
   rules in `docs/brand.md`.
 - The RSVP form's game date comes from `games.json` (`nextGame`) at runtime;
   there is no date constant to update in `site/rsvp.js`.
+- **Player-facing pages have one job each (Mike's standard, 2026-09-20).**
+  The portrait consent page is three pages: ask, pick, done. Nothing renders
+  that is not the job: no stats line, no standing-rule sentence, no fine
+  print, no decline button, no change-your-mind section. Not acting is the
+  no. The copy on them is Mike's, verbatim, and any edit to it goes back
+  through him. `tools/portrait-lib.test.ts` pins all of it; the full rule,
+  the copy, and the email that carries the link are in
+  `docs/publishing.md` § "The pages and the email". This binds whoever
+  does the next set, Charlie or Nova.
 
 ## The monthly publish (Charlie's job — full runbook in docs/publishing.md)
 

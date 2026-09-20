@@ -448,6 +448,63 @@ committing.
 Card portraits ship only with the player's yes, given on a private page that
 shows their actual card. Charlie stages the images; the tool does the rest.
 
+### The pages and the email: one job each (Mike's standard, 2026-09-20)
+
+This is the format. It was set by Mike on 2026-09-20 after a player who had
+been emailed three times said of the old page: "I can't preview it or see
+it. It's just kind of an idea and it's asking me to upload an image." It
+binds whoever runs the next set, Charlie or Nova, and the tests enforce the
+parts a test can reach. **The measure is decisions, not words**: every
+sentence a player must weigh before acting, and every button, is load.
+
+**Three pages, one job each.** The player sees exactly one of these:
+
+| page | when | what is on it, and nothing else |
+|---|---|---|
+| ask | nothing staged | *That is your card from the &lt;Month&gt; set.* / *You can now upload a photo!* / their real card / *Your card has no art!* / *Select "Choose File" and upload an image. Some people use a photo, but it can be anything!* / the file control (zoom + drag composer appears once a file is chosen; button **Use this image**) |
+| pick | crops staged | *Pick the one you like!* / the card / Crop A, Crop B / **Use this one** |
+| done | approved | *Your image is in!* / their real card with the panel drawn in / *Your card will be updated soon.* |
+
+The copy above is Mike's, verbatim (For Review, 2026-09-20). **Do not
+rewrite it, tidy it, or add to it.** A change to any line goes to Mike as a
+`.txt` in `~/Desktop/For Review/` first, then into
+`functions/portrait/[token].js` AND `tools/portrait-lib.test.ts` together.
+
+**What is not on any page, on purpose:**
+
+- No decline button, anywhere. Not uploading is the no. A `declined` row in
+  D1 renders as the ask.
+- No stats line, no "on every card of yours from here on" sentence, no fine
+  print, no privacy sentence. The standing rule and the device-privacy
+  promise are still true and still enforced by code; they live in this
+  runbook and in the email, not on the page.
+- No "change your mind" section, no re-approve, no upload on any page but
+  the ask. A player who wants a change tells Mike.
+- Nothing is lime. Lime is the RSVP CTA only.
+
+**The done page shows the full card.** After an upload the server holds only
+the 620x236 panel, so the page draws it into the player's card in their
+browser at the slot recorded in `games.json`. That is why minting a set has
+one more step (below) and why the data suite fails a card without one.
+
+**The email that carries the link is the same shape.** Mike sends it, in his
+words. It shows the card and says one thing:
+
+> Made you a poker card. Want your face on it? [the card image, inline]
+> [the link]
+
+Inline the card PNG (`/cards/<set>/assets/<file>`, public once the set page
+is live); a plain-text Gmail draft turns the link into a google.com redirect
+string, so send HTML with a real anchor. Do not describe the card, list what
+we will not do with the photo, or explain the mechanics. Page 1 does the
+rest. Charlie drafts unsent; Mike decides and sends (the standing division).
+
+**Minting a set, the extra step.** After rendering the cards, from munger's
+`ccg/`: `node measure-art.mjs <sheet.html>` prints one `[x, y, w, h]` per
+card in sheet order (= card number). Put each into that result's
+`card.art` in `games.json`. `bun test tools` refuses a card block without
+it. Run `node check-clip.mjs <sheet.html>` first, as § Cards says.
+
 ### One-time setup (first set only)
 
 Before the first set ever ships, run these commands from this repo's
