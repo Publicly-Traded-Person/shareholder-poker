@@ -242,6 +242,50 @@ chart of it.
 Card copy is judgment; it does not automate. Render per
 `munger/ccg/launch-aug-2026/ASSETS.md`, add `site/cards/<YYYY-MM>/`.
 
+### The copy budget, and the check that enforces it
+
+**Run `node munger/ccg/check-clip.mjs <sheet.html>` before rendering a set, and
+again after any copy edit.** It exits non-zero and names the card when any
+field is cut off. Do not render past a failure.
+
+This is a gate because the failure is silent. Set 3 shipped for two months with
+card 1's counter clamped mid-sentence: `"...he bets"` plus an ellipsis, with
+`"without it."` deleted. A clamped card looks finished. Josh Berezin caught it
+reading his own card, not anyone reviewing the set.
+
+The budget each field holds, at the pinned render settings:
+
+| field | holds | notes |
+|---|---|---|
+| `.counter p` | ~135 chars (3 lines at 12.5px) | was 2 lines / ~90 until Set 3 was fixed |
+| `.sig` | ~120 chars (2 lines at 13.5px) | the longest shipped is 113 - little room |
+| `.arch` | 2 lines | short type lines only |
+| `.name` | the handle, one line | overflows sideways, not down |
+
+Character counts are a guide for writing; the check is the authority, because
+where a line breaks depends on the glyphs. **If copy must grow past its budget,
+raise that field's `-webkit-line-clamp` and its `min-height` together.** Those
+`min-height`s are the only thing holding every card in a set to the same
+height, so raising the clamp alone grows the long cards and leaves the set
+ragged.
+
+### Re-rendering a set that already shipped
+
+⚠️ **The committed sheet renders `Portrait · TK` placeholders. The live cards
+carry real portraits.** Approved panels are attached at render time by the
+throwaway-sheet patch in `munger/ccg/stage-candidates.sh`, which is never
+committed back into the sheet. A plain re-render of a shipped set therefore
+strips every consented self-portrait off it, and the result looks plausible.
+
+When re-rendering a set that is already live, **carry the art over rather than
+re-deriving it**: crop each card's art window straight out of the live PNG and
+attach that as the panel. Three of Set 3's nine panels were re-tinted onto a
+different metal's ramp, and a crop cannot get that wrong where a fresh tint
+can. Verify before committing - art-region RMSE against the live file should
+land at 0.001 or below on a portrait card. A placeholder card measures about
+0.003 on any re-render, which is this Chrome's gradient noise and the floor for
+"unchanged".
+
 Building the set page: copy the NEWEST set page (`site/cards/2026-07/` today)
 into the new directory and swap its content. Five of its choices are
 deliberate design rules, not accidents of the July page, so keep them:
