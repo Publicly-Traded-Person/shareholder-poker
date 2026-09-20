@@ -254,7 +254,13 @@
           "card": {
             "metal": "foil",
             "file": "card-1-lewd.png",
-            "title": "Champion"
+            "title": "Champion",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
           }
         },
         {
@@ -267,7 +273,13 @@
           "card": {
             "metal": "sapphire",
             "file": "card-2-nickmershon.png",
-            "title": "2nd, holds the Coin"
+            "title": "2nd, holds the Coin",
+            "art": [
+              36,
+              200,
+              604,
+              232
+            ]
           }
         },
         {
@@ -280,7 +292,13 @@
           "card": {
             "metal": "sapphire",
             "file": "card-3-bg.png",
-            "title": "3rd"
+            "title": "3rd",
+            "art": [
+              36,
+              200,
+              604,
+              232
+            ]
           }
         },
         {
@@ -295,7 +313,13 @@
           "card": {
             "metal": "copper",
             "file": "card-4-kmikeym.png",
-            "title": "The Founder"
+            "title": "The Founder",
+            "art": [
+              36,
+              200,
+              604,
+              232
+            ]
           }
         },
         {
@@ -308,7 +332,13 @@
           "card": {
             "metal": "pewter",
             "file": "card-5-amaxwell.png",
-            "title": "The Patient Rock"
+            "title": "The Patient Rock",
+            "art": [
+              36,
+              200,
+              604,
+              232
+            ]
           }
         },
         {
@@ -321,7 +351,13 @@
           "card": {
             "metal": "pewter",
             "file": "card-6-webvee.png",
-            "title": "Mysterious Wildcard"
+            "title": "Mysterious Wildcard",
+            "art": [
+              36,
+              200,
+              604,
+              232
+            ]
           }
         }
       ]
@@ -348,7 +384,13 @@
           "card": {
             "metal": "foil",
             "file": "card-1-spladow.png",
-            "title": "Champion"
+            "title": "Champion",
+            "art": [
+              36,
+              210,
+              604,
+              232
+            ]
           }
         },
         {
@@ -361,7 +403,13 @@
           "card": {
             "metal": "sapphire",
             "file": "card-2-bg.png",
-            "title": "2nd"
+            "title": "2nd",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
           }
         },
         {
@@ -374,7 +422,13 @@
           "card": {
             "metal": "sapphire",
             "file": "card-3-amaxwell.png",
-            "title": "3rd, the bubble"
+            "title": "3rd, the bubble",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
           }
         },
         {
@@ -387,7 +441,13 @@
           "card": {
             "metal": "pewter",
             "file": "card-6-lewd.png",
-            "title": "July's champion"
+            "title": "July's champion",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
           }
         },
         {
@@ -400,7 +460,13 @@
           "card": {
             "metal": "pewter",
             "file": "card-7-mohdi_drew.png",
-            "title": "5th"
+            "title": "5th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
           }
         },
         {
@@ -413,7 +479,13 @@
           "card": {
             "metal": "sapphire",
             "file": "card-4-nickmershon.png",
-            "title": "Holds the Coin"
+            "title": "Holds the Coin",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
           }
         },
         {
@@ -426,7 +498,13 @@
           "card": {
             "metal": "copper",
             "file": "card-5-kmikeym.png",
-            "title": "The Founder"
+            "title": "The Founder",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
           }
         }
       ]
@@ -449,7 +527,13 @@
           "card": {
             "metal": "foil",
             "file": "card-1-joshb.png",
-            "title": "Champion"
+            "title": "Champion",
+            "art": [
+              36,
+              210,
+              604,
+              232
+            ]
           }
         },
         {
@@ -464,7 +548,13 @@
           "card": {
             "metal": "sapphire",
             "file": "card-2-jfe.png",
-            "title": "Runner-up"
+            "title": "Runner-up",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
           }
         },
         {
@@ -477,7 +567,13 @@
           "card": {
             "metal": "sapphire",
             "file": "card-3-lewd.png",
-            "title": "3rd"
+            "title": "3rd",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
           }
         },
         {
@@ -490,7 +586,13 @@
           "card": {
             "metal": "copper",
             "file": "card-4-kmikeym.png",
-            "title": "The Founder"
+            "title": "The Founder",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
           }
         },
         {
@@ -503,7 +605,13 @@
           "card": {
             "metal": "pewter",
             "file": "card-5-bg.png",
-            "title": "5th"
+            "title": "5th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
           }
         },
         {
@@ -518,7 +626,13 @@
           "card": {
             "metal": "pewter",
             "file": "card-6-mohdi_drew.png",
-            "title": "6th"
+            "title": "6th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
           }
         },
         {
@@ -531,7 +645,13 @@
           "card": {
             "metal": "pewter",
             "file": "card-7-chrishiggins.png",
-            "title": "7th"
+            "title": "7th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
           }
         },
         {
@@ -544,7 +664,13 @@
           "card": {
             "metal": "pewter",
             "file": "card-8-amaxwell.png",
-            "title": "8th"
+            "title": "8th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
           }
         },
         {
@@ -557,7 +683,13 @@
           "card": {
             "metal": "pewter",
             "file": "card-9-u_perfection.png",
-            "title": "9th"
+            "title": "9th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
           }
         },
         {
@@ -570,7 +702,13 @@
           "card": {
             "metal": "pewter",
             "file": "card-10-gamzie.png",
-            "title": "10th"
+            "title": "10th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
           }
         },
         {
@@ -585,7 +723,13 @@
           "card": {
             "metal": "pewter",
             "file": "card-11-mawttm.png",
-            "title": "11th"
+            "title": "11th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
           }
         },
         {
@@ -598,7 +742,13 @@
           "card": {
             "metal": "pewter",
             "file": "card-12-spladow.png",
-            "title": "12th"
+            "title": "12th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
           }
         },
         {
@@ -611,7 +761,13 @@
           "card": {
             "metal": "pewter",
             "file": "card-13-webvee.png",
-            "title": "13th"
+            "title": "13th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
           }
         },
         {
@@ -624,7 +780,13 @@
           "card": {
             "metal": "pewter",
             "file": "card-14-exis0008.png",
-            "title": "14th"
+            "title": "14th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
           }
         }
       ],

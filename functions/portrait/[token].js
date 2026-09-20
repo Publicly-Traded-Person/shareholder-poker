@@ -86,6 +86,19 @@ function cardFileFor(data, setSlug, handle) {
   return typeof file === "string" && file.length > 0 ? file : null;
 }
 
+// The art slot's rectangle on that card, [x, y, w, h] in the PNG's pixels,
+// recorded in games.json when the set is minted (munger/ccg/measure-art.mjs).
+// It is what lets the page draw an uploaded panel INTO the real card rather
+// than show the panel on its own. Null unless all four are finite numbers;
+// the page then falls back to the bare panel, which is honest if worse.
+function cardArtFor(data, setSlug, handle) {
+  const game = (data.games || []).find((g) => g.cardSet === setSlug);
+  const result = game && (game.results || []).find((r) => r.handle === handle);
+  const art = result && result.card && result.card.art;
+  return Array.isArray(art) && art.length === 4 && art.every((n) => typeof n === "number" && Number.isFinite(n))
+    ? art : null;
+}
+
 // Renders the consent page for one ask.
 // Takes the Pages Function context ({ request, params, env }); `params.token`
 // is the capability token from the URL. Returns a 200 HTML Response with the
@@ -115,12 +128,14 @@ export async function onRequestGet({ request, params, env }) {
 
   let stats = null;
   let cardFile = null;
+  let cardArt = null;
   let uploadsOn = false;
   try {
     const res = await env.ASSETS.fetch(new URL("/data/games.json", request.url));
     const data = await res.json();
     stats = statsFor(data, ask.set_slug, ask.handle);
     cardFile = cardFileFor(data, ask.set_slug, ask.handle);
+    cardArt = cardArtFor(data, ask.set_slug, ask.handle);
     // Fail CLOSED: any read failure leaves uploads off. The block simply
     // does not render; a capability URL never narrates its own config.
     uploadsOn = data.portraitUploads === true;
@@ -275,9 +290,16 @@ export async function onRequestGet({ request, params, env }) {
   // The card the player already has. Before this, a player with nothing staged
   // got a page headed "Your card" that showed no card. The set's own design
   // says the card is the pitch.
-  const monogramCard = !hasArt && cardFile
+  const cardUrl = cardFile
     ? `/cards/${encodeURIComponent(ask.set_slug)}/assets/${encodeURIComponent(cardFile)}`
     : null;
+  const monogramCard = !hasArt ? cardUrl : null;
+  // The full card with the player's own panel drawn in (Mike, 2026-09-20:
+  // "what happened to the FULL CARD?"). Only `self` needs it: staged crops
+  // are already whole cards. Drawn in the browser from two public images,
+  // the card PNG and the panel, at the slot recorded in games.json. Without
+  // a card or a rectangle the page shows the bare panel, as before.
+  const composite = isPanel && cardUrl && cardArt ? { card: cardUrl, art: cardArt } : null;
 
   // Copy in Mike's register (For Review, 2026-09-20): one short line per job.
   const intro = approved
@@ -303,7 +325,45 @@ export async function onRequestGet({ request, params, env }) {
     ? (monogramCard
       ? `<figure class="card-shot"><img src="${monogramCard}" alt="Your ${setName} player card, with no art yet"><figcaption class="fine">Your card has no art!</figcaption></figure>`
       : "")
-    : `<figure class="card-shot${isPanel ? " card-shot--panel" : ""}"><img id="card-img" src="${img(selected)}" alt="Your ${setName} player card">${caption ? `<figcaption class="fine">${caption}</figcaption>` : ""}</figure>`;
+    : composite
+      // A canvas the size of the card, painted by the script below. The <img>
+      // keeps its id so the crop-swap script is unchanged, and stays as the
+      // fallback if either image fails to load.
+      ? `<figure class="card-shot"><canvas id="card-composite" style="display:none"></canvas><img id="card-img" src="${img(selected)}" alt="Your ${setName} player card">${caption ? `<figcaption class="fine">${caption}</figcaption>` : ""}</figure>`
+      : `<figure class="card-shot${isPanel ? " card-shot--panel" : ""}"><img id="card-img" src="${img(selected)}" alt="Your ${setName} player card">${caption ? `<figcaption class="fine">${caption}</figcaption>` : ""}</figure>`;
+
+  // Paints the player's panel into their real card. Both images are same-
+  // origin, so the canvas stays clean. The panel is 620x236 and the slot is
+  // narrower (object-fit: cover on the sheet), so it is centred and cropped
+  // the same way the sheet does it. If anything fails to load the <img> is
+  // left showing and the canvas never appears.
+  const compositeScript = !composite ? "" : `
+<script>
+  (function () {
+    var c = document.getElementById("card-composite");
+    var i = document.getElementById("card-img");
+    var art = ${JSON.stringify(composite.art)};
+    var card = new Image(), panel = new Image();
+    var left = 2;
+    function done() {
+      if (--left) return;
+      c.width = card.naturalWidth; c.height = card.naturalHeight;
+      var ctx = c.getContext("2d");
+      ctx.drawImage(card, 0, 0);
+      var x = art[0], y = art[1], w = art[2], h = art[3];
+      var s = Math.max(w / panel.naturalWidth, h / panel.naturalHeight);
+      var pw = panel.naturalWidth * s, ph = panel.naturalHeight * s;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+      ctx.drawImage(panel, x + (w - pw) / 2, y + (h - ph) / 2, pw, ph);
+      ctx.restore();
+      c.style.display = "block"; i.style.display = "none";
+    }
+    card.onload = done; panel.onload = done;
+    card.src = ${JSON.stringify(composite.card)};
+    panel.src = i.src;
+  })();
+</script>`;
 
   // One button, on the pick page only. Approving nothing is not a thing, and
   // an approved page has nothing left to press.
@@ -323,7 +383,7 @@ export async function onRequestGet({ request, params, env }) {
   /* Page-scoped layout only; palette and buttons come from /styles.css. */
   .portrait-page { max-width: 40rem; margin: 0 auto; }
   .portrait-page .card-shot { margin: 1.5rem 0; }
-  .portrait-page .card-shot img { display: block; width: min(100%, 22rem); margin: 0 auto; border-radius: 12px; }
+  .portrait-page .card-shot img, .portrait-page .card-shot canvas { display: block; width: min(100%, 22rem); margin: 0 auto; border-radius: 12px; }
   /* The panel is 620x236 art, not a 22rem-wide card, so it fills the column.
      Scoped under .portrait-page so it OUTWEIGHS the card rule above; the
      bare .card-shot--panel img selector would lose on specificity and the
@@ -382,7 +442,7 @@ export async function onRequestGet({ request, params, env }) {
       state.textContent = "That did not go through. Try again, or just tell Mike.";
     });
   });
-</script>${uploadScript}
+</script>${compositeScript}${uploadScript}
 </body>
 </html>`;
   return new Response(html, { status: 200, headers: HEADERS });

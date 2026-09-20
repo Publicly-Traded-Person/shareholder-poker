@@ -1371,6 +1371,30 @@ describe("upload-only asks: variants []", () => {
     expect(html).not.toContain("exactly as it would print");
   });
 
+  test("a self approval with a card and an art rect draws the full card", async () => {
+    // "what happened to the FULL CARD?" (Mike, 2026-09-20). The canvas is
+    // painted client-side from the card PNG and the panel at games.json's
+    // card.art; the <img> stays as the fallback and keeps its id.
+    const WITH_ART = { ...WITH_CARD, games: [{ ...WITH_CARD.games[0],
+      results: [{ ...WITH_CARD.games[0].results[0],
+        card: { metal: "copper", file: "card-2-genet.png", title: "Runner-up", art: [36, 205, 604, 232] } }] }] };
+    const made = pageEnv2([{ ...EMPTY_ASK, variants: '["self"]' }], WITH_ART);
+    made.answers.push({ token: TOKEN, answer: "approved", variant: "self", answered_at: "2026-09-20 19:00:00" });
+    const res = await pageGet2({ request: new Request(`https://poker.kmikeym.com/portrait/${TOKEN}`), params: { token: TOKEN }, env: made.env });
+    const html = await res.text();
+    expect(html).toContain('<canvas id="card-composite"');
+    expect(html).toContain('var art = [36,205,604,232];');
+    expect(html).toContain('card.src = "/cards/2026-08/assets/card-2-genet.png";');
+    expect(html).toContain(`id="card-img" src="/api/portrait/${TOKEN}/img/self"`);
+    expect(html).not.toContain("card-shot--panel");
+  });
+
+  test("without an art rect the done page falls back to the bare panel", async () => {
+    const { html } = await renderAnswered("approved");
+    expect(html).not.toContain("card-composite");
+    expect(html).toContain("card-shot--panel");
+  });
+
   test("the done page has nothing to press", async () => {
     // "the whole 'change your mind' thing is NOT NEEDED" (Mike, 2026-09-20).
     const { html } = await renderAnswered("approved");
