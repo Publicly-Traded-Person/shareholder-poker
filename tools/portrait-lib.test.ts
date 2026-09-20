@@ -284,9 +284,12 @@ describe("GET /portrait/<token>", () => {
   };
 
   const EM_DASH = "—";
+  // "Monogram" is the design's word for the initial in the art slot, not a
+  // word players use. Mike, 2026-09-20. The card is on the page now, so the
+  // line can point at it instead of naming a thing.
   const MONOGRAM_LINE =
-    "Turning it down keeps the monogram card you already have. " +
-    "The photo stays out and the card stays yours.";
+    "Turning it down changes nothing: the card you see is the card you keep, " +
+    "and the photo stays out.";
 
   // Wraps makePortraitEnv rather than changing it: the factory is shared with
   // Task 5, which has no ASSETS binding to speak of.
@@ -329,12 +332,15 @@ describe("GET /portrait/<token>", () => {
   // The yes is standing (Mike, 2026-09-09): one approval puts the photo on
   // every card of that player's from then on, so the page has to say so
   // before they answer. The old line read as a yes for this card only.
-  test("an unanswered page says a yes carries the photo onto every future card", async () => {
+  test("a pick page is one line, the crops, and one button", async () => {
+    // One page, one job (Mike, 2026-09-20). The standing-rule disclosure,
+    // the stats line and the fine print are gone from the page; the standing
+    // rule itself is unchanged and lives in the email and the ledger.
     const { html } = await render([ASK]);
-    expect(html).toContain(
-      "Say yes and your photo goes on this card and on every card of yours from here on. " +
-      "No answer means it stays the monogram.");
+    expect(html).toContain("<p>Pick the one you like!</p>");
+    expect(html).not.toContain("on every card of yours from here on");
     expect(html).not.toContain("This card ships only if you say yes.");
+    expect(html).not.toContain("Nothing ships until you say so");
   });
 
   // 404, never 403: a probe must not be able to tell a real token from a dead
@@ -348,7 +354,7 @@ describe("GET /portrait/<token>", () => {
     expect(gone.html).toBe(unknown.html);
   });
 
-  test("a live ask renders the card, the pickers, the stats and both actions", async () => {
+  test("a live ask renders the card, the pickers and the one button", async () => {
     const { res, html } = await render([ASK]);
     expect(res.status).toBe(200);
     expectPrivateHeaders(res);
@@ -357,29 +363,30 @@ describe("GET /portrait/<token>", () => {
     expect(html).toContain('data-variant="a"');
     expect(html).toContain('data-variant="b"');
     expect(html).toContain("Use this one");
-    expect(html).toContain("None of these");
-    expect(html).toContain(MONOGRAM_LINE);
-    // The entrant count is games.json `entries` (3), never the number of
-    // result rows (2). A player reading "of 2" here while /games/2026-08-11/
-    // says "8 entries" is the site contradicting itself on the one page whose
-    // whole job is earning trust, so both halves are asserted.
-    expect(html).toContain("2nd of 3");
-    expect(html).not.toContain("2nd of 2");
-    expect(html).toContain("100 hands");
+    // No decline anywhere (Mike, 2026-09-20): not choosing is the no.
+    expect(html).not.toContain('id="decline"');
+    expect(html).not.toContain("None of these");
+    expect(html).not.toContain(MONOGRAM_LINE);
+    // No stats line: the page has one job. The entries-vs-rows trap this
+    // used to pin cannot fire on a line that is not printed.
+    expect(html).not.toContain("2nd of");
+    expect(html).not.toContain(" hands");
     expect(html).toContain('<meta name="robots" content="noindex, nofollow">');
   });
 
-  test("an existing approval renders as state, with that crop preselected", async () => {
+  test("an existing approval renders the done page with that crop", async () => {
     const { env, answers } = pageEnv([ASK]);
     answers.push({ token: TOKEN, answer: "approved", variant: "b",
                    answered_at: "2026-09-01 10:00:00" });
     const res = await portraitPage({ request: pageRequest(), params: { token: TOKEN }, env });
     const html = await res.text();
     expect(res.status).toBe(200);
-    expect(html).toContain("You approved");
-    expect(html).toContain('data-variant="b" aria-pressed="true"');
-    expect(html).toContain('data-variant="a" aria-pressed="false"');
+    // Done state: the approved crop, one line, no picker, no button.
+    expect(html).toContain("<p>Your image is in!</p>");
+    expect(html).toContain("Your card will be updated soon.");
     expect(html).toContain(`src="/api/portrait/${TOKEN}/img/b"`);
+    expect(html).not.toContain("data-variant=");
+    expect(html).not.toContain('id="approve"');
   });
 
   test("no email address reaches the page, not even from the ask row", async () => {
@@ -390,11 +397,10 @@ describe("GET /portrait/<token>", () => {
   });
 
   // Consent is asked for, never sold: the lime CTA belongs to RSVP only.
-  test("both actions are btn-secondary and no lime CTA appears", async () => {
+  test("the one action is btn-secondary and no lime CTA appears", async () => {
     const { html } = await render([ASK]);
     expect(html).not.toContain("btn-primary");
     expect(html).toContain('id="approve" class="btn-secondary"');
-    expect(html).toContain('id="decline" class="btn-secondary"');
   });
 
   test("copy rules hold in runtime-rendered HTML too", async () => {
@@ -409,23 +415,22 @@ describe("GET /portrait/<token>", () => {
     const one = { ...ASK, variants: '["a"]' };
     const { res, html } = await render([one]);
     expect(res.status).toBe(200);
-    expect(html).not.toContain("Pick the crop");
-    expect(html).toContain("Approve it, or turn the photo down.");
+    expect(html).not.toContain("Pick the one you like");
+    expect(html).toContain("<p>Your photo, on your card!</p>");
     expect(html).not.toContain("data-variant=");
-    expect(html).not.toContain("Approved, crop");
     expect(html).toContain("Use this one");
-    expect(html).toContain("None of these");
+    expect(html).not.toContain("None of these");
   });
 
-  test("a single-crop approved revisit says photo, not a crop letter", async () => {
+  test("a single-crop approved revisit is the done page, no crop letter", async () => {
     const one = { ...ASK, variants: '["a"]' };
     const { env, answers } = pageEnv([one]);
     answers.push({ token: TOKEN, answer: "approved", variant: "a",
                    answered_at: "2026-08-27 10:00:00" });
     const res = await portraitPage({ request: pageRequest(), params: { token: TOKEN }, env });
     const html = await res.text();
-    expect(html).toContain("You approved the photo on 2026-08-27.");
-    expect(html).not.toContain("You approved crop");
+    expect(html).toContain("<p>Your image is in!</p>");
+    expect(html).not.toContain("crop");
   });
 
   // A forwarded link must not become a side door into an unannounced set.
@@ -441,7 +446,6 @@ describe("GET /portrait/<token>", () => {
     expect(res.status).toBe(200);
     expect(html).toContain(`src="/api/portrait/${TOKEN}/img/a"`);
     expect(html).toContain("Use this one");
-    expect(html).toContain("None of these");
     expect(html).not.toContain("Those are the numbers on the card");
     expect(html).not.toContain(" hands");
   });
@@ -471,7 +475,6 @@ describe("GET /portrait/<token>", () => {
     expect(res.status).toBe(200);
     expect(html).toContain(`src="/api/portrait/${TOKEN}/img/a"`);
     expect(html).toContain("Use this one");
-    expect(html).toContain("None of these");
     expect(html).not.toContain("Those are the numbers on the card");
     expect(html).not.toContain("2nd of");
     expect(html).not.toContain(" hands");
@@ -1020,16 +1023,19 @@ describe("GET /portrait/<token> upload block", () => {
   // promise about where the pixels go. Asserted as a set so a case that turns
   // the block OFF has to lose all six, not just the one a test happened to
   // name.
+  // The copy markers are Mike's ask line (2026-09-20). The device-privacy
+  // sentence came off the page with his edit; the promise itself is kept by
+  // the code (only the finished panel is ever sent) and is documented there.
   const UPLOAD_MARKERS = [
-    "Or use a different photo",
+    'Select "Choose File" and upload an image',
     'id="photo-in"',
     'accept="image/*"',
     'id="use-photo"',
     "/portrait-dither.js",
-    "It never leaves your device",
+    "Use this image",
   ];
 
-  const PANEL_CAPTION = "Your art panel; the printed card carries it in the art slot.";
+  const PANEL_CAPTION = "Your photo, as it goes on the card.";
   const EM_DASH = "—";
 
   // Wraps makePortraitEnv the same way the page block above does: the shared
@@ -1058,10 +1064,19 @@ describe("GET /portrait/<token> upload block", () => {
   const COPPER_ASK: AskRow = { ...ASK, metal: "copper" };
   const SELF_ASK: AskRow = { ...COPPER_ASK, variants: '["a","b","self"]' };
 
-  test("flag on, a real metal and a live ask render the whole block", async () => {
-    const { res, html } = await render([COPPER_ASK]);
+  test("flag on, a real metal and a live upload-only ask render the whole block", async () => {
+    // The block belongs to the ask with nothing staged. A page with crops
+    // has one job, pick, and offers no upload (Mike, 2026-09-20).
+    const { res, html } = await render([{ ...COPPER_ASK, variants: "[]" }]);
     expect(res.status).toBe(200);
     for (const marker of UPLOAD_MARKERS) expect(html).toContain(marker);
+  });
+
+  test("a pick page renders no upload block even with the flag on", async () => {
+    const { res, html } = await render([COPPER_ASK]);
+    expect(res.status).toBe(200);
+    expectBlockAbsent(html);
+    expect(html).toContain("Use this one");
   });
 
   // The block cannot render without a metal: composePanel throws on an unknown
@@ -1073,7 +1088,6 @@ describe("GET /portrait/<token> upload block", () => {
     expectBlockAbsent(html);
     // The staged-crop flow is complete on its own; only the block is gone.
     expect(html).toContain("Use this one");
-    expect(html).toContain("None of these");
     expect(html).toContain(`src="/api/portrait/${TOKEN}/img/a"`);
   });
 
@@ -1101,7 +1115,6 @@ describe("GET /portrait/<token> upload block", () => {
     expect(res.status).toBe(200);
     expectBlockAbsent(html);
     expect(html).toContain("Use this one");
-    expect(html).toContain("None of these");
   });
 
   // `self` is an ordinary variant everywhere downstream, but it is a person's
@@ -1124,7 +1137,9 @@ describe("GET /portrait/<token> upload block", () => {
     const { res, html } = await renderWith(env);
     expect(res.status).toBe(200);
     expect(html).toContain('<figure class="card-shot card-shot--panel">');
-    expect(html).toContain(`<figcaption id="panel-note" class="fine">${PANEL_CAPTION}</figcaption>`);
+    // Approved: the caption is the done line, not the panel note.
+    expect(html).toContain('<figcaption class="fine">Your card will be updated soon.</figcaption>');
+    expect(html).not.toContain(PANEL_CAPTION);
   });
 
   test("a staged crop selected keeps the card figure and hides the caption", async () => {
@@ -1135,8 +1150,7 @@ describe("GET /portrait/<token> upload block", () => {
     expect(res.status).toBe(200);
     expect(html).toContain('<figure class="card-shot">');
     expect(html).not.toContain("card-shot--panel\">");
-    expect(html).toContain(
-      `<figcaption id="panel-note" class="fine" hidden>${PANEL_CAPTION}</figcaption>`);
+    expect(html).not.toContain(PANEL_CAPTION);
   });
 
   // The block adds copy and a second script to a page whose copy rules are
@@ -1163,10 +1177,7 @@ describe("GET /portrait/<token> upload block", () => {
     const { res, html } = await renderWith(env);
     expect(res.status).toBe(200);
     expect(html).toContain(`src="/api/portrait/${TOKEN}/img/self"`);
-    expect(html).toContain("Your photo");
-    // Self-aware wording (redirect, 2026-08-28): a self-upload is the
-    // player's own photo, not a crop, so the approval line says "photo".
-    expect(html).toContain("You approved your photo on 2026-09-01");
+    expect(html).toContain("<p>Your image is in!</p>");
     // Consent already on record is not a reason to offer a NEW upload: the
     // flag is off, so the whole block (input, button, dither script, copy)
     // must be gone, same bar as every other block-absent case above.
@@ -1177,30 +1188,28 @@ describe("GET /portrait/<token> upload block", () => {
   // rather than the flag-off pairing: the state line must say "approved your
   // photo" and must not carry the word "crop" before it, the way the old
   // "approved crop SELF" wording did.
-  test("an approved self answer states it in photo terms, not crop terms", async () => {
+  test("an approved self answer is the done page, with no crop wording", async () => {
     const { env, answers } = uploadEnv([SELF_ASK]);
     answers.push({ token: TOKEN, answer: "approved", variant: "self",
                    answered_at: "2026-09-01 10:00:00" });
     const { res, html } = await renderWith(env);
     expect(res.status).toBe(200);
-    // Scoped to the state paragraph itself, not the whole page: the picker
-    // still renders "Crop A" / "Crop B" for the staged variants on this ask,
-    // and a page-wide "not crop" check would fail on those for no reason.
-    const stateMatch = html.match(/<p class="state" id="state">([^<]*)<\/p>/);
-    expect(stateMatch?.[1]).toContain("approved your photo");
-    expect(stateMatch?.[1]).not.toContain("crop");
+    // The done page names nothing: no crop letter, no "photo" vs "crop"
+    // wording to get wrong, because there is no state sentence at all.
+    expect(html).toContain("<p>Your image is in!</p>");
+    expect(html).not.toContain("data-variant=");
+    expect(html).not.toContain("Crop A");
   });
 
   // The client-side approve button's success text mirrors the server-side
   // split so a self-upload confirms as "photo" without waiting on the page
   // reload to say it correctly. Asserted on the inline script's own source,
   // since this text is computed in the browser, not by the server.
-  test("the client-side approve success text branches on self vs crop", async () => {
+  test("the client-side approve reloads into the done state instead of narrating", async () => {
     const { html } = await render([SELF_ASK]);
-    expect(html).toContain(
-      '"Approved, your photo. You can change this any time before the set prints."');
-    expect(html).toContain(
-      '"Approved, crop " + selected.toUpperCase() + ". You can change this any time before the set prints."');
+    expect(html).toContain("if (r.ok) { location.reload(); return; }");
+    expect(html).not.toContain("Approved, crop");
+    expect(html).not.toContain("You can change this any time");
   });
 });
 
@@ -1248,16 +1257,230 @@ describe("upload-only asks: variants []", () => {
     expect(addVariant("[]", "self")).toBe('["self"]');
   });
 
-  test("page renders the upload block with no approve button, no figure, no picker", async () => {
+  test("page renders the upload block with no approve button, no decline, no picker", async () => {
+    // No decline on the ask: not uploading is the no (Mike, 2026-09-20).
     const { res, html } = await render2([EMPTY_ASK], UPLOADS_ON);
     expect(res.status).toBe(200);
     expect(html).toContain('<div class="upload-block">');
     expect(html).not.toContain('id="approve"');
-    expect(html).not.toContain("<figure");
+    expect(html).not.toContain('id="decline"');
     expect(html).not.toContain("img/undefined");
     expect(html).not.toContain('aria-label="Crop options"');
-    expect(html).toContain('id="decline"');
+    // #state stays for the upload script's error line, empty until then.
+    expect(html).toContain('<p class="state" id="state"></p>');
     expect(html).not.toContain("—"); // copy rule: no em dashes
+  });
+
+  // The monogram card. A player with nothing staged used to be told "your
+  // table card currently carries your monogram" and shown NOTHING, on a page
+  // headed "Your card". One of them told Mike: "I can't preview it or see it.
+  // It's just kind of an idea." The set's design says the card is the pitch,
+  // so the page shows the card that already prints for them.
+  const WITH_CARD = {
+    ...UPLOADS_ON,
+    games: [{ date: "2026-08-11", hands: 100, entries: 3, cardSet: "2026-08",
+      results: [{ slug: "gene-t", handle: "genet", finish: 2, payout: 0, rebuys: 0,
+        trophies: [], card: { metal: "copper", file: "card-2-genet.png", title: "Runner-up" } }] }],
+  };
+
+  test("an upload-only page shows the player's monogram card, sourced from games.json", async () => {
+    const { res, html } = await render2([EMPTY_ASK], WITH_CARD);
+    expect(res.status).toBe(200);
+    expect(html).toContain("<figure");
+    expect(html).toContain('src="/cards/2026-08/assets/card-2-genet.png"');
+    // Still an upload-only ask: nothing to approve, nothing to pick, no decline.
+    expect(html).not.toContain('id="approve"');
+    expect(html).not.toContain('aria-label="Crop options"');
+    expect(html).not.toContain('id="decline"');
+    expect(html).not.toContain("—");
+  });
+
+  test("the monogram card is an image, never a link into the site", async () => {
+    const { html } = await render2([EMPTY_ASK], WITH_CARD);
+    // The page's standing rule (spec s7): a forwarded capability URL must not
+    // become a side door. An <img> is not a way in; an <a> would be.
+    expect(html).not.toContain('<a href="/cards/');
+    expect(html).not.toContain('href="/cards/2026-08/');
+  });
+
+  test("the ask is Mike's copy, and nothing on it says monogram", async () => {
+    // For Review, 2026-09-20. The ask is the card, one line saying upload is
+    // open, and the file control. No stats, no state text, no fine print.
+    const { html } = await render2([EMPTY_ASK], WITH_CARD);
+    expect(html).toContain("<p>That is your card from the August 2026 set.</p>");
+    expect(html).toContain("<p>You can now upload a photo!</p>");
+    expect(html).toContain("Your card has no art!");
+    expect(html).toContain('Select "Choose File" and upload an image. Some people use a photo, but it can be anything!');
+    expect(html).toContain('id="use-photo" class="btn-secondary">Use this image</button>');
+    expect(html).not.toContain("monogram");
+    expect(html).not.toContain("Those are the numbers on the card");
+    expect(html).not.toContain("Turning it down changes nothing");
+    expect(html).not.toContain("Say yes and your photo goes");
+  });
+
+  test("an upload-only page does not say \"Or\" use a different photo", async () => {
+    // Nothing is staged, so there is nothing for the photo to be an
+    // alternative TO. It is the ask.
+    const { html } = await render2([EMPTY_ASK], WITH_CARD);
+    expect(html).not.toContain("Or use a different photo");
+  });
+
+  test("a pick page offers no upload and no decline", async () => {
+    const STAGED: AskRow = { ...EMPTY_ASK, variants: '["a","b"]' };
+    const { html } = await render2([STAGED], WITH_CARD);
+    expect(html).not.toContain('<div class="upload-block">');
+    expect(html).not.toContain('id="decline"');
+    expect(html).toContain('id="approve"');
+  });
+
+  // After an answer the page is a confirmation, not a question. Mike,
+  // 2026-09-20: "this is just a confirmation page and the user doesn't
+  // actually HAVE TO DO ANYTHING ... it should tell them they are done, and
+  // the card will be updated soon". Changing the answer stays possible but
+  // is no longer what the page is for.
+  const ESSAY = "until you say so";
+  const STATS = "Those are the numbers on the card";
+  async function renderAnswered(answer: "approved" | "declined", data = WITH_CARD) {
+    const made = pageEnv2([{ ...EMPTY_ASK, variants: answer === "approved" ? '["self"]' : "[]" }], data);
+    made.answers.push({ token: TOKEN, answer, variant: answer === "approved" ? "self" : null,
+                        answered_at: "2026-09-20 19:00:00" });
+    const res = await pageGet2({
+      request: new Request(`https://poker.kmikeym.com/portrait/${TOKEN}`),
+      params: { token: TOKEN }, env: made.env,
+    });
+    return { res, html: await res.text() };
+  }
+
+  test("after an upload the page says done, and the card is updated soon", async () => {
+    const { res, html } = await renderAnswered("approved");
+    expect(res.status).toBe(200);
+    expect(html).toContain("<h1>Your card, Gene T.</h1>");
+    expect(html).toContain("<p>Your image is in!</p>");
+    expect(html).toContain("Your card will be updated soon.");
+    expect(html).toContain(`src="/api/portrait/${TOKEN}/img/self"`);
+    expect(html).not.toContain("—");
+  });
+
+  test("a confirmation page carries none of the ask", async () => {
+    const { html } = await renderAnswered("approved");
+    expect(html).not.toContain(ESSAY);
+    expect(html).not.toContain(STATS);
+    expect(html).not.toContain("Turning it down changes nothing");
+    expect(html).not.toContain("Or use a different photo");
+    // The unanswered intro is gone with it.
+    expect(html).not.toContain("exactly as it would print");
+  });
+
+  test("a self approval with a card and an art rect draws the full card", async () => {
+    // "what happened to the FULL CARD?" (Mike, 2026-09-20). The canvas is
+    // painted client-side from the card PNG and the panel at games.json's
+    // card.art; the <img> stays as the fallback and keeps its id.
+    const WITH_ART = { ...WITH_CARD, games: [{ ...WITH_CARD.games[0],
+      results: [{ ...WITH_CARD.games[0].results[0],
+        card: { metal: "copper", file: "card-2-genet.png", title: "Runner-up", art: [36, 205, 604, 232] } }] }] };
+    const made = pageEnv2([{ ...EMPTY_ASK, variants: '["self"]' }], WITH_ART);
+    made.answers.push({ token: TOKEN, answer: "approved", variant: "self", answered_at: "2026-09-20 19:00:00" });
+    const res = await pageGet2({ request: new Request(`https://poker.kmikeym.com/portrait/${TOKEN}`), params: { token: TOKEN }, env: made.env });
+    const html = await res.text();
+    expect(html).toContain('<canvas id="card-composite"');
+    expect(html).toContain('var art = [36,205,604,232];');
+    expect(html).toContain('card.src = "/cards/2026-08/assets/card-2-genet.png";');
+    expect(html).toContain(`id="card-img" src="/api/portrait/${TOKEN}/img/self"`);
+    // The figure, not the page: the stylesheet always names the panel class.
+    expect(html).not.toContain('<figure class="card-shot card-shot--panel">');
+  });
+
+  test("without an art rect the done page falls back to the bare panel", async () => {
+    const { html } = await renderAnswered("approved");
+    expect(html).not.toContain("card-composite");
+    expect(html).toContain('<figure class="card-shot card-shot--panel">');
+  });
+
+  test("the done page has nothing to press", async () => {
+    // "the whole 'change your mind' thing is NOT NEEDED" (Mike, 2026-09-20).
+    const { html } = await renderAnswered("approved");
+    expect(html).not.toContain('id="change"');
+    expect(html).not.toContain("Change your mind");
+    expect(html).not.toContain('id="decline"');
+    expect(html).not.toContain('id="approve"');
+    expect(html).not.toContain('<div class="upload-block">');
+    expect(html).not.toContain("<noscript>");
+  });
+
+  test("the done page never says monogram, art panel, or approve", async () => {
+    const { html } = await renderAnswered("approved");
+    expect(html).not.toContain("None of these");
+    expect(html).not.toContain("art panel");
+    expect(html).not.toContain("monogram");
+    expect(html).not.toContain("You approved");
+  });
+
+  test("an old declined row renders as the ask, not as a fourth state", async () => {
+    // "there should be no decline!!!" (Mike, 2026-09-20). Rows recorded
+    // before this still exist in D1; the page treats them as no answer and
+    // shows the ask, card and upload, exactly as for a player who never
+    // clicked anything.
+    const { html } = await renderAnswered("declined");
+    expect(html).toContain("<h1>Your card, Gene T.</h1>");
+    expect(html).toContain("<p>You can now upload a photo!</p>");
+    expect(html).toContain('src="/cards/2026-08/assets/card-2-genet.png"');
+    expect(html).toContain('<div class="upload-block">');
+    expect(html).not.toContain("turned the photo down");
+    expect(html).not.toContain("stays as it is");
+  });
+
+  test("an unanswered page is the ask, not a confirmation", async () => {
+    const { html } = await render2([EMPTY_ASK], WITH_CARD);
+    expect(html).toContain("<h1>Your card, Gene T.</h1>");
+    expect(html).toContain("You can now upload a photo!");
+    expect(html).not.toContain('id="change"');
+    expect(html).not.toContain("gets updated soon");
+  });
+
+  test("a pick page is as bare as the ask", async () => {
+    const STAGED: AskRow = { ...EMPTY_ASK, variants: '["a","b"]' };
+    const { html } = await render2([STAGED], WITH_CARD);
+    expect(html).toContain("<p>Pick the one you like!</p>");
+    expect(html).not.toContain(STATS);
+    expect(html).not.toContain(ESSAY);
+    expect(html).toContain('id="approve" class="btn-secondary">Use this one</button>');
+    expect(html).not.toContain("on every card of yours from here on");
+    expect(html).not.toContain("Turning it down");
+  });
+
+  test("a declined confirmation offers no re-decline button", async () => {
+    const { html } = await renderAnswered("declined");
+    expect(html).not.toContain('id="decline"');
+    expect(html).toContain('<div class="upload-block">');
+  });
+
+  test("the ask's caption is Mike's line, which leans on the mint rule", async () => {
+    // "Your card has no art!" is true for every card an upload-only ask can
+    // reach ONLY because munger/ccg/portraits-approved/README.md forbids
+    // minting a new ask for a player with a standing panel. The page cannot
+    // check the ledger; the rule is what makes the sentence safe.
+    const { html } = await render2([EMPTY_ASK], WITH_CARD);
+    expect(html).toContain("Your card has no art!");
+    expect(html).not.toContain("your initial");
+  });
+
+  test("a missing hands count drops the stats line, not the card", async () => {
+    // Review finding, 2026-09-20: the card used to ride on statsFor, which
+    // returns null whenever a count it prints is not a finite number.
+    const NO_HANDS = { ...WITH_CARD, games: [{ ...WITH_CARD.games[0], hands: null }] };
+    const { html } = await render2([EMPTY_ASK], NO_HANDS);
+    expect(html).not.toContain("Those are the numbers on the card");
+    expect(html).toContain('src="/cards/2026-08/assets/card-2-genet.png"');
+  });
+
+  test("no card block in the data means no figure, not a broken image", async () => {
+    // Fails closed, the same way the stats line does: a card this page cannot
+    // source is a card it does not show.
+    const { res, html } = await render2([EMPTY_ASK], UPLOADS_ON);
+    expect(res.status).toBe(200);
+    expect(html).not.toContain("<figure");
+    expect(html).not.toContain("/cards/2026-08/assets/");
+    expect(html).not.toContain("undefined");
   });
 
   test("page with uploads off says nothing is staged, renders no upload block", async () => {
@@ -1265,7 +1488,7 @@ describe("upload-only asks: variants []", () => {
     expect(res.status).toBe(200);
     expect(html).not.toContain('<div class="upload-block">');
     expect(html).toContain("Nothing is staged");
-    expect(html).toContain('id="decline"');
+    expect(html).not.toContain('id="decline"');
   });
 
   test("an expired upload-only ask still 404s", async () => {

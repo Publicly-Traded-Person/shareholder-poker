@@ -242,6 +242,54 @@ chart of it.
 Card copy is judgment; it does not automate. Render per
 `munger/ccg/launch-aug-2026/ASSETS.md`, add `site/cards/<YYYY-MM>/`.
 
+### The copy budget, and the check that enforces it
+
+**Run `node munger/ccg/check-clip.mjs <sheet.html>` before rendering a set, and
+again after any copy edit.** It exits non-zero and names the card when any
+field is cut off. Do not render past a failure.
+
+This is a gate because the failure is silent. Set 3 (minted 2026-09-08)
+shipped with two counters clamped mid-sentence, cards 1 and 3; card 1 read
+`"...he bets"` plus an ellipsis, with `"without it."` deleted. A clamped card
+looks finished. Josh Berezin caught it reading his own card three days later,
+not anyone reviewing the set; it was fixed on 2026-09-20.
+
+The budget each field holds, at the pinned render settings, **on the Set 3
+sheet (`seven-deuce-cards.html`) and whatever is copied from it.** The Set 1
+and Set 2 sheets still clamp the counter at 2 lines / ~90 characters; their
+shipped copy fits, and they are frozen, so edit them only with the gate.
+
+| field | holds | notes |
+|---|---|---|
+| `.counter p` | ~135 chars (3 lines at 12.5px) | 2 lines / ~90 on the Set 1 and Set 2 sheets |
+| `.sig` | ~120 chars (2 lines at 13.5px) | the longest shipped is 113 - little room |
+| `.arch` | 2 lines | short type lines only |
+| `.name` | the handle, one line | overflows sideways, not down |
+
+Character counts are a guide for writing; the check is the authority, because
+where a line breaks depends on the glyphs. **If copy must grow past its budget,
+raise that field's `-webkit-line-clamp` and its `min-height` together.** Those
+`min-height`s are the only thing holding every card in a set to the same
+height, so raising the clamp alone grows the long cards and leaves the set
+ragged.
+
+### Re-rendering a set that already shipped
+
+⚠️ **The committed sheet renders `Portrait · TK` placeholders. The live cards
+carry real portraits.** Approved panels are attached at render time by the
+throwaway-sheet patch in `munger/ccg/stage-candidates.sh`, which is never
+committed back into the sheet. A plain re-render of a shipped set therefore
+strips every consented self-portrait off it, and the result looks plausible.
+
+When re-rendering a set that is already live, **carry the art over rather than
+re-deriving it**: crop each card's art window straight out of the live PNG and
+attach that as the panel. Three of Set 3's nine panels were re-tinted onto a
+different metal's ramp, and a crop cannot get that wrong where a fresh tint
+can. Verify before committing - art-region RMSE against the live file should
+land at 0.001 or below on a portrait card. A placeholder card measures about
+0.003 on any re-render, which is this Chrome's gradient noise and the floor for
+"unchanged".
+
 Building the set page: copy the NEWEST set page (`site/cards/2026-07/` today)
 into the new directory and swap its content. Five of its choices are
 deliberate design rules, not accidents of the July page, so keep them:
@@ -399,6 +447,63 @@ committing.
 
 Card portraits ship only with the player's yes, given on a private page that
 shows their actual card. Charlie stages the images; the tool does the rest.
+
+### The pages and the email: one job each (Mike's standard, 2026-09-20)
+
+This is the format. It was set by Mike on 2026-09-20 after a player who had
+been emailed three times said of the old page: "I can't preview it or see
+it. It's just kind of an idea and it's asking me to upload an image." It
+binds whoever runs the next set, Charlie or Nova, and the tests enforce the
+parts a test can reach. **The measure is decisions, not words**: every
+sentence a player must weigh before acting, and every button, is load.
+
+**Three pages, one job each.** The player sees exactly one of these:
+
+| page | when | what is on it, and nothing else |
+|---|---|---|
+| ask | nothing staged | *That is your card from the &lt;Month&gt; set.* / *You can now upload a photo!* / their real card / *Your card has no art!* / *Select "Choose File" and upload an image. Some people use a photo, but it can be anything!* / the file control (zoom + drag composer appears once a file is chosen; button **Use this image**) |
+| pick | crops staged | *Pick the one you like!* / the card / Crop A, Crop B / **Use this one** |
+| done | approved | *Your image is in!* / their real card with the panel drawn in / *Your card will be updated soon.* |
+
+The copy above is Mike's, verbatim (For Review, 2026-09-20). **Do not
+rewrite it, tidy it, or add to it.** A change to any line goes to Mike as a
+`.txt` in `~/Desktop/For Review/` first, then into
+`functions/portrait/[token].js` AND `tools/portrait-lib.test.ts` together.
+
+**What is not on any page, on purpose:**
+
+- No decline button, anywhere. Not uploading is the no. A `declined` row in
+  D1 renders as the ask.
+- No stats line, no "on every card of yours from here on" sentence, no fine
+  print, no privacy sentence. The standing rule and the device-privacy
+  promise are still true and still enforced by code; they live in this
+  runbook and in the email, not on the page.
+- No "change your mind" section, no re-approve, no upload on any page but
+  the ask. A player who wants a change tells Mike.
+- Nothing is lime. Lime is the RSVP CTA only.
+
+**The done page shows the full card.** After an upload the server holds only
+the 620x236 panel, so the page draws it into the player's card in their
+browser at the slot recorded in `games.json`. That is why minting a set has
+one more step (below) and why the data suite fails a card without one.
+
+**The email that carries the link is the same shape.** Mike sends it, in his
+words. It shows the card and says one thing:
+
+> Made you a poker card. Want your face on it? [the card image, inline]
+> [the link]
+
+Inline the card PNG (`/cards/<set>/assets/<file>`, public once the set page
+is live); a plain-text Gmail draft turns the link into a google.com redirect
+string, so send HTML with a real anchor. Do not describe the card, list what
+we will not do with the photo, or explain the mechanics. Page 1 does the
+rest. Charlie drafts unsent; Mike decides and sends (the standing division).
+
+**Minting a set, the extra step.** After rendering the cards, from munger's
+`ccg/`: `node measure-art.mjs <sheet.html>` prints one `[x, y, w, h]` per
+card in sheet order (= card number). Put each into that result's
+`card.art` in `games.json`. `bun test tools` refuses a card block without
+it. Run `node check-clip.mjs <sheet.html>` first, as § Cards says.
 
 ### One-time setup (first set only)
 

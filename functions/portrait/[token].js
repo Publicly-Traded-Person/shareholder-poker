@@ -41,8 +41,9 @@ const notFound = () =>
 const isCount = (n) => typeof n === "number" && Number.isFinite(n);
 
 // Pulls the player's real game line out of the committed public games.json.
-// Returns null when the set, the player, or any number the stats line prints
-// is missing; the page then simply omits that line. Never invent a number
+// The page prints only the player's name from it now (the stats line went on
+// 2026-09-20, one page one job); the count checks stay so a half-filled row
+// still reads as "not there" rather than as data. Never invent a number
 // (repo invariant), which on this page is also the whole point: it exists to
 // earn one person's trust, so a number it cannot source it does not show.
 //
@@ -66,6 +67,36 @@ function statsFor(data, setSlug, handle) {
     hands: game.hands,
     date: game.date,
   };
+}
+
+// The card that already prints for this player, named by the data rather than
+// derived from finish and handle: a guessed filename is a broken image on the
+// one page that has to earn a player's trust. Separate from statsFor on
+// purpose: statsFor returns null when any COUNT it prints is not a finite
+// number, and a missing hands count must drop the stats line, not the card.
+// Null when the set, the player, or the card block is missing. Safe to show:
+// `cardSet` only appears on a game after that set's page exists
+// (docs/publishing.md, pinned by the data suite), so a result reachable here
+// is art that is already public. Rendered as an <img>, never a link, so the
+// page still leads nowhere (spec s7).
+function cardFileFor(data, setSlug, handle) {
+  const game = (data.games || []).find((g) => g.cardSet === setSlug);
+  const result = game && (game.results || []).find((r) => r.handle === handle);
+  const file = result && result.card && result.card.file;
+  return typeof file === "string" && file.length > 0 ? file : null;
+}
+
+// The art slot's rectangle on that card, [x, y, w, h] in the PNG's pixels,
+// recorded in games.json when the set is minted (munger/ccg/measure-art.mjs).
+// It is what lets the page draw an uploaded panel INTO the real card rather
+// than show the panel on its own. Null unless all four are finite numbers;
+// the page then falls back to the bare panel, which is honest if worse.
+function cardArtFor(data, setSlug, handle) {
+  const game = (data.games || []).find((g) => g.cardSet === setSlug);
+  const result = game && (game.results || []).find((r) => r.handle === handle);
+  const art = result && result.card && result.card.art;
+  return Array.isArray(art) && art.length === 4 && art.every((n) => typeof n === "number" && Number.isFinite(n))
+    ? art : null;
 }
 
 // Renders the consent page for one ask.
@@ -96,11 +127,15 @@ export async function onRequestGet({ request, params, env }) {
   const current = latestAnswer(answerRows);
 
   let stats = null;
+  let cardFile = null;
+  let cardArt = null;
   let uploadsOn = false;
   try {
     const res = await env.ASSETS.fetch(new URL("/data/games.json", request.url));
     const data = await res.json();
     stats = statsFor(data, ask.set_slug, ask.handle);
+    cardFile = cardFileFor(data, ask.set_slug, ask.handle);
+    cardArt = cardArtFor(data, ask.set_slug, ask.handle);
     // Fail CLOSED: any read failure leaves uploads off. The block simply
     // does not render; a capability URL never narrates its own config.
     uploadsOn = data.portraitUploads === true;
@@ -121,18 +156,14 @@ export async function onRequestGet({ request, params, env }) {
   // an upload the reload comes back through the hasArt path with `self` in
   // the list, so this branch is only ever the BEFORE state.
   const hasArt = variants.length > 0;
-  // With one crop there is nothing to pick: the intro asks for approval
-  // instead, and no confirmation names a crop letter the player was never
-  // shown (Charlie's copy pass, PR #21). `self` counts toward the total: a
-  // staged crop plus the player's own photo is a real choice.
   const manyCrops = variants.length > 1;
-  const chooseLine = manyCrops
-    ? "Pick the crop you like best, or turn the photo down."
-    : "Approve it, or turn the photo down.";
-  const selected = hasArt
-    ? (current && current.answer === "approved" && variants.includes(current.variant)
-        ? current.variant : variants[0])
-    : null;
+  // The only answer that changes the page is an approval of something that
+  // is actually in the list. A decline is not a state the page shows any
+  // more (Mike, 2026-09-20: "there should be no decline!!! that's not a
+  // choice they need to make"); a player who never uploads has said no.
+  const approved = current !== null && current.answer === "approved"
+    && hasArt && variants.includes(current.variant);
+  const selected = hasArt ? (approved ? current.variant : variants[0]) : null;
   const img = (v) => `/api/portrait/${token}/img/${v}`;
 
   // Display rule (spec s4): the staged crops are whole cards, `self` is the
@@ -141,48 +172,34 @@ export async function onRequestGet({ request, params, env }) {
   // make truthfully.
   const isPanel = selected === "self";
 
-  // The `variants.length < 2` guard stays: a lone staged crop shows no picker
-  // at all. Once `self` arrives the length is 2 and the picker appears on its
-  // own. `self` is the player's own photo, not a crop someone staged for
-  // them, so it is labeled as theirs.
-  const pickerRow = variants.length < 2 ? "" : `
+  // One page, one job (Mike, 2026-09-20). Three jobs exist:
+  //   ask      nothing staged: here is your card, upload an image
+  //   pick     crops staged: pick one
+  //   done     approved: your image is in, the card updates soon
+  // Nothing else renders. No stats, no standing-rule line, no fine print, no
+  // decline, no change-your-mind section. What is not on the page is not a
+  // decision the player has to make.
+  const pickerRow = approved || variants.length < 2 ? "" : `
       <div class="picker" role="group" aria-label="Crop options">
         ${variants.map((v) => `<button type="button" class="btn-secondary variant-pick"
           data-variant="${v}" aria-pressed="${v === selected}">${v === "self" ? "Your photo" : `Crop ${v.toUpperCase()}`}</button>`).join("\n        ")}
       </div>`;
 
-  const statsLine = stats === null ? "" : `
-      <p class="stat">${escapeHtml(stats.date)}: finished ${ordinal(stats.finish)} of ${stats.entrants}, ${stats.hands} hands. Those are the numbers on the card.</p>`;
-
-  // Self-aware wording (redirect, 2026-08-28): `self` is the player's OWN
-  // photo, not a crop someone staged for them, so the approval line says so
-  // in photo terms. Staged variants keep the original crop wording.
-  // The unanswered line says the yes is standing (Mike's rule, 2026-09-09):
-  // one approval puts the image on every card of theirs from then on, and a
-  // player has to know that before they answer, not after.
-  const stateLine =
-    current === null
-      ? `Say yes and your photo goes on this card and on every card of yours from here on. No answer means it stays the monogram.`
-      : current.answer === "approved"
-        ? current.variant === "self"
-          ? `You approved your photo on ${escapeHtml(current.answeredAt.slice(0, 10))}. You can change this any time before the set prints.`
-          : manyCrops
-            ? `You approved crop ${escapeHtml(String(current.variant).toUpperCase())} on ${escapeHtml(current.answeredAt.slice(0, 10))}. You can change this any time before the set prints.`
-            : `You approved the photo on ${escapeHtml(current.answeredAt.slice(0, 10))}. You can change this any time before the set prints.`
-        : `You turned the photo down on ${escapeHtml(current.answeredAt.slice(0, 10))}. You can change this any time before the set prints.`;
-
-  // Renders nothing at all when uploads are not configured for this ask. The
-  // page never explains why the block is absent (spec s4): a capability URL
-  // should not narrate its own configuration to whoever is holding it.
-  const uploadBlock = !canUpload ? "" : `
+  const uploadLead = "Select \"Choose File\" and upload an image. Some people use a photo, but it can be anything!";
+  // The upload block belongs to the ask only: a page with staged crops has
+  // one job, and an approved page has none. When uploads are not configured
+  // it renders nothing and the page never says why (spec s4): a capability
+  // URL should not narrate its own configuration to whoever is holding it.
+  const showUpload = canUpload && !hasArt;
+  const uploadBlock = !showUpload ? "" : `
   <div class="upload-block">
-    <p class="fine">Or use a different photo. It never leaves your device; only the finished dithered panel is sent, and only if you approve it.</p>
+    <p class="fine">${uploadLead}</p>
     <input type="file" id="photo-in" accept="image/*">
     <div id="composer" hidden>
       <canvas id="preview" width="620" height="236"></canvas>
       <label class="fine">Zoom <input type="range" id="zoom" min="0.05" max="4" step="0.01"></label>
       <p class="fine">Drag the picture to frame it. The face reads best on the left.</p>
-      <button type="button" id="use-photo" class="btn-secondary">Use this photo</button>
+      <button type="button" id="use-photo" class="btn-secondary">Use this image</button>
     </div>
   </div>`;
 
@@ -192,7 +209,7 @@ export async function onRequestGet({ request, params, env }) {
   // 620x236 panel. Reloading on success is deliberate: the reloaded page shows
   // the server's truth (self selected, approved state), which is simpler and
   // more honest than mirroring that state client-side.
-  const uploadScript = !canUpload ? "" : `
+  const uploadScript = !showUpload ? "" : `
 <script type="module">
   import { composePanel } from "/portrait-dither.js";
   const metal = ${JSON.stringify(ask.metal)};
@@ -270,25 +287,89 @@ export async function onRequestGet({ request, params, env }) {
   // exists, and when uploads are off it says something neutral rather than
   // rendering a dead end; "nothing is staged" is true in every configuration
   // that reaches it, so the line narrates the ask, not the config (spec s4).
-  const intro = hasArt
-    ? `<p>Your table card for the ${setName} set is below, exactly as it would print,
-  with your photo on it. ${chooseLine}
-  Nothing ships until you say so.</p>`
-    : canUpload
-      ? `<p>Your table card for the ${setName} set currently carries your monogram.
-  Add your own photo below and the card prints with your face on it, or leave
-  it exactly as it is. Nothing ships until you say so.</p>`
-      : `<p>Your table card for the ${setName} set currently carries your monogram.
-  Nothing is staged for you to approve right now. If you were expecting to add
-  a photo here, tell Mike.</p>`;
+  // The card the player already has. Before this, a player with nothing staged
+  // got a page headed "Your card" that showed no card. The set's own design
+  // says the card is the pitch.
+  const cardUrl = cardFile
+    ? `/cards/${encodeURIComponent(ask.set_slug)}/assets/${encodeURIComponent(cardFile)}`
+    : null;
+  const monogramCard = !hasArt ? cardUrl : null;
+  // The full card with the player's own panel drawn in (Mike, 2026-09-20:
+  // "what happened to the FULL CARD?"). Only `self` needs it: staged crops
+  // are already whole cards. Drawn in the browser from two public images,
+  // the card PNG and the panel, at the slot recorded in games.json. Without
+  // a card or a rectangle the page shows the bare panel, as before.
+  const composite = isPanel && cardUrl && cardArt ? { card: cardUrl, art: cardArt } : null;
 
-  const figureBlock = !hasArt ? "" : `<figure class="card-shot${isPanel ? " card-shot--panel" : ""}"><img id="card-img" src="${img(selected)}" alt="Your ${setName} player card"><figcaption id="panel-note" class="fine"${isPanel ? "" : " hidden"}>Your art panel; the printed card carries it in the art slot.</figcaption></figure>`;
+  // Copy in Mike's register (For Review, 2026-09-20): one short line per job.
+  const intro = approved
+    ? `<p>Your image is in!</p>`
+    : hasArt
+      ? (manyCrops ? `<p>Pick the one you like!</p>` : `<p>Your photo, on your card!</p>`)
+      : canUpload
+        ? (monogramCard
+          ? `<p>That is your card from the ${setName} set.</p>
+  <p>You can now upload a photo!</p>`
+          : `<p>You can now upload a photo to your ${setName} card!</p>`)
+        : `<p>Nothing is staged on your ${setName} card right now. If you were
+  expecting to add a photo here, tell Mike.</p>`;
 
-  // No approve button without art: approving nothing is not a thing, and the
-  // POST endpoint would reject it anyway (variant must be in the list).
-  const approveButton = !hasArt ? "" : `<button type="button" id="approve" class="btn-secondary">Use this one</button>
-    `;
-  const declineLabel = hasArt ? "None of these" : "Keep the monogram";
+  // "Your card has no art!" is Mike's line. It is true for every card an
+  // upload-only ask can reach only because the mint rule forbids a new ask
+  // for a player with a standing panel (munger/ccg/portraits-approved/
+  // README.md); the page cannot check the ledger itself.
+  const caption = approved
+    ? "Your card will be updated soon."
+    : isPanel ? "Your photo, as it goes on the card." : "";
+  const figureBlock = !hasArt
+    ? (monogramCard
+      ? `<figure class="card-shot"><img src="${monogramCard}" alt="Your ${setName} player card, with no art yet"><figcaption class="fine">Your card has no art!</figcaption></figure>`
+      : "")
+    : composite
+      // A canvas the size of the card, painted by the script below. The <img>
+      // keeps its id so the crop-swap script is unchanged, and stays as the
+      // fallback if either image fails to load.
+      ? `<figure class="card-shot"><canvas id="card-composite" style="display:none"></canvas><img id="card-img" src="${img(selected)}" alt="Your ${setName} player card">${caption ? `<figcaption class="fine">${caption}</figcaption>` : ""}</figure>`
+      : `<figure class="card-shot${isPanel ? " card-shot--panel" : ""}"><img id="card-img" src="${img(selected)}" alt="Your ${setName} player card">${caption ? `<figcaption class="fine">${caption}</figcaption>` : ""}</figure>`;
+
+  // Paints the player's panel into their real card. Both images are same-
+  // origin, so the canvas stays clean. The panel is 620x236 and the slot is
+  // narrower (object-fit: cover on the sheet), so it is centred and cropped
+  // the same way the sheet does it. If anything fails to load the <img> is
+  // left showing and the canvas never appears.
+  const compositeScript = !composite ? "" : `
+<script>
+  (function () {
+    var c = document.getElementById("card-composite");
+    var i = document.getElementById("card-img");
+    var art = ${JSON.stringify(composite.art)};
+    var card = new Image(), panel = new Image();
+    var left = 2;
+    function done() {
+      if (--left) return;
+      c.width = card.naturalWidth; c.height = card.naturalHeight;
+      var ctx = c.getContext("2d");
+      ctx.drawImage(card, 0, 0);
+      var x = art[0], y = art[1], w = art[2], h = art[3];
+      var s = Math.max(w / panel.naturalWidth, h / panel.naturalHeight);
+      var pw = panel.naturalWidth * s, ph = panel.naturalHeight * s;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+      ctx.drawImage(panel, x + (w - pw) / 2, y + (h - ph) / 2, pw, ph);
+      ctx.restore();
+      c.style.display = "block"; i.style.display = "none";
+    }
+    card.onload = done; panel.onload = done;
+    card.src = ${JSON.stringify(composite.card)};
+    panel.src = i.src;
+  })();
+</script>`;
+
+  // One button, on the pick page only. Approving nothing is not a thing, and
+  // an approved page has nothing left to press.
+  const approveButton = hasArt && !approved
+    ? `<div class="actions"><button type="button" id="approve" class="btn-secondary">Use this one</button></div>`
+    : "";
 
   const html = `<!doctype html>
 <html lang="en">
@@ -302,7 +383,7 @@ export async function onRequestGet({ request, params, env }) {
   /* Page-scoped layout only; palette and buttons come from /styles.css. */
   .portrait-page { max-width: 40rem; margin: 0 auto; }
   .portrait-page .card-shot { margin: 1.5rem 0; }
-  .portrait-page .card-shot img { display: block; width: min(100%, 22rem); margin: 0 auto; border-radius: 12px; }
+  .portrait-page .card-shot img, .portrait-page .card-shot canvas { display: block; width: min(100%, 22rem); margin: 0 auto; border-radius: 12px; }
   /* The panel is 620x236 art, not a 22rem-wide card, so it fills the column.
      Scoped under .portrait-page so it OUTWEIGHS the card rule above; the
      bare .card-shot--panel img selector would lose on specificity and the
@@ -327,14 +408,10 @@ export async function onRequestGet({ request, params, env }) {
   ${intro}
   ${figureBlock}
   ${pickerRow}
-  ${statsLine}
-  <div class="actions">
-    ${approveButton}<button type="button" id="decline" class="btn-secondary">${declineLabel}</button>
-  </div>
-  <p class="state" id="state">${stateLine}</p>
-  <p class="fine">Turning it down keeps the monogram card you already have. The photo stays out and the card stays yours.</p>
+  ${approveButton}
   ${uploadBlock}
-  <noscript><p class="fine">This page needs JavaScript to record your answer. Tell Mike directly instead; that works too.</p></noscript>
+  <p class="state" id="state"></p>
+  ${approved ? "" : `<noscript><p class="fine">This page needs JavaScript to record your answer. Tell Mike directly instead; that works too.</p></noscript>`}
 </main>
 <script>
   var selected = ${JSON.stringify(selected)};
@@ -349,36 +426,23 @@ export async function onRequestGet({ request, params, env }) {
       });
     });
   });
-  function send(payload, doneText) {
+  // Null-guarded: only the pick page renders the button. On success the page
+  // reloads into the done state, the server's truth, the same way the upload
+  // path does.
+  var approveBtn = document.getElementById("approve");
+  if (approveBtn) approveBtn.addEventListener("click", function () {
     fetch("/api/portrait/${token}", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ answer: "approved", variant: selected }),
     }).then(function (r) {
-      state.textContent = r.ok ? doneText : "That did not go through. Try again, or just tell Mike.";
+      if (r.ok) { location.reload(); return; }
+      state.textContent = "That did not go through. Try again, or just tell Mike.";
     }).catch(function () {
       state.textContent = "That did not go through. Try again, or just tell Mike.";
     });
-  }
-  // Null-guarded: an upload-only ask renders no approve button at all
-  // (nothing is staged to approve until an upload appends "self").
-  var approveBtn = document.getElementById("approve");
-  if (approveBtn) approveBtn.addEventListener("click", function () {
-    // Same self-vs-crop wording split as the server-rendered state line:
-    // a self-upload confirms as a photo, never a crop, without waiting on
-    // the page reload to say so correctly.
-    var doneText = selected === "self"
-      ? "Approved, your photo. You can change this any time before the set prints."
-      : ${manyCrops
-        ? `"Approved, crop " + selected.toUpperCase() + ". You can change this any time before the set prints."`
-        : `"Approved. You can change this any time before the set prints."`};
-    send({ answer: "approved", variant: selected }, doneText);
   });
-  document.getElementById("decline").addEventListener("click", function () {
-    send({ answer: "declined" },
-      "Noted, the photo stays out. You can change this any time before the set prints.");
-  });
-</script>${uploadScript}
+</script>${compositeScript}${uploadScript}
 </body>
 </html>`;
   return new Response(html, { status: 200, headers: HEADERS });

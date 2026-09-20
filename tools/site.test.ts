@@ -595,6 +595,30 @@ function fileSetsMatch(a: string[], b: string[]): boolean {
   return sa.length === sb.length && sa.every((f, i) => f === sb[i]);
 }
 
+describe("every card block records where its art slot is", () => {
+  // The portrait consent page draws a player's uploaded panel into their
+  // real card at this rectangle (functions/portrait/[token].js). A card
+  // without one falls back to showing the bare panel, which is the page a
+  // player called "just kind of an idea". Measured per sheet with
+  // munger/ccg/measure-art.mjs; four finite pixel numbers, inside the card.
+  const data = JSON.parse(readFileSync("site/data/games.json", "utf8"));
+  for (const g of data.games) {
+    if (!g.cardSet) continue;
+    for (const r of g.results) {
+      if (!r.card) continue;
+      test(`${g.cardSet} ${r.card.file} has art [x, y, w, h]`, () => {
+        expect(Array.isArray(r.card.art)).toBe(true);
+        expect(r.card.art).toHaveLength(4);
+        for (const n of r.card.art) expect(Number.isFinite(n)).toBe(true);
+        const [x, y, w, h] = r.card.art;
+        expect(x).toBeGreaterThan(0); expect(y).toBeGreaterThan(0);
+        expect(w).toBeGreaterThan(100); expect(h).toBeGreaterThan(50);
+        expect(x + w).toBeLessThan(700); // the card is 676 wide
+      });
+    }
+  }
+});
+
 describe("the file-set comparison used below can actually fail (#27, Task 10)", () => {
   test("a page present on one side but not the other is caught", () => {
     const committed = ["kmikeym/index.html", "chris-g/index.html"];
