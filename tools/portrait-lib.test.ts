@@ -1386,13 +1386,14 @@ describe("upload-only asks: variants []", () => {
     expect(html).toContain('var art = [36,205,604,232];');
     expect(html).toContain('card.src = "/cards/2026-08/assets/card-2-genet.png";');
     expect(html).toContain(`id="card-img" src="/api/portrait/${TOKEN}/img/self"`);
-    expect(html).not.toContain("card-shot--panel");
+    // The figure, not the page: the stylesheet always names the panel class.
+    expect(html).not.toContain('<figure class="card-shot card-shot--panel">');
   });
 
   test("without an art rect the done page falls back to the bare panel", async () => {
     const { html } = await renderAnswered("approved");
     expect(html).not.toContain("card-composite");
-    expect(html).toContain("card-shot--panel");
+    expect(html).toContain('<figure class="card-shot card-shot--panel">');
   });
 
   test("the done page has nothing to press", async () => {
