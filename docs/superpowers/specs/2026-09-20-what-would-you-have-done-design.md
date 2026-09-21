@@ -34,7 +34,7 @@ the cards do.
 | ranking (*review*) | the first attempt ranks; replays are allowed, recorded, never ranked | the hand is deterministic, so replaying is a search for the ceiling; "each person's first attempt is what is logged, but they are allowed to play again" |
 | the unknowns (*review*) | authored, and every page says so | "we have to guess or it's not fun"; the disclosure sentence is in section 3 |
 | cheating (*review*) | not designed against in v1 | small audience playing honestly; a fake name to scout then a real name to win is a problem for later, if it happens |
-| display names (*review*) | resolve through the roster, as RSVP does | a regular shows as their handle; the same helper, `resolveDisplay` |
+| display names (*review*, amended *build* 2026-09-21) | what the player typed wins; their roster handle is the fallback when they type nothing | the review's rule cloned RSVP's `resolveDisplay`, where the handle beats the typed name. Playing the live puzzle Mike typed "Mike" and the board showed "kmikeym". An RSVP list answers "who is coming" and the handle is how the room knows each other; this is a field labelled Display name on a leaderboard, and a field that ignores what you put in it is a lie. The endpoint has its own `displayNameFor`; RSVP's helper is untouched |
 
 ## 3. Two constraints from the source material
 
