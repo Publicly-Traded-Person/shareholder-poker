@@ -197,3 +197,5 @@
 {"kind":"handshake:absent","task":"2","producer":"4","id":"01M317NQ6G0000SW0ZTK4YNRXY","ts":1789969226960}
 {"kind":"handshake:absent","task":"2","producer":"7","id":"01M317NQ7K000015CDBWFWZM1G","ts":1789969226995}
 {"kind":"worker:start","label":"impl:2","role":"implementer","sessionId":"f2261177-01b1-440a-b92a-5a6653a6b248","cwd":"/home/exedev/target/.claude/ultrapowers/run-run-1/clones/task-2","model":"opus","id":"01M317NQ8J000012H3XBJRGMDC","ts":1789969227026}
+{"kind":"engine:log","line":"jev: task 2: note: no answers","id":"01M317QHZH0000RJWF7SFG6VG6","ts":1789969287153}
+{"kind":"jev:note","task":"2","role":"impl","actor":"impl:2@run-1","commentUid":"01M317QD560S17WYXASY11FS10","eventId":777,"chars":729,"read":false,"sentence":"Task 2 approach: docs-only change in three files. (1) docs/publishing.md gains '## The weekly puzzle' modeled on the existing numbered-step runbook sections, placed after '## Portrait consent' block a","id":"01M317QHZH0001WBHB0TWV8BFR","ts":1789969287153}
