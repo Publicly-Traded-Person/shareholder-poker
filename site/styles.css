@@ -930,9 +930,32 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
 .wwyhd-field input:focus-visible { outline: 3px solid var(--sapphire); outline-offset: 2px; }
 .wwyhd-field--go { flex: 0 0 auto; }
 .wwyhd-sit-error { flex-basis: 100%; margin: 0; min-height: 1.2em; }
+/* The action bar: size presets and the amount box in a small row above,
+   three big equal buttons below. The commit button (Bet / Raise to) is the
+   filled one; Fold and Check or Call are outlines. Never lime. */
 .wwyhd-controls { display: grid; gap: .5rem; }
-.wwyhd-buttons, .wwyhd-sizer { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
-.wwyhd-amount { font: inherit; width: 6.5rem; padding: .45em .6em; border: 1px solid var(--line); border-radius: 8px; }
+.wwyhd-actions { display: grid; gap: .5rem; }
+.wwyhd-presets { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.wwyhd-preset {
+  font: inherit; font-size: .8rem; padding: .3em .8em; border-radius: 999px;
+  background: var(--parchment); color: var(--ink); border: 1px solid var(--line); cursor: pointer;
+}
+.wwyhd-preset:hover { border-color: var(--sapphire); color: var(--sapphire); }
+.wwyhd-amount {
+  font: inherit; font-size: .9rem; width: 6.5rem; padding: .3em .6em; margin-left: auto;
+  border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink);
+}
+.wwyhd-main { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: .5rem; }
+.wwyhd-main--two { grid-template-columns: 1fr 1fr; }
+.wwyhd-act {
+  font: inherit; font-weight: 700; padding: .85em .5em; border-radius: 10px; cursor: pointer;
+  background: #fff; color: var(--ink); border: 1.5px solid var(--ink); min-height: 3rem;
+}
+.wwyhd-act:hover { border-color: var(--sapphire); color: var(--sapphire); }
+.wwyhd-act--fold { color: var(--muted-ink); border-color: var(--line); }
+.wwyhd-act--go { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.wwyhd-act--go:hover { background: var(--sapphire); border-color: var(--sapphire); color: #fff; }
+.wwyhd-act:focus-visible, .wwyhd-preset:focus-visible { outline: 3px solid var(--sapphire); outline-offset: 2px; }
 .wwyhd-history { margin: .75rem 0 0; font-size: .85rem; }
 .wwyhd-history summary { cursor: pointer; color: var(--muted-ink); }
 .wwyhd-log { margin: .4rem 0 0; padding-left: 1.2em; }
