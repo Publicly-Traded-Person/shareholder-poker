@@ -206,6 +206,48 @@ describe("set page invariants (2026-07)", () => {
     expect(html).toContain('<a href="/cards/" aria-current="page">'));
 });
 
+// /cards/how-to-read/: what every number and mark on a card means (Mike,
+// 2026-09-20: "We probably need a page that explains VPIP, AF, LED, and the
+// other stats"). Definitions mirror munger's src/stats.ts and
+// build-chip-race.ts, which compute them; no number on the page is typed in.
+describe("how to read a card", () => {
+  const html = readPage(
+    new URL("../site/cards/how-to-read/index.html", import.meta.url).pathname
+  );
+  test("defines the six stats on the card", () => {
+    for (const k of ["VPIP", "AF", "LED", "All-in", "Peak", "Rebuys"]) expect(html).toContain(`<dt>${k} `);
+  });
+  test("LED is the share of hands started with the biggest stack, per table", () => {
+    expect(html).toContain("biggest stack at their table");
+    expect(html).toContain("hands started with the biggest stack at the table / hands dealt in");
+  });
+  test("AF is bets plus raises over calls", () =>
+    expect(html).toContain("(bets + raises) / calls"));
+  test("VPIP excludes the blinds", () =>
+    expect(html).toContain("Blinds do not count"));
+  test("copy rules: no em dashes, no experiment, no hand-typed stat values", () => {
+    expect(html).not.toContain("\u2014");
+    expect(html).not.toMatch(/experiment/i);
+    // The only digits on the page are in URLs and the set slug of the example card.
+    const body = html.slice(html.indexOf("<body>")).replace(/<[^>]+>/g, "");
+    expect(body).not.toMatch(/\d+%/);
+  });
+  test("chrome: favicon, Cards current in the nav, bands alternate", () => {
+    expect(html).toContain('href="/favicon.svg"');
+    expect(html).toContain('<a href="/cards/" aria-current="page">');
+    const bands = [...html.matchAll(/class="band-(light|dark)"/g)].map((m) => m[1]);
+    for (let i = 1; i < bands.length; i++) expect(bands[i]).not.toBe(bands[i - 1]);
+  });
+  test("the cards index and every set page link to it", () => {
+    const index = readPage(new URL("../site/cards/index.html", import.meta.url).pathname);
+    expect(index).toContain('href="/cards/how-to-read/"');
+    for (const set of ["2026-07", "2026-08", "2026-09"]) {
+      const page = readPage(new URL(`../site/cards/${set}/index.html`, import.meta.url).pathname);
+      expect(page).toContain('href="/cards/how-to-read/"');
+    }
+  });
+});
+
 // Task 6: /cards/ becomes a set gallery (six Set 1 thumbnails + a drawn
 // "in production" card back for Set 2) instead of a plain bullet list.
 describe("cards index gallery", () => {
