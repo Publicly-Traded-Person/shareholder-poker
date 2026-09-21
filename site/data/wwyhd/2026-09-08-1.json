@@ -1,0 +1,274 @@
+{
+  "id": "2026-09-08-1",
+  "game": "2026-09-08",
+  "handNo": 39,
+  "title": "Seven-deuce against the aces",
+  "setup": "Table 1, hand 39, blinds 100/200, seven-handed. Drew is in the cutoff with the shortest stack at the table, and everyone limps.",
+  "seat": "MoHDI_Drew",
+  "blinds": {
+    "sb": 100,
+    "bb": 200,
+    "ante": 0
+  },
+  "dealer": "bg",
+  "players": [
+    {
+      "handle": "U_perfection",
+      "stack": 3850,
+      "cards": [
+        "Jd",
+        "6c"
+      ],
+      "shown": false,
+      "profile": {
+        "vpip": 32,
+        "af": 0.39,
+        "allInRate": 0.04,
+        "foldToRaise": 43,
+        "callDown": 100
+      }
+    },
+    {
+      "handle": "chrishiggins",
+      "stack": 5880,
+      "cards": [
+        "Ah",
+        "Ac"
+      ],
+      "shown": true,
+      "profile": {
+        "vpip": 30,
+        "af": 0.84,
+        "allInRate": 0.01,
+        "foldToRaise": 48,
+        "callDown": 67
+      }
+    },
+    {
+      "handle": "MoHDI_Drew",
+      "stack": 1835,
+      "cards": [
+        "7c",
+        "2d"
+      ],
+      "shown": true,
+      "profile": null
+    },
+    {
+      "handle": "bg",
+      "stack": 5785,
+      "cards": [
+        "8d",
+        "8c"
+      ],
+      "shown": false,
+      "profile": {
+        "vpip": 42,
+        "af": 0.49,
+        "allInRate": 0.07,
+        "foldToRaise": 55,
+        "callDown": 32
+      }
+    },
+    {
+      "handle": "kmikeym",
+      "stack": 6808,
+      "cards": [
+        "Ad",
+        "5d"
+      ],
+      "shown": false,
+      "profile": {
+        "vpip": 27,
+        "af": 1.35,
+        "allInRate": 0.11,
+        "foldToRaise": 48,
+        "callDown": 38
+      }
+    },
+    {
+      "handle": "LEWD",
+      "stack": 5850,
+      "cards": [
+        "Qd",
+        "Tc"
+      ],
+      "shown": false,
+      "profile": {
+        "vpip": 26,
+        "af": 0.84,
+        "allInRate": 0.05,
+        "foldToRaise": 64,
+        "callDown": 25
+      }
+    },
+    {
+      "handle": "amaxwell",
+      "stack": 9992,
+      "cards": [
+        "9d",
+        "4c"
+      ],
+      "shown": false,
+      "profile": {
+        "vpip": 18,
+        "af": 0.41,
+        "allInRate": 0.05,
+        "foldToRaise": 58,
+        "callDown": 80
+      }
+    }
+  ],
+  "board": [
+    "Qs",
+    "3s",
+    "7s",
+    "Js",
+    "2h"
+  ],
+  "real": {
+    "actions": [
+      {
+        "street": "PRE",
+        "handle": "amaxwell",
+        "type": "fold",
+        "amount": 0
+      },
+      {
+        "street": "PRE",
+        "handle": "U_perfection",
+        "type": "fold",
+        "amount": 0
+      },
+      {
+        "street": "PRE",
+        "handle": "chrishiggins",
+        "type": "call",
+        "amount": 0
+      },
+      {
+        "street": "PRE",
+        "handle": "MoHDI_Drew",
+        "type": "call",
+        "amount": 0
+      },
+      {
+        "street": "PRE",
+        "handle": "bg",
+        "type": "call",
+        "amount": 0
+      },
+      {
+        "street": "PRE",
+        "handle": "kmikeym",
+        "type": "call",
+        "amount": 0
+      },
+      {
+        "street": "PRE",
+        "handle": "LEWD",
+        "type": "check",
+        "amount": 0
+      },
+      {
+        "street": "FLOP",
+        "handle": "kmikeym",
+        "type": "check",
+        "amount": 0
+      },
+      {
+        "street": "FLOP",
+        "handle": "LEWD",
+        "type": "check",
+        "amount": 0
+      },
+      {
+        "street": "FLOP",
+        "handle": "chrishiggins",
+        "type": "bet",
+        "amount": 200
+      },
+      {
+        "street": "FLOP",
+        "handle": "MoHDI_Drew",
+        "type": "call",
+        "amount": 0
+      },
+      {
+        "street": "FLOP",
+        "handle": "bg",
+        "type": "fold",
+        "amount": 0
+      },
+      {
+        "street": "FLOP",
+        "handle": "kmikeym",
+        "type": "fold",
+        "amount": 0
+      },
+      {
+        "street": "FLOP",
+        "handle": "LEWD",
+        "type": "call",
+        "amount": 0
+      },
+      {
+        "street": "TURN",
+        "handle": "LEWD",
+        "type": "check",
+        "amount": 0
+      },
+      {
+        "street": "TURN",
+        "handle": "chrishiggins",
+        "type": "check",
+        "amount": 0
+      },
+      {
+        "street": "TURN",
+        "handle": "MoHDI_Drew",
+        "type": "check",
+        "amount": 0
+      },
+      {
+        "street": "RIVER",
+        "handle": "LEWD",
+        "type": "check",
+        "amount": 0
+      },
+      {
+        "street": "RIVER",
+        "handle": "chrishiggins",
+        "type": "bet",
+        "amount": 200
+      },
+      {
+        "street": "RIVER",
+        "handle": "MoHDI_Drew",
+        "type": "call",
+        "amount": 0
+      },
+      {
+        "street": "RIVER",
+        "handle": "LEWD",
+        "type": "fold",
+        "amount": 0
+      }
+    ],
+    "result": "Drew called Chris down with seven-deuce, two pair on the river, and took a 2,000 pot from pocket aces. Drew left the hand with 3,235 chips; Chris with 5,280.",
+    "seatChips": 3235,
+    "endStacks": {
+      "U_perfection": 3850,
+      "chrishiggins": 5280,
+      "MoHDI_Drew": 3235,
+      "bg": 5585,
+      "kmikeym": 6608,
+      "LEWD": 5450,
+      "amaxwell": 9992
+    }
+  },
+  "startChips": 1835,
+  "profileThrough": "2026-09-08",
+  "opens": "2026-09-23",
+  "closes": "2026-09-30"
+}
