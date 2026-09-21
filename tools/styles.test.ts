@@ -254,3 +254,30 @@ describe("site/styles.css: the coin frame and figure (Task 5, #48, M3)", () => {
     expect(broken["overflow"]).toBeUndefined();
   });
 });
+
+// Anything the controller hides with the `hidden` attribute must actually
+// disappear. A class rule that sets `display` outranks the browser's own
+// `[hidden] { display: none }`, so a block styled that way stays on screen
+// when JavaScript sets `hidden` (Mike, 2026-09-21: the email and display name
+// fields stayed up while the hand played). Every `.wwyhd-*` rule that sets a
+// display therefore needs a matching `[hidden]` rule that turns it off.
+describe("the puzzle page's hideable blocks can actually be hidden", () => {
+  const HIDEABLE = [".wwyhd-sit", ".wwyhd-controls", ".wwyhd-cue"];
+  const css = stripComments(readFileSync(CSS_PATH, "utf8"));
+  const all = rules(css);
+
+  for (const cls of HIDEABLE) {
+    test(`${cls} is hidden by the hidden attribute`, () => {
+      const setsDisplay = all.some(
+        (r) => r.selector.split(",").some((s) => s.trim() === cls) && /(^|[;{\s])display\s*:/.test(r.body)
+      );
+      if (!setsDisplay) return; // the browser's own rule is enough
+      const guarded = all.some(
+        (r) =>
+          r.selector.split(",").some((s) => s.trim() === `${cls}[hidden]`) &&
+          /display\s*:\s*none/.test(r.body)
+      );
+      expect(guarded, `${cls} sets display, so it needs a ${cls}[hidden] rule with display:none`).toBe(true);
+    });
+  }
+});
