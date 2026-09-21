@@ -374,6 +374,7 @@ function boot() {
   const line = [];
   let state = null;
   let pending = false;
+  let folded = false;
 
   // One state in, one repaint out. Everything that changes the hand ends
   // here, so there is exactly one description of what the page shows.
@@ -384,6 +385,15 @@ function boot() {
     paintPot(state);
     if (isHandOver(state)) {
       fill(controls, el("p", "stat", "The hand is over."));
+      finish();
+      return;
+    }
+    // Once the visitor folds, nothing that follows can change their chips,
+    // and watching the others play it out is not the puzzle (Mike,
+    // 2026-09-21). The page stops here and goes to the reveal; the server
+    // replays the same line to the same chips.
+    if (folded) {
+      fill(controls, el("p", "stat", "You folded."));
       finish();
       return;
     }
@@ -404,6 +414,7 @@ function boot() {
   function take(action) {
     line.push({ street: state.street, type: action.type, amount: action.amount || 0 });
     state = applyAction(state, action);
+    if (action.type === "fold") folded = true;
     paint();
   }
 
