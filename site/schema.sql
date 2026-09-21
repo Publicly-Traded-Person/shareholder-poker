@@ -20,6 +20,56 @@ CREATE TABLE IF NOT EXISTS roster (
   slug   TEXT NOT NULL
 );
 
+-- "What Would You Have Done?" results (spec section 4.5, the Function at
+-- functions/api/wwyhd.js). APPEND-ONLY: one row per submit, never an upsert.
+-- A visitor who plays a puzzle twice gets two rows, and only the first ranks,
+-- so a replay can be shown back to them without ever overwriting the attempt
+-- the leaderboard is built from.
+--
+-- These rows hold email addresses and NEVER enter git, the same boundary the
+-- rsvps table above carries: the database lives in D1, and the GET on this
+-- endpoint returns display names only (spec section 3).
+--
+-- KEEP THIS TABLE ABOVE THE PORTRAIT TABLES, and do not name them in this
+-- comment. The portrait consent guard (tools/portrait-schema.test.ts) slices
+-- this file from the first mention of the first portrait table to the end and
+-- refuses on an `email` column anywhere in that slice, because an email home
+-- beside a consent token would be a second door through the boundary. Anything
+-- below that line that legitimately holds an email would trip a check that is
+-- about the portrait tables and says nothing about this one.
+CREATE TABLE IF NOT EXISTS wwyhd_results (
+  hand_id      TEXT NOT NULL,      -- the hand file's id, 'YYYY-MM-DD-<n>', which
+                                   -- is also site/data/wwyhd/<hand_id>.json
+  email        TEXT NOT NULL,      -- lowercased before storage, as rsvps does, so
+                                   -- the same person is one person across attempts
+  attempt      INTEGER NOT NULL,   -- 1 for the first submit, then 2, 3, ...
+                                   -- assigned by the Function as
+                                   -- 1 + COALESCE(MAX(attempt), 0) for this pair
+  display_name TEXT NOT NULL,      -- what the leaderboard shows: the roster handle
+                                   -- for a known email, otherwise what they typed,
+                                   -- cleaned. NEVER the email (privacy boundary)
+  line         TEXT NOT NULL,      -- JSON list of {street,type,amount}: the seat's
+                                   -- own actions, kept so an attempt can be replayed
+  decisions    TEXT NOT NULL,      -- JSON list of {key,type} from the engine's
+                                   -- playSeat. The reveal page's "what everyone else
+                                   -- did here" figures are aggregated from this
+                                   -- column and from nothing else
+  chips        INTEGER NOT NULL,   -- the SERVER's replay of `line`, never the
+                                   -- client's number. A body that carries its own
+                                   -- chips changes nothing; that is the anti-cheat
+  ranked       INTEGER NOT NULL,   -- 1 when this row counts for the leaderboard and
+                                   -- the share-of-visitors figures, 0 when it does
+                                   -- not. 1 only for attempt 1 submitted on or
+                                   -- before the hand file's `closes` date, which is
+                                   -- the only source of truth for when a puzzle
+                                   -- stops ranking (spec 4.1). Stored rather than
+                                   -- derived at read time because `closes` can be
+                                   -- edited after the fact and a result that ranked
+                                   -- when it was played must keep ranking
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (hand_id, email, attempt)  -- one row per attempt per email per hand
+);
+
 -- Portrait consent (spec docs/superpowers/specs/2026-08-26-portrait-consent-pages-design.md).
 -- One ask per player per set. Created by tools/portrait-asks.ts, never by hand.
 CREATE TABLE IF NOT EXISTS portrait_asks (

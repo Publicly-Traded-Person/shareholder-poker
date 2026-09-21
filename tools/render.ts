@@ -11,6 +11,7 @@ import {
   BOUNTY_NAMES, validateArchive, type ArchiveData, type ArchiveSeason, type ArchiveGame,
   type ArchiveEntry, type ArchivePodiumEntry, type ArchiveBounty,
 } from "./lib/archive";
+import { loadHandFiles, type HandFile } from "./lib/wwyhd";
 
 // HTML-escapes a string for use in text content OR inside a double-quoted
 // attribute. Takes any string; returns it with & < > and " replaced by their
@@ -1906,6 +1907,250 @@ ${holdersSection(data)}`;
   );
 }
 
+// ---------------------------------------------------------------------------
+// "What would you have done?" (spec 2026-09-20 §4.4). One puzzle page per
+// committed hand file under site/data/wwyhd/, plus the index that lists
+// them. Everything under site/wwyhd/ is generated: the drift check compares
+// that whole directory tree, which is why the browser controller lives at
+// site/wwyhd.js and its modules at site/wwyhd-*.js, one level up and outside
+// the compared root.
+//
+// Three states live on this one page, one job each (repo CLAUDE.md, "Player
+// facing pages have one job each"; the portrait pages are the model): sit
+// down, play, reveal. Only the first is rendered here as content. The other
+// two are skeletons the controller fills from the embedded hand file,
+// because what they say depends on what the visitor does, and a generator
+// that guessed would be printing a hand nobody played.
+
+// The disclosure every puzzle page carries, verbatim, and the one sentence
+// that explains scoring. Both are the owner's own copy (plan Global
+// Constraints; spec §4.4): quote them, never re-word them. They are
+// constants rather than typed into the template so the hand page and any
+// later page that owes the same sentence cannot say it two ways.
+const WWYHD_DISCLOSURE =
+  "This is a simulation. The cards shown at showdown are the real ones. " +
+  "Everything else was filled in with what we judged likely.";
+const WWYHD_FIRST_GO =
+  "Your first go is the one that counts. Play again as often as you like.";
+
+// The one card notation, matched here exactly as tools/lib/wwyhd.ts and
+// site/wwyhd-engine.js spell it: two characters, rank then suit. Used only
+// to find card strings inside the embedded JSON, below.
+const WWYHD_CARD = /"([23456789TJQKA])([shdc])"/g;
+
+/**
+ * A real player's name for a hand file handle.
+ *
+ * Takes the games data and one handle as a hand file spells it. Returns the
+ * `First L.` name of the player whose `aka` list claims that handle, matched
+ * case-insensitively the same way tools/lib/slugs.ts resolves a log handle,
+ * and the handle itself when the record knows no such player. Throws
+ * nothing.
+ *
+ * Why it falls back instead of halting: validateHandFile has already refused
+ * every unknown handle by the time a file reaches this renderer (see its own
+ * comment, "never invent a player"), so the fallback is unreachable through
+ * the publish flow. It exists so a synthetic hand in an exam renders as
+ * something readable rather than crashing a page test over a fixture detail.
+ */
+function wwyhdName(data: GamesData, handle: string): string {
+  const wanted = handle.toLowerCase();
+  const player = data.players.find((p) => (p.aka ?? []).some((a) => a.toLowerCase() === wanted));
+  return player?.name ?? handle;
+}
+
+/**
+ * The handle-to-name map the page embeds beside the hand file, as JSON text
+ * for a `<script type="application/json" id="names">` element: one entry per
+ * seat in the hand, each the player's First L. name from games.json (the site's
+ * name rule) through wwyhdName above. The controller (site/wwyhd.js) reads it
+ * so the action log, the pot line and the reveal name people the way the seat
+ * list already does, instead of falling back to bare handles. `<`, `>` and `&`
+ * are written as unicode escapes for the same reason wwyhdHandJson escapes
+ * them: nothing in a name may close the script element early. Throws nothing.
+ */
+function wwyhdNamesJson(data: GamesData, hand: HandFile): string {
+  const map: Record<string, string> = {};
+  for (const player of hand.players) map[player.handle] = wwyhdName(data, player.handle);
+  return JSON.stringify(map).replace(/[<>&]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
+}
+
+/**
+ * The hand file as the page carries it, ready to sit inside a
+ * `<script type="application/json">` element.
+ *
+ * Takes the validated hand file. Returns JSON text that parses back to that
+ * exact object, with two classes of character written as `\uXXXX` escapes:
+ * `<`, `>` and `&`, so nothing in a hand file's own copy can close the
+ * script element early, and every card string, so no holding but the
+ * visitor's own appears as text anywhere in the document. Throws nothing.
+ *
+ * Why the cards are escaped. The controller needs the WHOLE file, opponents'
+ * holdings included: it deals the hand in the browser and settles a
+ * showdown, and it cannot do either from a redacted file. But the sit-down
+ * page must show what a player at the table can see and nothing else, and a
+ * page whose text carries `Kd` beside a face-down seat is showing it. The
+ * escape is not secrecy (the parsed object holds the same cards, and the
+ * reveal prints them), it is the difference between a card being IN the page
+ * and being ON it. An escape is value-preserving by definition, so the exam
+ * that parses this element back and compares it with the hand still gets the
+ * hand.
+ */
+function wwyhdHandJson(hand: HandFile): string {
+  return JSON.stringify(hand)
+    .replace(WWYHD_CARD, (_all, rank: string, suit: string) =>
+      `"${rank}\\u${suit.charCodeAt(0).toString(16).padStart(4, "0")}"`)
+    .replace(/[<>&]/g, (ch) => `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`);
+}
+
+/** One seat at the table, in the hand file's own clockwise order. The
+ *  visitor's seat shows its two cards as text; every other seat shows two
+ *  backs. `data-handle` and `data-stack` are the controller's handles on the
+ *  row: it repaints stacks as the hand goes and turns the seat to act. */
+function wwyhdSeat(data: GamesData, hand: HandFile, player: HandFile["players"][number]): string {
+  const you = player.handle === hand.seat;
+  const cards = you
+    ? player.cards.map((c) => `<span class="wwyhd-card">${esc(c)}</span>`).join("")
+    : '<span class="wwyhd-card wwyhd-card--down">two face down</span>';
+  const youMark = you ? ' <span class="eyebrow">You</span>' : "";
+  return `        <li class="wwyhd-seat${you ? " wwyhd-seat--you" : ""}" data-handle="${esc(player.handle)}">
+          <p class="wwyhd-who">${esc(wwyhdName(data, player.handle))} <span class="stat">${esc(player.handle)}</span>${youMark}</p>
+          <p class="stat wwyhd-stack" data-stack="${esc(player.handle)}">${player.stack} chips</p>
+          <p class="wwyhd-hole">${cards}</p>
+        </li>`;
+}
+
+/**
+ * One puzzle page in full (M1, M2, M3).
+ *
+ * Takes the games data (for the `First L.` name beside each handle) and one
+ * validated hand file. Returns the whole document: the sit-down state as
+ * content, the play and reveal states as empty skeletons the controller
+ * fills, the hand file embedded as `<script type="application/json"
+ * id="hand">`, and `<script type="module" src="/wwyhd.js">` to drive it.
+ * Throws nothing.
+ *
+ * Band tones run light, dark, light from a band-dark masthead and close on a
+ * band-dark footer, so no two adjacent bands share a tone (docs/brand.md).
+ * `navCurrent` is the empty string for the same reason the archive page's is
+ * (see renderArchive): a puzzle is not one of nav()'s four sections and has
+ * no natural closest one to borrow, so it highlights none.
+ *
+ * The two buttons on this page are `btn-secondary`. Lime, and so
+ * `btn-primary`, belongs to the one RSVP call to action per page and this
+ * page has none.
+ */
+export function renderWwyhdHand(data: GamesData, hand: HandFile): string {
+  const seats = hand.players.map((p) => wwyhdSeat(data, hand, p)).join("\n");
+  const ante = hand.blinds.ante > 0 ? `, ${hand.blinds.ante} ante` : "";
+
+  const body = `
+<section class="band-light">
+  <div class="band-inner">
+    <p class="eyebrow">What would you have done?</p>
+    <h1 class="display">${esc(hand.title)}</h1>
+    <p>${esc(hand.setup)}</p>
+    <p class="stat">Blinds ${hand.blinds.sb}/${hand.blinds.bb}${ante}. You are ${esc(wwyhdName(data, hand.seat))}, playing as ${esc(hand.seat)}.</p>
+    <div class="wwyhd-table">
+      <ol class="wwyhd-seats">
+${seats}
+      </ol>
+    </div>
+    <form class="wwyhd-sit" id="wwyhd-sit">
+      <p class="wwyhd-field">
+        <label for="wwyhd-email">Email</label>
+        <input id="wwyhd-email" name="email" type="email" autocomplete="email" required>
+      </p>
+      <p class="wwyhd-field">
+        <label for="wwyhd-name">Display name</label>
+        <input id="wwyhd-name" name="displayName" type="text" autocomplete="nickname">
+      </p>
+      <p class="wwyhd-field">
+        <button class="btn-secondary" id="wwyhd-deal" type="submit">Deal</button>
+      </p>
+      <p class="stat" id="wwyhd-sit-error" role="alert"></p>
+    </form>
+    <p class="stat">${WWYHD_FIRST_GO}</p>
+    <p class="stat">${WWYHD_DISCLOSURE}</p>
+  </div>
+</section>
+<section class="band-dark" id="wwyhd-play" hidden>
+  <div class="band-inner">
+    <h2 class="display">The hand</h2>
+    <p class="stat" id="wwyhd-pot"></p>
+    <p class="wwyhd-board" id="wwyhd-board"></p>
+    <ol class="wwyhd-log" id="wwyhd-log"></ol>
+    <div class="wwyhd-controls" id="wwyhd-controls"></div>
+  </div>
+</section>
+<section class="band-light" id="wwyhd-reveal" hidden>
+  <div class="band-inner">
+    <h2 class="display" id="wwyhd-score"></h2>
+    <div id="wwyhd-reveal-body"></div>
+    <p class="stat">${WWYHD_DISCLOSURE}</p>
+  </div>
+</section>
+<script type="application/json" id="hand">${wwyhdHandJson(hand)}</script>
+<script type="application/json" id="names">${wwyhdNamesJson(data, hand)}</script>
+<script type="module" src="/wwyhd.js"></script>`;
+
+  return page(
+    hand.title, body, "band-dark", `/wwyhd/${hand.id}/`,
+    `${hand.setup} Play the hand, then see what really happened.`,
+    { navCurrent: "" }
+  );
+}
+
+/**
+ * The puzzle index (M4).
+ *
+ * Takes the games data and the hand files. Returns the whole document: every
+ * puzzle newest first by its `opens` date, ties broken by id so two renders
+ * of the same tree order them identically, each row carrying the puzzle's
+ * title as a link to `/wwyhd/<id>/` and the date of the game the hand came
+ * from, with the newest row marked as this week's. Throws nothing; an empty
+ * list renders the page with no rows, which no caller asks for (the main
+ * block below skips both writes when there are no hands).
+ *
+ * Nothing on this page is derived from today's date or from the leaderboard.
+ * The drift check regenerates every committed page and compares bytes, so a
+ * renderer that read a clock would fail the suite on the day after it ran,
+ * and one that named a winner would fail it the next time somebody played.
+ * `data` is taken for symmetry with renderWwyhdHand and for the version of
+ * this page that names a winner; v1 reads nothing from it.
+ */
+export function renderWwyhdIndex(data: GamesData, hands: HandFile[]): string {
+  void data;
+  const ordered = [...hands].sort((a, b) => b.opens.localeCompare(a.opens) || a.id.localeCompare(b.id));
+  const rows = ordered.map((hand, i) => {
+    const eyebrow = i === 0 ? `\n      <p class="eyebrow">This week</p>` : "";
+    return `    <li class="wwyhd-row${i === 0 ? " wwyhd-row--current" : ""}">${eyebrow}
+      <p class="wwyhd-row-title"><a href="/wwyhd/${esc(hand.id)}/">${esc(hand.title)}</a></p>
+      <p class="stat">From the game on ${esc(hand.game)}</p>
+    </li>`;
+  }).join("\n");
+
+  const body = `
+<section class="band-light">
+  <div class="band-inner">
+    <h1 class="display">What would you have done?</h1>
+    <p>One hand from the record, dealt to you from the seat somebody really sat in. Play it out, then see what they did.</p>
+    <ol class="wwyhd-list">
+${rows}
+    </ol>
+    <p class="stat">${WWYHD_FIRST_GO}</p>
+    <p class="stat">${WWYHD_DISCLOSURE}</p>
+  </div>
+</section>
+<script type="module" src="/wwyhd.js"></script>`;
+
+  return page(
+    "What would you have done?", body, "band-dark", "/wwyhd/",
+    "Play a hand from the K5M Shareholder Poker record, then see what really happened.",
+    { navCurrent: "" }
+  );
+}
+
 // The entry point: `bun tools/render.ts`, run from the repo root (see the
 // header comment at the top of this file). Reads site/data/games.json
 // relative to the process's own working directory - deliberately, not an
@@ -1920,6 +2165,14 @@ ${holdersSection(data)}`;
 // playerSlugs() returns, then site/hope-coin/index.html. `Bun.write` creates
 // any parent directories that do not exist yet, so there is no separate
 // mkdir step for site/player/<slug>/ the first time a slug is added.
+//
+// The puzzle pages under site/wwyhd/ are written only when there is at
+// least one hand file to write them from. loadHandFiles returns [] for a
+// site/data/wwyhd/ that does not exist, which is the state the day this
+// feature lands, and an empty list must leave NOTHING behind: the drift
+// check compares the committed site/wwyhd/ tree with the generated one, and
+// an index page listing no puzzles would be a committed page the generator
+// only writes when it feels like it.
 //
 // Render never DELETES a page. There is deliberately no step here that
 // looks at what is already on disk under site/player/ and removes anything
@@ -1946,6 +2199,10 @@ if (import.meta.main) {
   const data = JSON.parse(await Bun.file("site/data/games.json").text()) as GamesData;
   const archive = JSON.parse(await Bun.file("site/data/archive.json").text()) as ArchiveData;
   validateArchive(archive, data);
+  // Read and validated before any write, for the same reason validateArchive
+  // is: loadHandFiles throws on a hand file the record cannot back, and a
+  // bad puzzle must halt the run before a single page moves.
+  const hands = loadHandFiles("site/data/wwyhd", data);
   await Bun.write("site/standings/index.html", renderStandings(data));
   await Bun.write("site/games/index.html", renderGamesIndex(data));
   await Bun.write("site/next-game.ics", renderNextGameIcs(data));
@@ -1955,9 +2212,15 @@ if (import.meta.main) {
   }
   await Bun.write("site/hope-coin/index.html", renderHopeCoin(data));
   await Bun.write("site/archive/index.html", renderArchive(archive));
+  if (hands.length > 0) {
+    await Bun.write("site/wwyhd/index.html", renderWwyhdIndex(data, hands));
+    for (const hand of hands) {
+      await Bun.write(`site/wwyhd/${hand.id}/index.html`, renderWwyhdHand(data, hand));
+    }
+  }
   console.log(
     `rendered site/standings/index.html, site/games/index.html, site/next-game.ics, ` +
     `${slugs.length} player page(s) under site/player/, site/hope-coin/index.html, ` +
-    `site/archive/index.html`
+    `site/archive/index.html, ${hands.length} puzzle page(s) under site/wwyhd/`
   );
 }

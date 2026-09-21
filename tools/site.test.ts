@@ -13,6 +13,7 @@ import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import type { CardRef, GamesData } from "./lib/standings";
 import type { ArchiveData } from "./lib/archive";
+import { seedRenderInputs } from "./lib/render-inputs";
 import { playerSlugs } from "./render";
 
 // Recursively lists every committed .html file under site/.
@@ -678,9 +679,16 @@ describe("the file-set comparison used below can actually fail (#27, Task 10)", 
 describe("the generator, run into an empty directory, produces exactly what's committed (#27, Task 10, M1)", () => {
   let tempRoot: string;
 
-  // Renders into a directory that starts completely empty apart from a
-  // copied site/data/games.json and site/data/archive.json (the renderer's
-  // two inputs, #39) - `mkdtempSync` guarantees the directory it hands back
+  // Renders into a directory that starts completely empty apart from the
+  // renderer's own inputs, seeded by seedRenderInputs (tools/lib/
+  // render-inputs.ts): site/data/games.json and site/data/archive.json
+  // (#39), plus site/data/wwyhd/'s hand files once there are any. That
+  // seeding lives in its own module rather than as copy lines here because
+  // the input list is a fact about the generator, not about this test: the
+  // day the first puzzle is committed, a seed that still copied two files
+  // by hand would render no puzzle pages and report the committed ones as
+  // drift, which is the opposite of what this block is for.
+  // `mkdtempSync` guarantees the directory it hands back
   // did not exist a moment ago, so two `bun test tools` runs in flight on
   // the same machine can never share a path. tools/render.ts is spawned as
   // its OWN process (matching the real `bun tools/render.ts` Charlie runs),
@@ -693,9 +701,7 @@ describe("the generator, run into an empty directory, produces exactly what's co
   // so this does not depend on PATH resolution inside the child process.
   beforeAll(() => {
     tempRoot = mkdtempSync(join(tmpdir(), "poker-render-drift-"));
-    mkdirSync(join(tempRoot, "site", "data"), { recursive: true });
-    copyFileSync(join(SITE, "data", "games.json"), join(tempRoot, "site", "data", "games.json"));
-    copyFileSync(join(SITE, "data", "archive.json"), join(tempRoot, "site", "data", "archive.json"));
+    seedRenderInputs(tempRoot, SITE);
     const renderTs = join(SITE, "..", "tools", "render.ts");
     execFileSync(process.execPath, [renderTs], { cwd: tempRoot, stdio: "pipe" });
   });
@@ -715,7 +721,14 @@ describe("the generator, run into an empty directory, produces exactly what's co
   // no-op for this root (the archive page has no assets/ directory of its
   // own to skip) but is left in the loop rather than special-cased away, so
   // adding an assets/ directory here later needs no test change either.
-  for (const sub of ["player", "hope-coin", "archive"] as const) {
+  //
+  // "wwyhd" added by Task 7 (#70): site/wwyhd/ holds the weekly puzzle's
+  // index and one directory per hand, all of it generated. At BASE neither
+  // the committed nor the generated side has anything in it, so this pair
+  // of checks compares nothing and passes; from the first committed puzzle
+  // onward it is what catches a hand-edited puzzle page, and what would
+  // have caught a seed that never handed the renderer its hand files.
+  for (const sub of ["player", "hope-coin", "archive", "wwyhd"] as const) {
     test(`site/${sub}/: the generated file set matches the committed one`, () => {
       const committedRoot = join(SITE, sub);
       const generatedRoot = join(tempRoot, "site", sub);
@@ -808,7 +821,7 @@ describe("a malformed archive.json halts the run before anything is written (#39
     expect(result.stderr).toContain(BAD_GAME_DATE);
   });
 
-  // None of the six paths render.ts owns exist in the copy afterwards - not
+  // None of the seven paths render.ts owns exist in the copy afterwards - not
   // just the archive page, but the five that have nothing to do with the
   // archive either. This is what actually proves validation ran BEFORE any
   // write, not merely before the archive write: a renderer that validated
@@ -832,13 +845,14 @@ describe("a malformed archive.json halts the run before anything is written (#39
 describe("running the real renderer leaves the generated paths clean (#27, Task 10, M2)", () => {
   // This is docs/publishing.md's "pre-merge drift check", finally an actual
   // test rather than a step Charlie has to remember to run by hand: it
-  // regenerates the six paths render.ts owns (the archive page joined the
-  // other five in Task 5, #39), in place, against the real committed
-  // site/data/games.json and site/data/archive.json, then asks git whether
+  // regenerates the seven paths render.ts owns (the archive page joined the
+  // other five in Task 5, #39; the puzzle tree in Task 7, #70), in place,
+  // against the real committed site/data/games.json, site/data/archive.json
+  // and site/data/wwyhd/, then asks git whether
   // anything moved. Unlike the M1 block above, this exercises the REAL
   // site/ tree - it is what would catch a hand-edit to a generated page, or
   // a data change whose regeneration got skipped before commit.
-  test("git status --porcelain reports no change under the six generated paths", () => {
+  test("git status --porcelain reports no change under the seven generated paths", () => {
     const repoRoot = join(SITE, "..");
     const renderTs = join(repoRoot, "tools", "render.ts");
     const watched = [
@@ -848,6 +862,13 @@ describe("running the real renderer leaves the generated paths clean (#27, Task 
       "site/player/",
       "site/hope-coin/",
       "site/archive/",
+      // No trailing slash, unlike its neighbours: git prints a "could not
+      // open directory" warning for a pathspec ending in one when the
+      // directory does not exist yet, which is site/wwyhd/'s state until the
+      // first puzzle is committed. Without the slash the pathspec still
+      // matches that directory and everything under it, and still does not
+      // match site/wwyhd.js, which is a sibling file and not generated.
+      "site/wwyhd",
     ];
 
     // GUARD - DO NOT REMOVE (round 1 review, coordinator ruling: silent data
@@ -860,7 +881,7 @@ describe("running the real renderer leaves the generated paths clean (#27, Task 
     // prove the committed bytes agree with the generator (M2). But
     // `Bun.write` has no concept of "something was already sitting here
     // that I should not clobber": it just overwrites. If Charlie has an
-    // UNCOMMITTED hand-edit to any of the six watched paths when he runs
+    // UNCOMMITTED hand-edit to any of the seven watched paths when he runs
     // `bun test tools` - for some completely unrelated reason, a month from
     // now, at night, having not written this file - this test would
     // silently regenerate over that edit, destroy it, and then report

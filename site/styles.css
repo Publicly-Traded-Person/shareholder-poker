@@ -808,3 +808,90 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
    structure on this page, never a rarity metal (a year boundary is not a
    signal, it is a ruler mark). */
 .strip-tick-line { stroke: var(--pewter-deep); stroke-width: 1; }
+
+/* "What would you have done?" (Task 7, #70, spec section 4.4): the puzzle
+   table, the action controls, and the reveal. Generated pages under
+   site/wwyhd/ reach for these names; the controller at site/wwyhd.js adds
+   the two state classes (.wwyhd-seat--acting, .wwyhd-differs) as the hand
+   goes.
+
+   Nothing below reaches for the lime custom property. The one primary call
+   to action on this site is RSVP's, and a puzzle page has none, which is
+   why every button here is .btn-secondary (docs/brand.md, "Lime is
+   quarantined"). */
+
+/* The table: one card per seat, wrapping to a single column on a phone. */
+.wwyhd-table { margin: 1.25rem 0; }
+.wwyhd-seats {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: .75rem; grid-template-columns: 1fr;
+}
+@media (min-width: 640px) { .wwyhd-seats { grid-template-columns: 1fr 1fr; } }
+.wwyhd-seat {
+  background: var(--paper); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: .75em 1em;
+}
+.wwyhd-seat p { margin: 0 0 .2em; }
+.wwyhd-seat p:last-child { margin-bottom: 0; }
+/* The visitor's own seat, and the seat the action is on. Sapphire, never a
+   rarity metal: whose turn it is is structure, not a placing. */
+.wwyhd-seat--you { border-color: var(--sapphire); }
+.wwyhd-seat--acting { box-shadow: inset 3px 0 0 var(--sapphire); }
+.wwyhd-who { font-weight: 700; }
+.wwyhd-who .stat { font-weight: 400; }
+
+/* One card, in the two-character notation the whole feature uses. Monospace
+   so a board of five lines up as a set, the same reason .stat is. */
+.wwyhd-card {
+  display: inline-block; margin-right: .3em; padding: .15em .5em;
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  border: 1px solid var(--line); border-radius: 6px; background: #fff;
+}
+/* A holding the visitor cannot see. Parchment and muted, so it reads as an
+   absence rather than as a card with a strange rank on it. */
+.wwyhd-card--down {
+  background: var(--parchment); color: var(--muted-ink); border-style: dashed;
+}
+
+/* The sit-down form: the two fields and Deal. Stacked, full width on a
+   phone, which is where the Discord link lands. */
+.wwyhd-sit { margin: 1.25rem 0; }
+.wwyhd-field { margin: 0 0 .75em; display: grid; gap: .25em; max-width: 24rem; }
+.wwyhd-field input {
+  font: inherit; padding: .6em .7em;
+  border: 1px solid var(--line); border-radius: var(--radius); background: #fff;
+}
+.wwyhd-field input:focus-visible { outline: 3px solid var(--sapphire); outline-offset: 2px; }
+
+/* Play: the board, the running action list, and the controls. */
+.wwyhd-board { margin: .5rem 0 1rem; }
+.wwyhd-log {
+  list-style: none; margin: 0 0 1rem; padding: 0;
+  max-height: 12rem; overflow-y: auto;
+}
+.wwyhd-controls { display: grid; gap: .6rem; }
+.wwyhd-buttons, .wwyhd-sizer { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.wwyhd-amount {
+  font: inherit; width: 7rem; padding: .5em .6em;
+  border: 1px solid var(--line); border-radius: var(--radius); background: #fff;
+}
+
+/* Reveal: the line comparison, the room's choices, the holdings. A street
+   the visitor played differently is marked with a copper rule down its left
+   edge, not with color on the text: the comparison is a difference, not a
+   mistake, and nothing on this page tells a visitor they were wrong. */
+.wwyhd-differs td:first-child { box-shadow: inset 3px 0 0 var(--copper-deep); }
+.wwyhd-choices, .wwyhd-holdings { list-style: none; margin: 0 0 1rem; padding: 0; }
+.wwyhd-choices li, .wwyhd-holdings li { margin: 0 0 .35em; }
+/* The visitor's own leaderboard row, always present under the top ten. */
+.wwyhd-you td { font-weight: 700; border-top: 2px solid var(--line); }
+
+/* The index: one row per puzzle, newest first, the newest marked. */
+.wwyhd-list { list-style: none; margin: 1.5rem 0; padding: 0; }
+.wwyhd-row {
+  padding: .9em 0; border-bottom: 1px solid var(--line);
+}
+.wwyhd-row:last-child { border-bottom: none; }
+.wwyhd-row p { margin: 0 0 .2em; }
+.wwyhd-row-title { font-weight: 700; font-size: 1.1em; }
+.wwyhd-row--current .wwyhd-row-title { font-size: 1.25em; }

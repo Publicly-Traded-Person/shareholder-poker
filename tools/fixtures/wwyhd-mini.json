@@ -1,0 +1,58 @@
+{
+  "id": "wwyhd-mini",
+  "game": "2026-09-08",
+  "handNo": 12,
+  "title": "Bob flops the set",
+  "setup": "Three handed at 100/200. Alice is on the button.",
+  "seat": "bob",
+  "blinds": { "sb": 100, "bb": 200, "ante": 0 },
+  "dealer": "alice",
+  "players": [
+    {
+      "handle": "alice",
+      "stack": 5000,
+      "cards": ["Ah", "Kd"],
+      "shown": true,
+      "profile": { "vpip": 34, "af": 2.2, "allInRate": 0.4, "foldToRaise": 42, "callDown": 55 }
+    },
+    {
+      "handle": "bob",
+      "stack": 5000,
+      "cards": ["Qs", "Qc"],
+      "shown": true,
+      "profile": null
+    },
+    {
+      "handle": "carol",
+      "stack": 5000,
+      "cards": ["7d", "6d"],
+      "shown": false,
+      "profile": { "vpip": 22, "af": 1.4, "allInRate": 0.2, "foldToRaise": 58, "callDown": 38 }
+    }
+  ],
+  "board": ["Qh", "8s", "3c", "2h", "5d"],
+  "real": {
+    "actions": [
+      { "street": "PRE", "handle": "alice", "type": "raise", "amount": 600 },
+      { "street": "PRE", "handle": "bob", "type": "call", "amount": 0 },
+      { "street": "PRE", "handle": "carol", "type": "call", "amount": 0 },
+      { "street": "FLOP", "handle": "bob", "type": "check", "amount": 0 },
+      { "street": "FLOP", "handle": "carol", "type": "check", "amount": 0 },
+      { "street": "FLOP", "handle": "alice", "type": "check", "amount": 0 },
+      { "street": "TURN", "handle": "bob", "type": "check", "amount": 0 },
+      { "street": "TURN", "handle": "carol", "type": "check", "amount": 0 },
+      { "street": "TURN", "handle": "alice", "type": "bet", "amount": 400 },
+      { "street": "TURN", "handle": "bob", "type": "call", "amount": 0 },
+      { "street": "TURN", "handle": "carol", "type": "fold", "amount": 0 },
+      { "street": "RIVER", "handle": "bob", "type": "check", "amount": 0 },
+      { "street": "RIVER", "handle": "alice", "type": "check", "amount": 0 }
+    ],
+    "result": "Bob's queens made a set on the flop and held to the river. Alice played ace king for one bet on the turn and finished the hand with 4,000. Carol got away from a live draw before it cost more.",
+    "seatChips": 6600,
+    "endStacks": { "alice": 4000, "bob": 6600, "carol": 4400 }
+  },
+  "startChips": 5000,
+  "profileThrough": "2026-09-08",
+  "opens": "2026-09-23",
+  "closes": "2026-09-30"
+}
