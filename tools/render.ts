@@ -2007,16 +2007,73 @@ function wwyhdHandJson(hand: HandFile): string {
  *  visitor's seat shows its two cards as text; every other seat shows two
  *  backs. `data-handle` and `data-stack` are the controller's handles on the
  *  row: it repaints stacks as the hand goes and turns the seat to act. */
-function wwyhdSeat(data: GamesData, hand: HandFile, player: HandFile["players"][number]): string {
+/**
+ * Where everybody sits and who acts when, derived from `dealer` and seat
+ * order alone (the same rule the engine uses to post the blinds): the dealer
+ * is the button, the next seat clockwise posts the small blind, the next the
+ * big blind, and heads-up the dealer posts the small blind. The seats after
+ * the big blind are tagged the way every trainer tags them: UTG, UTG+1, ...,
+ * then HJ and CO for the last two before the button. Returns one entry per
+ * player in PREFLOP ACTION ORDER (first to act first), each with its tag, the
+ * blind it posted, and its place on the oval: `x`/`y` in percent of the table
+ * box, the visitor's seat at the bottom center and the rest clockwise from
+ * there, because that is the one layout a poker player reads without a key.
+ * Throws nothing: an unknown dealer is refused by validateHandFile long before
+ * a file reaches here.
+ */
+type WwyhdSeatPlan = { player: HandFile["players"][number]; tag: string; posted: number; x: number; y: number };
+export function wwyhdSeatPlan(hand: HandFile): WwyhdSeatPlan[] {
+  const n = hand.players.length;
+  const dealerIndex = Math.max(0, hand.players.findIndex((p) => p.handle === hand.dealer));
+  const sbIndex = n === 2 ? dealerIndex : (dealerIndex + 1) % n;
+  const bbIndex = (sbIndex + 1) % n;
+  const tags: string[] = new Array(n).fill("");
+  tags[dealerIndex] = "BTN";
+  tags[sbIndex] = n === 2 ? "BTN/SB" : "SB";
+  tags[bbIndex] = "BB";
+  const rest: number[] = [];
+  for (let k = 1; k < n; k++) {
+    const i = (bbIndex + k) % n;
+    if (i === dealerIndex || i === sbIndex || i === bbIndex) continue;
+    rest.push(i);
+  }
+  rest.forEach((i, k) => {
+    const fromEnd = rest.length - 1 - k;
+    tags[i] = fromEnd === 0 ? "CO" : fromEnd === 1 ? "HJ" : k === 0 ? "UTG" : `UTG+${k}`;
+  });
+  const heroIndex = Math.max(0, hand.players.findIndex((p) => p.handle === hand.seat));
+  const firstToAct = n === 2 ? dealerIndex : (bbIndex + 1) % n;
+  const plan: WwyhdSeatPlan[] = [];
+  for (let k = 0; k < n; k++) {
+    const i = (firstToAct + k) % n;
+    const steps = (i - heroIndex + n) % n;                 // clockwise seats from the hero
+    const angle = Math.PI / 2 + (steps * 2 * Math.PI) / n; // hero at the bottom (y down)
+    plan.push({
+      player: hand.players[i],
+      tag: tags[i],
+      posted: i === sbIndex ? hand.blinds.sb : i === bbIndex ? hand.blinds.bb : 0,
+      x: Math.round(50 + 44 * Math.cos(angle)),
+      y: Math.round(50 + 42 * Math.sin(angle)),
+    });
+  }
+  return plan;
+}
+
+function wwyhdSeat(data: GamesData, hand: HandFile, seat: WwyhdSeatPlan): string {
+  const { player, tag, posted } = seat;
   const you = player.handle === hand.seat;
   const cards = you
     ? player.cards.map((c) => `<span class="wwyhd-card">${esc(c)}</span>`).join("")
     : '<span class="wwyhd-card wwyhd-card--down">two face down</span>';
   const youMark = you ? ' <span class="eyebrow">You</span>' : "";
-  return `        <li class="wwyhd-seat${you ? " wwyhd-seat--you" : ""}" data-handle="${esc(player.handle)}">
+  const button = player.handle === hand.dealer ? '<span class="wwyhd-button" title="Dealer">D</span>' : "";
+  const blind = posted > 0 ? `<span class="wwyhd-blind">${posted}</span>` : "";
+  return `        <li class="wwyhd-seat${you ? " wwyhd-seat--you" : ""}" data-handle="${esc(player.handle)}" style="--seat-x: ${seat.x}%; --seat-y: ${seat.y}%">
+          <p class="wwyhd-pos-line"><span class="wwyhd-pos">${esc(tag)}</span>${button}</p>
           <p class="wwyhd-who">${esc(wwyhdName(data, player.handle))} <span class="stat">${esc(player.handle)}</span>${youMark}</p>
           <p class="stat wwyhd-stack" data-stack="${esc(player.handle)}">${player.stack} chips</p>
           <p class="wwyhd-hole">${cards}</p>
+          <p class="wwyhd-front" data-bet="${esc(player.handle)}">${blind}</p>
         </li>`;
 }
 
@@ -2041,7 +2098,7 @@ function wwyhdSeat(data: GamesData, hand: HandFile, player: HandFile["players"][
  * page has none.
  */
 export function renderWwyhdHand(data: GamesData, hand: HandFile): string {
-  const seats = hand.players.map((p) => wwyhdSeat(data, hand, p)).join("\n");
+  const seats = wwyhdSeatPlan(hand).map((s) => wwyhdSeat(data, hand, s)).join("\n");
   const ante = hand.blinds.ante > 0 ? `, ${hand.blinds.ante} ante` : "";
 
   const body = `
@@ -2052,6 +2109,10 @@ export function renderWwyhdHand(data: GamesData, hand: HandFile): string {
     <p>${esc(hand.setup)}</p>
     <p class="stat">Blinds ${hand.blinds.sb}/${hand.blinds.bb}${ante}. You are ${esc(wwyhdName(data, hand.seat))}, playing as ${esc(hand.seat)}.</p>
     <div class="wwyhd-table">
+      <div class="wwyhd-felt">
+        <p class="stat wwyhd-center" id="wwyhd-pot">Blinds ${hand.blinds.sb}/${hand.blinds.bb}${ante}</p>
+        <p class="wwyhd-board" id="wwyhd-board"></p>
+      </div>
       <ol class="wwyhd-seats">
 ${seats}
       </ol>
@@ -2077,8 +2138,6 @@ ${seats}
 <section class="band-dark" id="wwyhd-play" hidden>
   <div class="band-inner">
     <h2 class="display">The hand</h2>
-    <p class="stat" id="wwyhd-pot"></p>
-    <p class="wwyhd-board" id="wwyhd-board"></p>
     <ol class="wwyhd-log" id="wwyhd-log"></ol>
     <div class="wwyhd-controls" id="wwyhd-controls"></div>
   </div>

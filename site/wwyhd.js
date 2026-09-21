@@ -260,7 +260,17 @@ function paintSeats(state) {
     const stack = document.querySelector(`[data-stack="${seat.handle}"]`);
     if (stack) stack.textContent = `${seat.stack} chips`;
     const row = document.querySelector(`[data-handle="${seat.handle}"]`);
-    if (row) row.classList.toggle("wwyhd-seat--acting", state.toAct === seat.handle);
+    if (row) {
+      row.classList.toggle("wwyhd-seat--acting", state.toAct === seat.handle);
+      row.classList.toggle("wwyhd-seat--folded", seat.folded === true);
+    }
+    // The chips in front of the seat: this street's contribution, the way a
+    // table shows a bet. Empty once the street is over and the pot has them.
+    const front = document.querySelector(`[data-bet="${seat.handle}"]`);
+    if (front) {
+      front.textContent = "";
+      if (seat.committed > 0) front.appendChild(el("span", "wwyhd-blind", String(seat.committed)));
+    }
   }
 }
 
@@ -271,10 +281,7 @@ function paintBoard(state) {
   if (!board) return;
   const view = seatView(state, state.seat);
   board.textContent = "";
-  if (view.board.length === 0) {
-    board.appendChild(el("span", "stat", "No board yet"));
-    return;
-  }
+  if (view.board.length === 0) return;
   for (const card of view.board) board.appendChild(el("span", "wwyhd-card", card));
 }
 

@@ -26,41 +26,59 @@
     <p>Table 1, hand 39, blinds 100/200, seven-handed. Drew A. is in the cutoff with the shortest stack at the table, and everyone limps.</p>
     <p class="stat">Blinds 100/200. You are Drew A., playing as MoHDI_Drew.</p>
     <div class="wwyhd-table">
+      <div class="wwyhd-felt">
+        <p class="stat wwyhd-center" id="wwyhd-pot">Blinds 100/200</p>
+        <p class="wwyhd-board" id="wwyhd-board"></p>
+      </div>
       <ol class="wwyhd-seats">
-        <li class="wwyhd-seat" data-handle="U_perfection">
-          <p class="wwyhd-who">Austin P. <span class="stat">U_perfection</span></p>
-          <p class="stat wwyhd-stack" data-stack="U_perfection">3850 chips</p>
-          <p class="wwyhd-hole"><span class="wwyhd-card wwyhd-card--down">two face down</span></p>
-        </li>
-        <li class="wwyhd-seat" data-handle="chrishiggins">
-          <p class="wwyhd-who">Chris H. <span class="stat">chrishiggins</span></p>
-          <p class="stat wwyhd-stack" data-stack="chrishiggins">5880 chips</p>
-          <p class="wwyhd-hole"><span class="wwyhd-card wwyhd-card--down">two face down</span></p>
-        </li>
-        <li class="wwyhd-seat wwyhd-seat--you" data-handle="MoHDI_Drew">
-          <p class="wwyhd-who">Drew A. <span class="stat">MoHDI_Drew</span> <span class="eyebrow">You</span></p>
-          <p class="stat wwyhd-stack" data-stack="MoHDI_Drew">1835 chips</p>
-          <p class="wwyhd-hole"><span class="wwyhd-card">7c</span><span class="wwyhd-card">2d</span></p>
-        </li>
-        <li class="wwyhd-seat" data-handle="bg">
-          <p class="wwyhd-who">Beau G. <span class="stat">bg</span></p>
-          <p class="stat wwyhd-stack" data-stack="bg">5785 chips</p>
-          <p class="wwyhd-hole"><span class="wwyhd-card wwyhd-card--down">two face down</span></p>
-        </li>
-        <li class="wwyhd-seat" data-handle="kmikeym">
-          <p class="wwyhd-who">Mike M. <span class="stat">kmikeym</span></p>
-          <p class="stat wwyhd-stack" data-stack="kmikeym">6808 chips</p>
-          <p class="wwyhd-hole"><span class="wwyhd-card wwyhd-card--down">two face down</span></p>
-        </li>
-        <li class="wwyhd-seat" data-handle="LEWD">
-          <p class="wwyhd-who">Chris G. <span class="stat">LEWD</span></p>
-          <p class="stat wwyhd-stack" data-stack="LEWD">5850 chips</p>
-          <p class="wwyhd-hole"><span class="wwyhd-card wwyhd-card--down">two face down</span></p>
-        </li>
-        <li class="wwyhd-seat" data-handle="amaxwell">
+        <li class="wwyhd-seat" data-handle="amaxwell" style="--seat-x: 69%; --seat-y: 12%">
+          <p class="wwyhd-pos-line"><span class="wwyhd-pos">UTG</span></p>
           <p class="wwyhd-who">Amy M. <span class="stat">amaxwell</span></p>
           <p class="stat wwyhd-stack" data-stack="amaxwell">9992 chips</p>
           <p class="wwyhd-hole"><span class="wwyhd-card wwyhd-card--down">two face down</span></p>
+          <p class="wwyhd-front" data-bet="amaxwell"></p>
+        </li>
+        <li class="wwyhd-seat" data-handle="U_perfection" style="--seat-x: 93%; --seat-y: 41%">
+          <p class="wwyhd-pos-line"><span class="wwyhd-pos">UTG+1</span></p>
+          <p class="wwyhd-who">Austin P. <span class="stat">U_perfection</span></p>
+          <p class="stat wwyhd-stack" data-stack="U_perfection">3850 chips</p>
+          <p class="wwyhd-hole"><span class="wwyhd-card wwyhd-card--down">two face down</span></p>
+          <p class="wwyhd-front" data-bet="U_perfection"></p>
+        </li>
+        <li class="wwyhd-seat" data-handle="chrishiggins" style="--seat-x: 84%; --seat-y: 76%">
+          <p class="wwyhd-pos-line"><span class="wwyhd-pos">HJ</span></p>
+          <p class="wwyhd-who">Chris H. <span class="stat">chrishiggins</span></p>
+          <p class="stat wwyhd-stack" data-stack="chrishiggins">5880 chips</p>
+          <p class="wwyhd-hole"><span class="wwyhd-card wwyhd-card--down">two face down</span></p>
+          <p class="wwyhd-front" data-bet="chrishiggins"></p>
+        </li>
+        <li class="wwyhd-seat wwyhd-seat--you" data-handle="MoHDI_Drew" style="--seat-x: 50%; --seat-y: 92%">
+          <p class="wwyhd-pos-line"><span class="wwyhd-pos">CO</span></p>
+          <p class="wwyhd-who">Drew A. <span class="stat">MoHDI_Drew</span> <span class="eyebrow">You</span></p>
+          <p class="stat wwyhd-stack" data-stack="MoHDI_Drew">1835 chips</p>
+          <p class="wwyhd-hole"><span class="wwyhd-card">7c</span><span class="wwyhd-card">2d</span></p>
+          <p class="wwyhd-front" data-bet="MoHDI_Drew"></p>
+        </li>
+        <li class="wwyhd-seat" data-handle="bg" style="--seat-x: 16%; --seat-y: 76%">
+          <p class="wwyhd-pos-line"><span class="wwyhd-pos">BTN</span><span class="wwyhd-button" title="Dealer">D</span></p>
+          <p class="wwyhd-who">Beau G. <span class="stat">bg</span></p>
+          <p class="stat wwyhd-stack" data-stack="bg">5785 chips</p>
+          <p class="wwyhd-hole"><span class="wwyhd-card wwyhd-card--down">two face down</span></p>
+          <p class="wwyhd-front" data-bet="bg"></p>
+        </li>
+        <li class="wwyhd-seat" data-handle="kmikeym" style="--seat-x: 7%; --seat-y: 41%">
+          <p class="wwyhd-pos-line"><span class="wwyhd-pos">SB</span></p>
+          <p class="wwyhd-who">Mike M. <span class="stat">kmikeym</span></p>
+          <p class="stat wwyhd-stack" data-stack="kmikeym">6808 chips</p>
+          <p class="wwyhd-hole"><span class="wwyhd-card wwyhd-card--down">two face down</span></p>
+          <p class="wwyhd-front" data-bet="kmikeym"><span class="wwyhd-blind">100</span></p>
+        </li>
+        <li class="wwyhd-seat" data-handle="LEWD" style="--seat-x: 31%; --seat-y: 12%">
+          <p class="wwyhd-pos-line"><span class="wwyhd-pos">BB</span></p>
+          <p class="wwyhd-who">Chris G. <span class="stat">LEWD</span></p>
+          <p class="stat wwyhd-stack" data-stack="LEWD">5850 chips</p>
+          <p class="wwyhd-hole"><span class="wwyhd-card wwyhd-card--down">two face down</span></p>
+          <p class="wwyhd-front" data-bet="LEWD"><span class="wwyhd-blind">200</span></p>
         </li>
       </ol>
     </div>
@@ -85,8 +103,6 @@
 <section class="band-dark" id="wwyhd-play" hidden>
   <div class="band-inner">
     <h2 class="display">The hand</h2>
-    <p class="stat" id="wwyhd-pot"></p>
-    <p class="wwyhd-board" id="wwyhd-board"></p>
     <ol class="wwyhd-log" id="wwyhd-log"></ol>
     <div class="wwyhd-controls" id="wwyhd-controls"></div>
   </div>
