@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to read a card | K5M Shareholder Poker</title>
+<link rel="stylesheet" href="/styles.css">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta name="description" content="What every number and mark on a player card means, and where it comes from.">
+<meta property="og:title" content="How to read a card | K5M Shareholder Poker">
+<meta property="og:description" content="What every number and mark on a player card means, and where it comes from.">
+<meta property="og:image" content="https://poker.kmikeym.com/cards/2026-09/assets/card-1-joshb.png">
+<meta property="og:url" content="https://poker.kmikeym.com/cards/how-to-read/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<style>
+  /* Page-scoped: a definition list that reads as a set, like the card's own
+     stat grid. Palette and type come from /styles.css. */
+  .glossary { display: grid; grid-template-columns: 1fr; gap: 1.25rem; margin: 1.5rem 0 0; }
+  @media (min-width: 640px) { .glossary { grid-template-columns: 1fr 1fr; } }
+  .glossary > div { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem 1.15rem; }
+  .glossary dt { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: .85rem; margin: 0 0 .35rem; }
+  .glossary dt span { font-family: inherit; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted-ink); margin-left: .5rem; }
+  .glossary dd { margin: 0; }
+  .glossary dd p { margin: 0 0 .5rem; }
+  .glossary dd p:last-child { margin-bottom: 0; }
+  .glossary .formula { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; color: var(--muted-ink); }
+  .example { display: grid; grid-template-columns: 1fr; gap: 1.5rem; align-items: start; }
+  @media (min-width: 720px) { .example { grid-template-columns: 300px 1fr; } }
+  .example img { display: block; width: 100%; border-radius: 12px; }
+  .anatomy { margin: 0; padding: 0; list-style: none; }
+  .anatomy li { padding: .55rem 0; border-top: 1px solid var(--line); }
+  .anatomy li:first-child { border-top: 0; padding-top: 0; }
+  .anatomy b { display: block; }
+</style>
+</head>
+<body>
+<nav class="band-dark" style="padding:1rem 1.25rem;">
+  <div class="band-inner"><a href="/">Home</a> · <a href="/games/">Games</a> · <a href="/cards/" aria-current="page">Cards</a> · <a href="/standings/">Standings</a></div>
+</nav>
+<section class="band-light">
+  <div class="band-inner">
+    <h1 class="display">How to read a card</h1>
+    <p>Every number on a card comes from the night's official PokerNow log. Nothing is typed in by hand. Here is what each one means and how to read it.</p>
+  </div>
+</section>
+<section class="band-dark">
+  <div class="band-inner">
+    <h2 class="rule-label">The six numbers</h2>
+    <dl class="glossary">
+      <div>
+        <dt>VPIP <span>how loose</span></dt>
+        <dd>
+          <p>The share of hands where the player chose to put chips in before the flop: a call, a bet or a raise. Blinds do not count; those are not a choice.</p>
+          <p>High means they play a lot of hands. Low means they wait for good ones.</p>
+          <p class="formula">hands with a voluntary preflop call, bet or raise / hands dealt in</p>
+        </dd>
+      </div>
+      <div>
+        <dt>AF <span>how aggressive</span></dt>
+        <dd>
+          <p>Aggression factor. Bets and raises against calls, on every street. Above 1 means they push more than they follow; below 1 means they mostly call.</p>
+          <p>Read it with VPIP. Loose and aggressive is a different player from loose and passive.</p>
+          <p class="formula">(bets + raises) / calls</p>
+        </dd>
+      </div>
+      <div>
+        <dt>LED <span>how long on top</span></dt>
+        <dd>
+          <p>The share of the player's own hands where they held the biggest stack at their table when the hand started. "Led" as in led the table.</p>
+          <p>High and a top finish: got ahead and stayed there. High and a low finish: had the lead and lost it. Low and a cash: never the big stack, won the hands that mattered. Before the tables merge, it is measured against their own table.</p>
+          <p class="formula">hands started with the biggest stack at the table / hands dealt in</p>
+        </dd>
+      </div>
+      <div>
+        <dt>All-in <span>how often it was everything</span></dt>
+        <dd>
+          <p>The number of times the player pushed their whole stack in. Counted every time it happened, whether they were called or not, and whether they won or not.</p>
+          <p class="formula">all-in actions on the log</p>
+        </dd>
+      </div>
+      <div>
+        <dt>Peak <span>the high-water mark</span></dt>
+        <dd>
+          <p>The biggest stack the player held at the start of any hand, in chips. Everyone begins the night with the same stack, so this is how far above the start they got.</p>
+          <p class="formula">largest stack at any hand start</p>
+        </dd>
+      </div>
+      <div>
+        <dt>Rebuys <span>how many second chances</span></dt>
+        <dd>
+          <p>How many times the player bought back in after going broke. Up to two, in the first hour. A rebuy shows on the log as a stack that fell near zero and came back at exactly the starting amount.</p>
+          <p class="formula">times the stack reset to the starting amount</p>
+        </dd>
+      </div>
+    </dl>
+  </div>
+</section>
+<section class="band-light">
+  <div class="band-inner band-inner--wide">
+    <h2 class="rule-label">The rest of the card</h2>
+    <div class="example">
+      <img src="/cards/2026-09/assets/card-1-joshb.png" alt="A champion card from Set 3, top to bottom: banner, name, art, type line, six stats, signature line, how to play them, stamps, set line">
+      <ul class="anatomy">
+        <li><b>The banner</b> The finish, and a crown for the champion. The number on the right is the card's place in the set.</li>
+        <li><b>The metal</b> Rarity is finish, not luck. Foil is the champion. Sapphire is the podium. Pewter is everyone else. Copper is the house, which is Mike's card whatever place he took. A card that carries the Hope Coin shows the Coin, and skulls count kills on its holder.</li>
+        <li><b>The art</b> The player's own image, uploaded by them, or their initial until they add one.</li>
+        <li><b>The type line</b> One phrase for how they played that night. Always the strong side of it.</li>
+        <li><b>The signature line</b> What the night was, in one sentence, from the log.</li>
+        <li><b>How to play them</b> The scouting read: what to do at the table against this player, based on the six numbers. Written by the co-pilot that watches the logs, and not edited.</li>
+        <li><b>Stamps</b> The night's achievements and trophies.</li>
+        <li><b>The set line</b> Which set the card belongs to, and its rarity, spelled out.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<footer class="band-dark" style="padding:1.5rem 1.25rem; text-align:center;">
+  <div class="band-inner"><p class="stat"><a href="/cards/">All sets</a> · <a href="/">Home</a></p></div>
+</footer>
+</body>
+</html>
