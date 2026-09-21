@@ -821,3 +821,94 @@ describe("the page embeds a handle-to-name map for the controller", () => {
     }
   });
 });
+
+// --- the oval table (Mike, 2026-09-21) ---------------------------------------
+// "It's not clear to me the order of who is at the table." Every trainer and
+// replayer draws the same thing: the hero at the bottom, the other seats
+// clockwise in action order, a dealer button, the blinds posted, position
+// tags. The renderer derives all of it from `dealer` and seat order, and the
+// seats sit in the DOM in preflop action order so the phone fallback (an
+// ordered list) reads top to bottom as the action goes.
+describe("the table shows who sits where and who acts when", () => {
+  function seatsInDomOrder(html: string): string[] {
+    return [...html.matchAll(/<li class="wwyhd-seat[^"]*" data-handle="([^"]+)"/g)].map((m) => m[1]);
+  }
+  function seatBlock(html: string, handle: string): string {
+    const start = html.indexOf(`data-handle="${handle}"`);
+    const end = html.indexOf("</li>", start);
+    return html.slice(start, end);
+  }
+  // HAND: alice (dealer), bob (the seat), carol; blinds 100/200. Three-handed
+  // the dealer is the button, bob posts the small blind, carol the big blind,
+  // and preflop the button acts first.
+  test("seats come in preflop action order: the button first three-handed, the big blind last", async () => {
+    const html = await handPage();
+    expect(seatsInDomOrder(html)).toEqual(["alice", "bob", "carol"]);
+  });
+  test("every seat carries its position tag, and the button, small blind and big blind are marked", async () => {
+    const html = await handPage();
+    expect(seatBlock(html, "alice")).toContain('class="wwyhd-pos">BTN<');
+    expect(seatBlock(html, "bob")).toContain('class="wwyhd-pos">SB<');
+    expect(seatBlock(html, "carol")).toContain('class="wwyhd-pos">BB<');
+    expect(seatBlock(html, "alice")).toContain('class="wwyhd-button"');
+    expect(seatBlock(html, "bob")).toContain('class="wwyhd-blind">100<');
+    expect(seatBlock(html, "carol")).toContain('class="wwyhd-blind">200<');
+    expect(seatBlock(html, "alice")).not.toContain('class="wwyhd-blind"');
+  });
+  test("each seat is placed on the oval, the visitor's seat at the bottom center", async () => {
+    const html = await handPage();
+    const you = seatBlock(html, "bob");
+    expect(you).toMatch(/style="--seat-x: ?50%; ?--seat-y: ?\d+%"/);
+    const yPct = Number(/--seat-y: ?(\d+)%/.exec(you)![1]);
+    expect(yPct).toBeGreaterThan(80);
+    for (const handle of ["alice", "carol"]) {
+      expect(seatBlock(html, handle)).toMatch(/style="--seat-x: ?\d+%; ?--seat-y: ?\d+%"/);
+    }
+  });
+  test("the board and the pot live in the middle of the table, once each", async () => {
+    const html = await handPage();
+    const table = html.slice(html.indexOf('class="wwyhd-table"'), html.indexOf("</ol>"));
+    expect(table).toContain('id="wwyhd-pot"');
+    expect(table).toContain('id="wwyhd-board"');
+    expect(html.split('id="wwyhd-pot"').length).toBe(2);
+    expect(html.split('id="wwyhd-board"').length).toBe(2);
+  });
+  test("a seven-handed table tags UTG, UTG+1, HJ, CO before the button", () => {
+    const handles = ["p1", "p2", "p3", "p4", "p5", "p6", "p7"];
+    const seven: HandFile = {
+      ...HAND,
+      seat: "p3",
+      dealer: "p4",
+      players: handles.map((h) => ({
+        handle: h, stack: 5000, cards: ["2c", "3c"], shown: false,
+        profile: h === "p3" ? null : { vpip: 30, af: 1, allInRate: 0.05, foldToRaise: 50, callDown: 50 },
+      })) as HandFile["players"],
+    };
+    const data: GamesData = { ...DATA, players: handles.map((h) => ({ slug: h, name: `${h.toUpperCase()} X.`, aka: [h] })) };
+    return renderModule().then(({ renderWwyhdHand }) => {
+      const html = renderWwyhdHand!(data, seven);
+      // dealer p4: SB p5, BB p6, then p7 UTG, p1 UTG+1, p2 HJ, p3 CO, p4 BTN
+      expect(seatsInDomOrder(html)).toEqual(["p7", "p1", "p2", "p3", "p4", "p5", "p6"]);
+      const tags = seatsInDomOrder(html).map((h) => /class="wwyhd-pos">([^<]+)</.exec(seatBlock(html, h))![1]);
+      expect(tags).toEqual(["UTG", "UTG+1", "HJ", "CO", "BTN", "SB", "BB"]);
+    });
+  });
+});
+
+// --- Mike, 2026-09-21: the fields above the table, and your seat ringed ---
+describe("the fields sit above the table under the cue, and the visitor's seat is the marked one", () => {
+  test("Enter email to play. precedes the form, and the form precedes the table", async () => {
+    const html = await handPage();
+    const cue = html.indexOf("Enter email to play.");
+    const form = html.indexOf('id="wwyhd-sit"');
+    const table = html.indexOf('class="wwyhd-table"');
+    expect(cue).toBeGreaterThan(-1);
+    expect(form).toBeGreaterThan(cue);
+    expect(table).toBeGreaterThan(form);
+  });
+  test("exactly one seat carries the visitor's class, and it is the seat player's", async () => {
+    const html = await handPage();
+    const marked = [...html.matchAll(/<li class="wwyhd-seat wwyhd-seat--you" data-handle="([^"]+)"/g)].map((m) => m[1]);
+    expect(marked).toEqual([HAND.seat]);
+  });
+});
