@@ -434,6 +434,11 @@ export function decide(view, profile, thresholds) {
   // with a raise in front of it belongs to rule 3's bar below, and leaving it
   // here has loose players calling three-bets they should be folding.
   if (view.street === "preflop" || board.length === 0) {
+    // A big blind nobody raised owes nothing: folding there gives up a free
+    // hand, which no player at the real table does and the visitor would see
+    // as a seat quitting for no reason. The check comes before the vpip test
+    // for exactly that spot; every other preflop spot has chips to call.
+    if (toCall <= NO_AMOUNT && view.legal.check === true) return check();
     if (preflopPercentile(view.cards) > profile.vpip) return fold();
     if (profile.af >= table.RAISE_AF && view.legal.minRaiseTo != null) {
       return raiseTo(view.legal.minRaiseTo);

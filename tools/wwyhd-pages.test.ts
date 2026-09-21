@@ -800,3 +800,24 @@ describe("leg (f) [M6]: site/wwyhd.js imports under bun and exports lineVsReal",
     expect(rows.map((row) => row.differs)).toEqual(rows.map(() => false));
   });
 });
+
+// --- review fix, 2026-09-21 (fleet run 1 residual, task 7) ------------------
+// The reveal, the action log and the pot line run in the browser and used to
+// name players by handle only. The page now embeds a handle-to-name map beside
+// the hand so the controller can name people First L., the site's name rule,
+// the way the seat list already does.
+describe("the page embeds a handle-to-name map for the controller", () => {
+  const NAMES_OPEN = '<script type="application/json" id="names">';
+  test("every seat's handle maps to its First L. name from games.json", async () => {
+    const html = await handPage();
+    const start = html.indexOf(NAMES_OPEN);
+    expect(start, `the page carries no ${NAMES_OPEN} block`).toBeGreaterThan(-1);
+    const from = start + NAMES_OPEN.length;
+    const end = html.indexOf("</script>", from);
+    const map = JSON.parse(html.slice(from, end));
+    expect(Object.keys(map).sort()).toEqual(HAND.players.map((p) => p.handle).sort());
+    for (const player of DATA.players) {
+      for (const aka of player.aka) if (aka in map) expect(map[aka]).toBe(player.name);
+    }
+  });
+});

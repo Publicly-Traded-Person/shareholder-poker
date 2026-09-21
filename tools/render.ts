@@ -1960,6 +1960,22 @@ function wwyhdName(data: GamesData, handle: string): string {
 }
 
 /**
+ * The handle-to-name map the page embeds beside the hand file, as JSON text
+ * for a `<script type="application/json" id="names">` element: one entry per
+ * seat in the hand, each the player's First L. name from games.json (the site's
+ * name rule) through wwyhdName above. The controller (site/wwyhd.js) reads it
+ * so the action log, the pot line and the reveal name people the way the seat
+ * list already does, instead of falling back to bare handles. `<`, `>` and `&`
+ * are written as unicode escapes for the same reason wwyhdHandJson escapes
+ * them: nothing in a name may close the script element early. Throws nothing.
+ */
+function wwyhdNamesJson(data: GamesData, hand: HandFile): string {
+  const map: Record<string, string> = {};
+  for (const player of hand.players) map[player.handle] = wwyhdName(data, player.handle);
+  return JSON.stringify(map).replace(/[<>&]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
+}
+
+/**
  * The hand file as the page carries it, ready to sit inside a
  * `<script type="application/json">` element.
  *
@@ -2075,6 +2091,7 @@ ${seats}
   </div>
 </section>
 <script type="application/json" id="hand">${wwyhdHandJson(hand)}</script>
+<script type="application/json" id="names">${wwyhdNamesJson(data, hand)}</script>
 <script type="module" src="/wwyhd.js"></script>`;
 
   return page(

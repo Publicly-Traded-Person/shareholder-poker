@@ -17,7 +17,7 @@
 //
 // Endpoint contract (functions/api/wwyhd.js):
 //   POST /api/wwyhd?hand=<id>  {email, displayName, line}
-//                              -> {ok: true, attempt, chips} | {error}
+//                              -> {ok: true, attempt, chips, name} | {error}
 //   GET  /api/wwyhd?hand=<id>  -> {count, leaderboard: [{name, chips}], choices}
 // Neither response ever carries an email (spec section 3).
 //
@@ -231,6 +231,28 @@ function embeddedHand() {
   }
 }
 
+/** The handle-to-name map the generator embeds beside the hand
+ *  (`<script type="application/json" id="names">`): every real player as
+ *  First L., the site's name rule, so the log, the pot line and the reveal
+ *  can name people the way the seat list already does. Parsed once. An
+ *  absent or unreadable map means handles are shown as they are. */
+let namesCache = null;
+function nameOf(handle) {
+  if (namesCache === null) {
+    namesCache = {};
+    const script = byId("names");
+    if (script) {
+      try {
+        const parsed = JSON.parse(script.textContent || "");
+        if (parsed && typeof parsed === "object") namesCache = parsed;
+      } catch {
+        namesCache = {};
+      }
+    }
+  }
+  return namesCache[handle] || handle;
+}
+
 /** Paints the seat rows the generator wrote: every stack as it now stands,
  *  and the seat to act marked. */
 function paintSeats(state) {
@@ -263,7 +285,7 @@ function paintLog(state) {
   log.textContent = "";
   for (const entry of state.log) {
     const label = STREET_NAME[entry.street] || entry.street;
-    log.appendChild(el("li", "stat", `${label}: ${entry.handle} ${actionPhrase(entry)}`));
+    log.appendChild(el("li", "stat", `${label}: ${nameOf(entry.handle)} ${actionPhrase(entry)}`));
   }
 }
 
@@ -274,7 +296,7 @@ function paintPot(state) {
   const street = STREET_NAME[state.street] || state.street;
   pot.textContent = state.over
     ? `${street}. Pot ${state.pot}.`
-    : `${street}. Pot ${state.pot}. ${state.toAct === state.seat ? "Your turn." : `Waiting on ${state.toAct}.`}`;
+    : `${street}. Pot ${state.pot}. ${state.toAct === state.seat ? "Your turn." : `Waiting on ${nameOf(state.toAct)}.`}`;
 }
 
 /**
@@ -290,8 +312,12 @@ function sizerOptions(legal, state) {
   const clamp = (n) => Math.min(Math.max(Math.round(n), legal.minRaiseTo), legal.maxRaiseTo);
   const candidates = [
     { label: "Min", amount: legal.minRaiseTo },
-    { label: "Half pot", amount: clamp(state.currentBet + state.pot / 2) },
-    { label: "Pot", amount: clamp(state.currentBet + state.pot) },
+    // A pot-relative raise counts the call as already in the pot: with 500
+    // in the middle and 200 to call, a pot-sized raise is TO 900 (200 to
+    // call, then 700 more), not to 700. On an unopened street the call is 0
+    // and the two formulas agree.
+    { label: "Half pot", amount: clamp(state.currentBet + (state.pot + legal.call) / 2) },
+    { label: "Pot", amount: clamp(state.currentBet + state.pot + legal.call) },
     { label: "All in", amount: legal.maxRaiseTo },
   ];
   const seen = new Set();
@@ -478,7 +504,7 @@ function boot() {
     body.appendChild(holdingsList());
 
     body.appendChild(el("h3", "rule-label", "Leaderboard"));
-    body.appendChild(leaderboardTable(room, chips));
+    body.appendChild(leaderboardTable(room, chips, result.name));
 
     revealBand.scrollIntoView({ block: "start" });
   }
@@ -538,32 +564,39 @@ function boot() {
     for (const seat of hand.players) {
       const cards = seat.cards.join(" ");
       const note = seat.shown ? "shown at showdown" : "for this puzzle";
-      list.appendChild(el("li", "stat", `${seat.handle}: ${cards} (${note})`));
+      list.appendChild(el("li", "stat", `${nameOf(seat.handle)} (${seat.handle}): ${cards} (${note})`));
     }
     return list;
   }
 
-  /** The top ten by chips, and the visitor's own row underneath when it is
-   *  not already up there. Display names only: no response from the Function
-   *  ever carries an email. */
-  function leaderboardTable(room, chips) {
+  /** The top ten by chips. The visitor's own row is marked when it is up
+   *  there (the POST answers with the display name the server stored, so the
+   *  page can find it) and appended as "You" underneath when it is not, or
+   *  when the server's name is unknown. Display names only: no response from
+   *  the Function ever carries an email. */
+  function leaderboardTable(room, chips, ownName) {
     const rows = Array.isArray(room.leaderboard) ? room.leaderboard : [];
     const table = el("table", "ledger");
     const head = el("tr");
     for (const label of ["#", "Player", "Chips"]) head.appendChild(el("th", null, label));
     table.appendChild(head);
+    let listed = false;
     rows.slice(0, LEADERBOARD_SIZE).forEach((row, index) => {
-      const tr = el("tr");
+      const mine = !listed && ownName != null && row.name === ownName && Number(row.chips) === chips;
+      const tr = el("tr", mine ? "wwyhd-you" : null);
       tr.appendChild(el("td", "num", String(index + 1)));
-      tr.appendChild(el("td", null, row.name));
+      tr.appendChild(el("td", null, mine ? `${row.name} (you)` : row.name));
       tr.appendChild(el("td", "num", String(row.chips)));
       table.appendChild(tr);
+      if (mine) listed = true;
     });
-    const you = el("tr", "wwyhd-you");
-    you.appendChild(el("td", "num", ""));
-    you.appendChild(el("td", null, "You"));
-    you.appendChild(el("td", "num", String(chips)));
-    table.appendChild(you);
+    if (!listed) {
+      const you = el("tr", "wwyhd-you");
+      you.appendChild(el("td", "num", ""));
+      you.appendChild(el("td", null, "You"));
+      you.appendChild(el("td", "num", String(chips)));
+      table.appendChild(you);
+    }
     if (rows.length === 0) {
       const empty = el("tr");
       const cell = el("td", null, "Nobody has a ranked go at this hand yet.");

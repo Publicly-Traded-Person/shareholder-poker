@@ -821,7 +821,7 @@ describe("a malformed archive.json halts the run before anything is written (#39
     expect(result.stderr).toContain(BAD_GAME_DATE);
   });
 
-  // None of the six paths render.ts owns exist in the copy afterwards - not
+  // None of the seven paths render.ts owns exist in the copy afterwards - not
   // just the archive page, but the five that have nothing to do with the
   // archive either. This is what actually proves validation ran BEFORE any
   // write, not merely before the archive write: a renderer that validated
@@ -881,7 +881,7 @@ describe("running the real renderer leaves the generated paths clean (#27, Task 
     // prove the committed bytes agree with the generator (M2). But
     // `Bun.write` has no concept of "something was already sitting here
     // that I should not clobber": it just overwrites. If Charlie has an
-    // UNCOMMITTED hand-edit to any of the six watched paths when he runs
+    // UNCOMMITTED hand-edit to any of the seven watched paths when he runs
     // `bun test tools` - for some completely unrelated reason, a month from
     // now, at night, having not written this file - this test would
     // silently regenerate over that edit, destroy it, and then report

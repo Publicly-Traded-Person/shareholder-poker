@@ -280,7 +280,11 @@ export function validateHandFile(hand: unknown, data: GamesData): HandFile {
 
   players.forEach((player, index) => {
     if (player.handle === seatHandle) {
-      if (player.profile !== null && player.profile !== undefined) {
+      // Strictly `null`, never an omitted key: the seat is the ONE player a
+      // null profile identifies, and every consumer reads `profile === null`
+      // for "this is the visitor". A file that leaves the key out would
+      // validate and then be a hand with no seat.
+      if (player.profile !== null) {
         fail(
           `players[${index}].profile`,
           `the seat ${seatHandle} is the visitor, so its profile must be null, got ` +

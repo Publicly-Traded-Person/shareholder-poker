@@ -540,3 +540,15 @@ describe("leg (m) [M5]: the suite sweeps every committed hand file", () => {
     }
   });
 });
+
+// --- review fix, 2026-09-21 (fleet run 1 residual, task 5) ------------------
+// The seat is the one player a null profile identifies, so the key must be
+// written null, never left out: an omitted key used to validate and produce
+// a hand whose consumers could not find the visitor's seat.
+describe("the seat's profile must be written null, not omitted", () => {
+  test("a seat with no profile key halts naming `profile`", () => {
+    const hand = fixture();
+    delete seatPlayer(hand).profile;
+    throwsWith(() => validateHandFile(hand, DATA), "profile");
+  });
+});

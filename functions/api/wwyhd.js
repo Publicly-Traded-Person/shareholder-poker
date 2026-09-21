@@ -264,9 +264,9 @@ export async function onRequestGet({ request, env }) {
  * POST /api/wwyhd?hand=<hand_id>: record one attempt at a puzzle.
  *
  * Takes the Pages Function context; the body is `{email, displayName, line}`.
- * Returns `{ok: true, attempt, chips}` on success, with `attempt` one more than
- * that email's highest for this hand and `chips` the server's own replay of
- * `line`. Responds 404 on a hand id that is not a hand id or whose asset is not
+ * Returns `{ok: true, attempt, chips, name}` on success, with `attempt` one more
+ * than that email's highest for this hand, `chips` the server's own replay of
+ * `line`, and `name` the display name that was stored (never the email). Responds 404 on a hand id that is not a hand id or whose asset is not
  * there, and 400 on an unparseable body, an email that is not an email, or a
  * line that does not replay (with the engine's own message in `error`, because
  * the page shows it and "something went wrong" would send nobody anywhere).
@@ -344,5 +344,8 @@ export async function onRequestPost({ request, env }) {
     )
     .run();
 
-  return json({ ok: true, attempt, chips: played.chips });
+  // `name` is the display name as stored (a roster handle, or what they typed,
+  // cleaned), never the email: the page uses it to find the visitor's own row
+  // on the leaderboard instead of printing a second "You" row under it.
+  return json({ ok: true, attempt, chips: played.chips, name: cleanDisplayName(display) || ANONYMOUS });
 }

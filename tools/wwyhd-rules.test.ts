@@ -624,3 +624,28 @@ describe("determinism [M6]", () => {
     }
   });
 });
+
+// --- review fix, 2026-09-21 (fleet run 1 residual, task 4) ------------------
+// A big blind nobody raised owes nothing. The rule table used to fold such a
+// hand when it fell outside vpip, which the play-through showed as a seat
+// quitting for free (LEWD in the big blind, hand 39). The check comes first.
+describe("an unopened big blind never folds a free hand", () => {
+  const FREE_BB = (handle: string) =>
+    view(handle, {
+      cards: ["7d", "2c"],
+      board: [],
+      street: "PRE",
+      pot: 500,
+      toCall: 0,
+      stack: 5650,
+      playersIn: 5,
+      legal: { fold: true, check: true, call: 0, minRaiseTo: 400, maxRaiseTo: 5850 },
+    });
+  test("the tightest profile with the worst holding checks rather than folds", () => {
+    expect(decide(FREE_BB("alice"), TIGHT_PASSIVE)).toEqual({ type: "check", amount: 0 });
+  });
+  test("the same profile still folds that holding when there is a raise to call", () => {
+    const owed = { ...FREE_BB("alice"), toCall: 200, legal: { fold: true, check: false, call: 200, minRaiseTo: 400, maxRaiseTo: 5850 } };
+    expect(decide(owed, TIGHT_PASSIVE)).toEqual({ type: "fold", amount: 0 });
+  });
+});

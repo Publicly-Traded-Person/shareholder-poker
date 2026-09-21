@@ -294,7 +294,7 @@ describe("(a) POST records one row per attempt and scores it itself [M1]", () =>
       env,
     });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, attempt: 1, chips: REPLAY.chips });
+    expect(await res.json()).toEqual({ ok: true, attempt: 1, chips: REPLAY.chips, name: "Tester" });
 
     const rows = storedRows(db);
     expect(rows.length).toBe(1);
@@ -313,7 +313,7 @@ describe("(a) POST records one row per attempt and scores it itself [M1]", () =>
 
     expect((await first.json()).attempt).toBe(1);
     expect(second.status).toBe(200);
-    expect(await second.json()).toEqual({ ok: true, attempt: 2, chips: REPLAY.chips });
+    expect(await second.json()).toEqual({ ok: true, attempt: 2, chips: REPLAY.chips, name: "Tester" });
 
     const rows = storedRows(db);
     expect(rows.length).toBe(2);
@@ -332,7 +332,7 @@ describe("(a) POST records one row per attempt and scores it itself [M1]", () =>
       env,
     });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, attempt: 1, chips: REPLAY.chips });
+    expect(await res.json()).toEqual({ ok: true, attempt: 1, chips: REPLAY.chips, name: "Cheat" });
     const rows = storedRows(db);
     expect(rows.length).toBe(1);
     expect(rows[0]!.chips).toBe(REPLAY.chips);
