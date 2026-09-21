@@ -49,32 +49,47 @@ const BAND_MONSTER = 4; // trips or better preflop's premiums
 // the table. Frozen because it is shared by every seat in every hand: a
 // caller that mutated it would change the rules mid-puzzle and break replay.
 export const THRESHOLDS = Object.freeze({
-  // Aggression factor (bets plus raises over calls) at which a player raises
-  // rather than calls. Spec §4.3 rules 2 and 3 name 1.5: it is just above
-  // 1.0, the line between a player who mostly calls and one who mostly bets,
-  // and the regulars' cards cluster either side of it.
-  RAISE_AF: 1.5,
-  // Share of river bets a player has called, at which they call one band
-  // lighter. Spec §4.3 rule 4 names 50: half the time is the natural reading
-  // of "calls down".
-  CALL_DOWN: 50,
-  // All-ins per hand above which a player will put their stack in on a strong
-  // (not monster) hand. Spec §4.3 rule 5, as amended by the plan: a named
-  // constant rather than the table median, because a median makes one
-  // opponent's play depend on who else is seated and leaves the per-regular
-  // fixtures with no canonical answer. 0.25 is "one hand in four", which on
-  // the real cards separates the shovers from everyone else.
-  ALL_IN_STRONG: 0.25,
-  // Share of the stack below which committing it is cheap enough to do
-  // without a monster. Spec §4.3 rule 5's last clause, "less than a fifth of
-  // the stack".
-  CHEAP_CALL_SHARE: 0.2,
-  // How many first attempts must have reached a decision point before the
-  // reveal page shows the share-of-visitors breakdown there. Spec §4.4: after
-  // the first deviation visitors are in different hands, so a breakdown over
-  // four people is noise wearing a percentage sign. Exported from here rather
-  // than from the page so the Function that aggregates and the page that
-  // renders cannot disagree; the table itself does not read it.
+  // These are SCALE FACTORS, not decisions. Every decision below is derived
+  // from the acting player's own numbers (vpip, af, allInRate, foldToRaise,
+  // callDown), their stack and the pot; nothing here says "fold" or "raise"
+  // for everyone (Mike, 2026-09-21: "every player is acting a little
+  // differently... rules should be based on the attributes of the players").
+  //
+  // Looseness. A player enters with the top `vpip` percent of holdings, shifted
+  // by position: later seats play more, earlier seats less.
+  POS_LATE: 1.25,
+  POS_EARLY: 0.8,
+  // Aggression. The hand strength band (0 air .. 4 monster) a player needs to
+  // bet into a check is 4 minus BET_BAR_SLOPE times af, floored at 1: af 0.6
+  // bets only a monster, af 0.84 bets a strong hand (Chris H. bet aces on the
+  // flop of hand 39), af 2.5 bets a draw.
+  BET_BAR_SLOPE: 1.2,
+  // Raising into a bet needs this much more band than betting into a check.
+  RAISE_OVER_BET: 1.5,
+  // Bet size as a share of the pot: BET_FRAC_BASE + BET_FRAC_SLOPE x af,
+  // between 0.4 and 1.0 of the pot.
+  BET_FRAC_BASE: 0.3,
+  BET_FRAC_SLOPE: 0.2,
+  // Continuing against a bet needs a band of foldToRaise / CONTINUE_SCALE
+  // before the river, (100 - callDown) / CONTINUE_SCALE on it: foldToRaise 80
+  // needs a strong hand, 30 continues with a draw; callDown 70 pays off a
+  // medium hand, 25 only a strong one.
+  CONTINUE_SCALE: 30,
+  // Risk tolerance, 0.1 to 1: RISK_ALLIN x allInRate + callDown / RISK_CALLDOWN.
+  // The share of the stack a player will put in with a band-b hand is
+  // risk x (b/4)^2; a monster has no limit.
+  RISK_ALLIN: 4,
+  RISK_CALLDOWN: 150,
+  // Shoving needs a band of 4 minus SHOVE_SLOPE x allInRate, never under 2:
+  // allInRate 0.3 shoves a strong hand, 0.05 only a monster. It also needs
+  // the bet to be worth that much: a player only puts the last of a stack in
+  // when the size they wanted already commits COMMIT_SHARE of it, which a
+  // frequent shover reaches sooner (minus COMMIT_ALLIN x allInRate). Without
+  // it, a monster open-shoved 29 big blinds into a limped pot.
+  SHOVE_SLOPE: 4,
+  COMMIT_SHARE: 0.7,
+  COMMIT_ALLIN: 0.8,
+  // The histogram floor the page and the Function share (spec section 4.4).
   MIN_SHARED: 5,
 });
 
@@ -350,124 +365,115 @@ const NO_AMOUNT = 0;
 const fold = () => ({ type: "fold", amount: NO_AMOUNT });
 const check = () => ({ type: "check", amount: NO_AMOUNT });
 const call = () => ({ type: "call", amount: NO_AMOUNT });
-const raiseTo = (amount) => ({ type: "raise", amount });
-
-/** The bar `foldToRaise` sets: the band below which a bet or a raise in front
- *  of this player takes the pot. */
-function foldBar(foldToRaise) {
-  const match = FOLD_TO_RAISE_BARS.find((step) => foldToRaise >= step.atLeast);
-  // The last step's `atLeast` is 0, so only a missing or non-numeric
-  // percentage can miss every step, and for that the loosest bar is the safe
-  // reading: a profile with no number in it should not fold everything.
-  return match ? match.bar : BAND_DRAW;
-}
+const clamp = (n, lo, hi) => Math.min(Math.max(n, lo), hi);
 
 /**
- * The total a raise goes to, or null when this player cannot raise here and
- * must call instead.
+ * One player's tendencies, read off their profile and the scale factors.
  *
- * Spec §4.3 rule 5, the all-in rule, is a sizing rule in this table: a monster
- * puts the stack in, a strong hand does when the profile shoves often or when
- * the stack is nearly in already, and everything else takes the minimum. The
- * fold bars above are absolute either way (M3), so nothing here can turn a
- * fold into a call.
+ * Takes a profile `{vpip, af, allInRate, foldToRaise, callDown}` (a missing
+ * number reads as 0, the tightest reading of it) and the thresholds object.
+ * Returns the numbers every decision is made from: `entry(position)` the
+ * percentile a holding must be inside to play; `betBar` the band needed to
+ * bet into a check; `raiseBar` the band needed to raise into a bet;
+ * `betFrac` the bet as a share of the pot; `continueBar(street)` the band
+ * needed to keep going against a bet; `maxShare(band)` the share of the
+ * stack the player will put in with that band; `shoveBar` the band needed
+ * to go all in. Throws nothing.
  */
-function raiseTarget(band, profile, view, thresholds) {
-  const { minRaiseTo, maxRaiseTo } = view.legal;
-  if (minRaiseTo == null) return null; // no raise is legal here: call
-  if (maxRaiseTo == null) return minRaiseTo;
-  // A stack too short to make a full minimum raise. The engine says so by
-  // leaving minRaiseTo null, so this is belt and braces; calling is the one
-  // answer that is certainly legal.
-  if (maxRaiseTo < minRaiseTo) return null;
-  const toCall = view.toCall ?? NO_AMOUNT;
-  const cheap =
-    maxRaiseTo - toCall <= thresholds.CHEAP_CALL_SHARE * view.stack;
-  const commit =
-    band >= BAND_MONSTER ||
-    (band >= BAND_STRONG &&
-      (profile.allInRate > thresholds.ALL_IN_STRONG || cheap));
-  return commit ? maxRaiseTo : minRaiseTo;
+export function traits(profile, thresholds) {
+  const t = { ...THRESHOLDS, ...(thresholds ?? {}) };
+  const p = profile ?? {};
+  const num = (v) => (Number.isFinite(v) ? v : 0);
+  const vpip = num(p.vpip), af = num(p.af), allIn = num(p.allInRate);
+  const foldToRaise = num(p.foldToRaise), callDown = num(p.callDown);
+  const risk = clamp(t.RISK_ALLIN * allIn + callDown / t.RISK_CALLDOWN, 0.1, 1);
+  const betBar = clamp(4 - t.BET_BAR_SLOPE * af, 1, 4);
+  return {
+    entry: (position) =>
+      vpip * (position === "late" ? t.POS_LATE : position === "early" ? t.POS_EARLY : 1),
+    betBar,
+    raiseBar: betBar + t.RAISE_OVER_BET,
+    betFrac: clamp(t.BET_FRAC_BASE + t.BET_FRAC_SLOPE * af, 0.4, 1),
+    continueBar: (street) =>
+      street === "RIVER" || street === "river" ? (100 - callDown) / t.CONTINUE_SCALE : foldToRaise / t.CONTINUE_SCALE,
+    maxShare: (band) => (band >= BAND_MONSTER ? 1 : risk * (band / 4) ** 2),
+    shoveBar: clamp(4 - t.SHOVE_SLOPE * allIn, 2, 4),
+    // The share of the stack a raise must already cost before going all in is
+    // on the table at all.
+    commitShare: clamp(t.COMMIT_SHARE - t.COMMIT_ALLIN * allIn, 0.25, 1),
+    risk,
+  };
+}
+
+/** The raise or bet the player makes: all in when the band clears their shove
+ *  bar, otherwise the minimum plus their share of the pot, inside the engine's
+ *  bounds. Returns null when no raise is legal. */
+function sizedRaise(band, tr, view, type) {
+  const legal = view.legal;
+  if (!legal || legal.minRaiseTo == null || legal.maxRaiseTo == null) return null;
+  // A bet into a check is a share of the pot; a raise into a bet is the
+  // minimum raise plus that share, so it always stands above the bet it answers.
+  const share = Math.round(tr.betFrac * (view.pot ?? 0));
+  const base = type === "bet" ? share : legal.minRaiseTo + share;
+  const wanted = clamp(base, legal.minRaiseTo, legal.maxRaiseTo);
+  // All in only when the hand is strong enough AND the size already commits
+  // most of the stack. A big hand in a small pot bets the pot, not the stack.
+  const commits = wanted >= tr.commitShare * legal.maxRaiseTo;
+  return { type, amount: band >= tr.shoveBar && commits ? legal.maxRaiseTo : wanted };
 }
 
 /**
- * One opponent's action in one spot: spec §4.3's v1 table, run.
+ * The opponent's action, from their own profile (spec section 4.3, as
+ * rewritten 2026-09-21 on Mike's principle: no universal rules).
  *
- * Takes the engine's view of the spot from that player's seat
- * (`{handle, cards, board, street, pot, toCall, stack, playersIn, position,
- * legal}`, with `legal` the engine's `{fold, check, call, minRaiseTo,
- * maxRaiseTo}`), that player's profile (`{vpip, af, allInRate, foldToRaise,
- * callDown}`, the first three already on their card and the last two new), and
- * optionally a thresholds object to read the table's numbers from, which
- * defaults to THRESHOLDS and is merged over it so a partial override still
- * leaves the rest in place. Returns `{type, amount}` with `type` one of
- * "fold", "check", "call" or "raise" and `amount` the total a raise goes to
- * (0 for the other three). Throws `RangeError` on a holding the bands refuse.
+ * Takes the engine's view of the seat `{handle, cards, board, street, pot,
+ * toCall, stack, playersIn, position, raised, legal}`, the player's profile,
+ * and optionally a thresholds copy (the scale factors) that defaults to
+ * THRESHOLDS. Returns `{type, amount}` allowed by `view.legal`. Throws
+ * nothing. Deterministic: the same view and profile always give the same
+ * action, which is what lets the Function re-score a line the browser played.
  *
- * The action is always one `view.legal` allows: a raise only when
- * `legal.minRaiseTo` is a number, and a call in its place when it is not. That
- * is not politeness, it is the engine's contract. An illegal action would
- * either abort the hand mid-puzzle or, worse, be applied and put chips in the
- * pot that no seat paid for, and chip conservation is the check that the whole
- * publish flow refuses on.
- *
- * Same spot, same action, every time: see the determinism note at the top of
- * the file. Nothing in here is stateful, so two calls on equal inputs return
- * deep-equal actions.
+ * The shape, every number the player's own (see `traits`):
+ *   nothing owed  -> bet when the band clears betBar, sized by betFrac,
+ *                    all in when it clears shoveBar; otherwise check.
+ *   preflop, no raise yet -> enter with a holding inside entry(position);
+ *                    raise when the band clears betBar; otherwise call.
+ *   facing a bet or raise -> fold under continueBar(street); fold when the
+ *                    call costs more of the stack than maxShare(band) allows;
+ *                    raise when the band clears raiseBar; otherwise call.
+ * A monster never folds and never faces a stack limit; a band-0 holding never
+ * bets or raises and never goes all in, because betBar and shoveBar never
+ * drop below 1 and 2.
  */
 export function decide(view, profile, thresholds) {
-  const table = { ...THRESHOLDS, ...(thresholds ?? {}) };
+  const tr = traits(profile, thresholds);
   const board = view.board ?? [];
   const band = strengthBand(view.cards, board);
   const toCall = view.toCall ?? NO_AMOUNT;
+  const legal = view.legal ?? {};
+  const preflop = view.street === "PRE" || view.street === "preflop" || board.length === 0;
 
-  // Preflop, rule 2: the profile's `vpip` is the whole of the reading.
-  //
-  // Rule 2 is written for an unopened pot and rule 3 covers a raise in front,
-  // but the view cannot tell the two apart: it carries no blind size and no
-  // raise count, and the blinds make the arithmetic identical from inside it
-  // (unopened five-handed the pot is a small blind plus a big blind and the
-  // call is the big blind, two thirds of the pot; facing a three-times open
-  // the pot is those two blinds plus the open and the call is the open, two
-  // thirds of the pot again). So every preflop spot takes this branch. IF YOU
-  // ADD A RAISE COUNT OR THE BLINDS TO THE VIEW, split this: a preflop spot
-  // with a raise in front of it belongs to rule 3's bar below, and leaving it
-  // here has loose players calling three-bets they should be folding.
-  if (view.street === "preflop" || board.length === 0) {
-    // A big blind nobody raised owes nothing: folding there gives up a free
-    // hand, which no player at the real table does and the visitor would see
-    // as a seat quitting for no reason. The check comes before the vpip test
-    // for exactly that spot; every other preflop spot has chips to call.
-    if (toCall <= NO_AMOUNT && view.legal.check === true) return check();
-    if (preflopPercentile(view.cards) > profile.vpip) return fold();
-    if (profile.af >= table.RAISE_AF && view.legal.minRaiseTo != null) {
-      return raiseTo(view.legal.minRaiseTo);
-    }
+  // Nothing owed: a free big blind, or checked to after the flop.
+  if (toCall <= NO_AMOUNT) {
+    if (preflop) return check();
+    if (band >= tr.betBar) return sizedRaise(band, tr, view, "bet") ?? check();
+    return check();
+  }
+
+  // Preflop with nothing but the blinds in front: play the holding when it is
+  // inside the player's entry range for the seat, raise when it clears the
+  // bet bar, otherwise limp.
+  if (preflop && view.raised !== true) {
+    if (preflopPercentile(view.cards) > tr.entry(view.position)) return fold();
+    if (band >= tr.betBar) return sizedRaise(band, tr, view, "raise") ?? call();
     return call();
   }
 
-  // Nothing to answer. The v1 table is a response table: it never takes the
-  // betting initiative, so a checked-to opponent checks behind whatever they
-  // hold. That is the conservative half of the rule and it is visible to the
-  // visitor as a quiet table, which the fixtures would rather have than a
-  // bluffing engine nobody can predict.
-  if (toCall <= NO_AMOUNT) return check();
-
-  // The river, rule 4: no card left to come, so the only question is whether
-  // this player pays to see the hand.
-  if (view.street === "river" || board.length >= RIVER_BOARD_CARDS) {
-    const bar =
-      profile.callDown >= table.CALL_DOWN
-        ? RIVER_BAR_CALLS_DOWN
-        : RIVER_BAR_DEFAULT;
-    return band >= bar ? call() : fold();
-  }
-
-  // Facing a bet or a raise with a card still to come, rule 3.
-  if (band < foldBar(profile.foldToRaise)) return fold();
-  if (band >= BAND_THAT_RAISES && profile.af >= table.RAISE_AF) {
-    const target = raiseTarget(band, profile, view, table);
-    if (target != null) return raiseTo(target);
-  }
+  // Facing a bet or a raise, on any street.
+  if (band < tr.continueBar(view.street)) return fold();
+  const stackBefore = (view.stack ?? 0) + toCall;
+  const share = stackBefore > 0 ? toCall / stackBefore : 1;
+  if (share > tr.maxShare(band)) return fold();
+  if (band >= tr.raiseBar) return sizedRaise(band, tr, view, "raise") ?? call();
   return call();
 }

@@ -223,6 +223,36 @@ each hand file Charlie writes, and `site/wwyhd-rules.js` reads them from
 there. Four archetypes at the corners of the profile space also pin the
 table harder than a dozen regulars clustered in its middle would.
 
+*Build, 2026-09-21 (Mike, testing the live puzzle):* "the whole point of this
+is that every player is acting a little differently... rules should be based
+on the attributes of the players because they have different risk tolerances
+and stacks and other stats." The six numbered rules above are a table of
+universal decisions with a few profile inputs, and they played that way: an
+opponent called an all-in with ace-five because every hand inside `vpip`
+called every raise, and nobody bet when checked to because the table had no
+bet in it at all. The rules now DERIVE each decision from the acting player's
+own numbers, and `site/wwyhd-rules.js` exports `traits(profile)` so what a
+player will do can be read off their profile alone:
+
+| from | what it sets |
+|---|---|
+| `vpip`, and the seat | `entry(position)`: the percentile a holding must be inside to play, wider late, tighter early |
+| `af` | `betBar`: the hand strength needed to bet into a check (four minus a slope times `af`), `raiseBar` above it, and `betFrac`, the bet as a share of the pot |
+| `foldToRaise`, `callDown` | `continueBar(street)`: the strength needed to keep going against a bet, `callDown` taking over on the river |
+| `allInRate`, `callDown` | `risk`, and from it `maxShare(band)`: the share of the stack this player will put in with a hand that strong |
+| `allInRate` | `shoveBar`, and `commitShare`: how committed a raise must already be before all in is on the table |
+
+The named constants left in `THRESHOLDS` are SCALE FACTORS, not decisions:
+they say how steeply `af` moves a bet bar, not what any player does. Rule 6
+above still holds, and no number is inlined.
+
+Worked, from the September 8 profiles: at `af` 0.84 Chris H. bets a strong
+hand and sizes it at 47% of the pot; at `af` 1.35 Mike M. bets a medium hand
+and sizes at 57%; at `foldToRaise` 64 LEWD needs two pair to continue against
+a flop bet where bg at 55 continues with a pair; at `callDown` 100
+U_perfection calls a river bet with anything and at 25 LEWD needs a strong
+hand. No two of the six have the same bar.
+
 ### 4.4 The page (`site/wwyhd/<id>/index.html`, plus `site/wwyhd/index.html`)
 
 One job per page (Mike's standard, 2026-09-20; the rule is in
