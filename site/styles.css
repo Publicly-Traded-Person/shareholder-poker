@@ -918,7 +918,15 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
 .wwyhd-seat--you .pc i { font-size: .95rem; }
 
 /* The bar under the table: the two fields and Deal before the hand, the
-   action buttons during it. */
+   action buttons during it.
+
+   Both blocks below set `display`, which beats the browser's own rule for
+   the `hidden` attribute (a class selector outranks `[hidden]`), so each one
+   needs its own `[hidden]` guard or the controller's `form.hidden = true`
+   does nothing and the fields sit there while the hand plays. Mike saw
+   exactly that on 2026-09-21. tools/styles.test.ts fails on a wwyhd rule
+   that sets display without one. */
+.wwyhd-sit[hidden], .wwyhd-controls[hidden] { display: none; }
 .wwyhd-bar { margin: .75rem 0 0; }
 .wwyhd-sit { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; margin: 0; }
 .wwyhd-field { display: grid; gap: .15em; margin: 0; flex: 1 1 10rem; }
