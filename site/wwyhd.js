@@ -407,60 +407,79 @@ function boot() {
     paint();
   }
 
+  /**
+   * The action bar, laid out the way every poker client lays it out: a row of
+   * size presets (min, half pot, pot, all in) and the amount box above, and
+   * three big equal buttons below, Fold, Check or Call, and Bet or Raise with
+   * the amount in its label. A preset only sets the amount; the big button
+   * commits it. When no raise is legal (a short all-in closed the action) the
+   * third button and the presets do not render, so the bar never offers what
+   * the engine would refuse.
+   */
   function paintControls() {
     const legal = legalActions(state);
     controls.textContent = "";
+    const bar = el("div", "wwyhd-actions");
 
-    const row = el("div", "wwyhd-buttons");
-    const fold = el("button", "btn-secondary", "Fold");
+    const canRaise = legal.minRaiseTo != null && legal.maxRaiseTo != null;
+    const raiseType = state.currentBet === 0 ? "bet" : "raise";
+    let amount = canRaise ? legal.minRaiseTo : 0;
+    let go = null;
+    let free = null;
+    const setAmount = (n) => {
+      amount = Math.min(Math.max(Math.round(n), legal.minRaiseTo), legal.maxRaiseTo);
+      if (free) free.value = String(amount);
+      if (go) go.textContent = `${raiseType === "bet" ? "Bet" : "Raise to"} ${amount}`;
+    };
+
+    if (canRaise) {
+      const presets = el("div", "wwyhd-presets");
+      for (const option of sizerOptions(legal, state)) {
+        const pill = el("button", "wwyhd-preset", `${option.label} ${option.amount}`);
+        pill.type = "button";
+        pill.addEventListener("click", () => setAmount(option.amount));
+        presets.appendChild(pill);
+      }
+      free = document.createElement("input");
+      free.type = "number";
+      free.className = "wwyhd-amount";
+      free.min = String(legal.minRaiseTo);
+      free.max = String(legal.maxRaiseTo);
+      free.step = "1";
+      free.value = String(amount);
+      free.setAttribute("aria-label", "Amount");
+      free.addEventListener("input", () => {
+        const n = Number(free.value);
+        if (Number.isFinite(n) && go) go.textContent = `${raiseType === "bet" ? "Bet" : "Raise to"} ${Math.round(n)}`;
+      });
+      free.addEventListener("change", () => setAmount(Number(free.value)));
+      presets.appendChild(free);
+      bar.appendChild(presets);
+    }
+
+    const main = el("div", canRaise ? "wwyhd-main" : "wwyhd-main wwyhd-main--two");
+    const fold = el("button", "wwyhd-act wwyhd-act--fold", "Fold");
     fold.type = "button";
     fold.addEventListener("click", () => take({ type: "fold", amount: 0 }));
-    row.appendChild(fold);
+    main.appendChild(fold);
 
-    if (legal.check) {
-      const check = el("button", "btn-secondary", "Check");
-      check.type = "button";
-      check.addEventListener("click", () => take({ type: "check", amount: 0 }));
-      row.appendChild(check);
-    } else {
-      const call = el("button", "btn-secondary", `Call ${legal.call}`);
-      call.type = "button";
-      call.addEventListener("click", () => take({ type: "call", amount: 0 }));
-      row.appendChild(call);
+    const mid = el("button", "wwyhd-act", legal.check ? "Check" : `Call ${legal.call}`);
+    mid.type = "button";
+    mid.addEventListener("click", () => take(legal.check ? { type: "check", amount: 0 } : { type: "call", amount: 0 }));
+    main.appendChild(mid);
+
+    if (canRaise) {
+      go = el("button", "wwyhd-act wwyhd-act--go", `${raiseType === "bet" ? "Bet" : "Raise to"} ${amount}`);
+      go.type = "button";
+      go.addEventListener("click", () => {
+        const n = free ? Math.round(Number(free.value)) : amount;
+        if (!Number.isFinite(n) || n < legal.minRaiseTo || n > legal.maxRaiseTo) { setAmount(amount); return; }
+        take({ type: raiseType, amount: n });
+      });
+      main.appendChild(go);
     }
-    controls.appendChild(row);
-
-    const options = sizerOptions(legal, state);
-    if (options.length === 0) return;
-
-    const raiseType = state.currentBet === 0 ? "bet" : "raise";
-    const sizer = el("div", "wwyhd-sizer");
-    for (const option of options) {
-      const button = el("button", "btn-secondary", `${option.label} ${option.amount}`);
-      button.type = "button";
-      button.addEventListener("click", () => take({ type: raiseType, amount: option.amount }));
-      sizer.appendChild(button);
-    }
-
-    const free = document.createElement("input");
-    free.type = "number";
-    free.className = "wwyhd-amount";
-    free.min = String(legal.minRaiseTo);
-    free.max = String(legal.maxRaiseTo);
-    free.step = "1";
-    free.value = String(legal.minRaiseTo);
-    free.setAttribute("aria-label", "Raise to");
-    sizer.appendChild(free);
-
-    const go = el("button", "btn-secondary", raiseType === "bet" ? "Bet to" : "Raise to");
-    go.type = "button";
-    go.addEventListener("click", () => {
-      const amount = Math.round(Number(free.value));
-      if (!Number.isFinite(amount) || amount < legal.minRaiseTo || amount > legal.maxRaiseTo) return;
-      take({ type: raiseType, amount });
-    });
-    sizer.appendChild(go);
-    controls.appendChild(sizer);
+    bar.appendChild(main);
+    controls.appendChild(bar);
   }
 
   // The hand is over: submit the line, then read back what everybody else
@@ -528,6 +547,13 @@ function boot() {
 
     body.appendChild(el("h3", "rule-label", "Leaderboard"));
     body.appendChild(leaderboardTable(room, chips, result.name));
+
+    const again = el("p", "wwyhd-again");
+    const button = el("button", "wwyhd-act", "Play again");
+    button.type = "button";
+    button.addEventListener("click", () => window.location.reload());
+    again.appendChild(button);
+    body.appendChild(again);
 
     revealBand.scrollIntoView({ block: "start" });
   }
@@ -648,6 +674,9 @@ function boot() {
       return;
     }
     if (sitError) sitError.textContent = "";
+    // Remembered the moment they sit down, not after the submit succeeds, so
+    // a replay never asks for them again even if the room was unreachable.
+    remember(emailField.value.trim(), nameField ? nameField.value.trim() : "");
     form.hidden = true;
     const cue = byId("wwyhd-cue");
     if (cue) cue.hidden = true;
