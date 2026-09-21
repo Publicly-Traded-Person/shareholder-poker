@@ -384,7 +384,6 @@ function boot() {
     paintPot(state);
     if (isHandOver(state)) {
       fill(controls, el("p", "stat", "The hand is over."));
-      if (history) history.open = true;
       finish();
       return;
     }
@@ -562,21 +561,27 @@ function boot() {
     } catch {
       decisions = [];
     }
+    // One line per spot the room has reached in numbers; the spots it has
+    // not are summed up in one sentence rather than repeated per decision.
+    let quiet = 0;
     decisions.forEach((decision, index) => {
       const counts = choices[decision.key];
-      const label = `Decision ${index + 1}: you chose ${decision.type}.`;
       if (!counts) {
-        list.appendChild(el("li", "stat", `${label} Too few players reached this spot to say more.`));
+        quiet += 1;
         return;
       }
       const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
       const parts = Object.keys(counts)
         .sort()
         .map((type) => `${type} ${Math.round((counts[type] / total) * 100)}%`);
-      list.appendChild(el("li", "stat", `${label} The room: ${parts.join(", ")} of ${total}.`));
+      list.appendChild(el("li", "stat", `Decision ${index + 1}: you chose ${decision.type}. The room: ${parts.join(", ")} of ${total}.`));
     });
     if (decisions.length === 0) {
       list.appendChild(el("li", "stat", "No decisions to compare."));
+    } else if (quiet === decisions.length) {
+      list.appendChild(el("li", "stat", "Too few people have played this hand yet to show what the room chose. Check back after the week."));
+    } else if (quiet > 0) {
+      list.appendChild(el("li", "stat", `${quiet} of your ${decisions.length} decisions were at spots too few people reached to say more.`));
     }
     return list;
   }
