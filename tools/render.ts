@@ -2123,6 +2123,21 @@ export function renderWwyhdHand(data: GamesData, hand: HandFile): string {
     <p class="eyebrow">What would you have done?</p>
     <h1 class="wwyhd-title">${esc(hand.title)}</h1>
     <p class="wwyhd-setup">${esc(hand.setup)}</p>
+    <p class="wwyhd-cue" id="wwyhd-cue">Enter email to play.</p>
+    <form class="wwyhd-sit" id="wwyhd-sit">
+      <p class="wwyhd-field">
+        <label for="wwyhd-email">Email</label>
+        <input id="wwyhd-email" name="email" type="email" autocomplete="email" required>
+      </p>
+      <p class="wwyhd-field">
+        <label for="wwyhd-name">Display name</label>
+        <input id="wwyhd-name" name="displayName" type="text" autocomplete="nickname">
+      </p>
+      <p class="wwyhd-field wwyhd-field--go">
+        <button class="btn-secondary" id="wwyhd-deal" type="submit">Deal</button>
+      </p>
+      <p class="stat wwyhd-sit-error" id="wwyhd-sit-error" role="alert"></p>
+    </form>
     <div class="wwyhd-table">
       <div class="wwyhd-felt">
         <p class="stat wwyhd-center" id="wwyhd-pot">Blinds ${hand.blinds.sb}/${hand.blinds.bb}${ante}</p>
@@ -2133,20 +2148,6 @@ ${seats}
       </ol>
     </div>
     <div class="wwyhd-bar">
-      <form class="wwyhd-sit" id="wwyhd-sit">
-        <p class="wwyhd-field">
-          <label for="wwyhd-email">Email</label>
-          <input id="wwyhd-email" name="email" type="email" autocomplete="email" required>
-        </p>
-        <p class="wwyhd-field">
-          <label for="wwyhd-name">Display name</label>
-          <input id="wwyhd-name" name="displayName" type="text" autocomplete="nickname">
-        </p>
-        <p class="wwyhd-field wwyhd-field--go">
-          <button class="btn-secondary" id="wwyhd-deal" type="submit">Deal</button>
-        </p>
-        <p class="stat wwyhd-sit-error" id="wwyhd-sit-error" role="alert"></p>
-      </form>
       <div class="wwyhd-controls" id="wwyhd-controls" hidden></div>
     </div>
     <details class="wwyhd-history" id="wwyhd-history">

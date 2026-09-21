@@ -649,6 +649,8 @@ function boot() {
     }
     if (sitError) sitError.textContent = "";
     form.hidden = true;
+    const cue = byId("wwyhd-cue");
+    if (cue) cue.hidden = true;
     controls.hidden = false;
     state = startHand(hand);
     paint();

@@ -23,6 +23,7 @@
   --felt: #101216;        /* the table felt: CTA bands only */
   --felt-ink: #eceae2;
   --line: rgba(26, 28, 32, .12);  /* hairline borders */
+  --seat-green: #2ca060;  /* the visitor's own seat on the puzzle table; not lime */
   --radius: 10px;
   /* The rarity ladder as a single rule: the site's signature. Used on the
      masthead border and section rules; never as text. */
@@ -835,6 +836,8 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
 .wwyhd-page .band-inner { max-width: 840px; }
 .wwyhd-title { font-size: clamp(1.25rem, 3vw, 1.6rem); font-weight: 800; letter-spacing: -.01em; margin: 0 0 .1em; }
 .wwyhd-setup { margin: 0 0 .75rem; color: var(--muted-ink); font-size: .95rem; }
+.wwyhd-cue { margin: 0 0 .35rem; font-weight: 700; }
+.wwyhd-page .wwyhd-sit { margin: 0 0 1rem; }
 
 .wwyhd-table {
   position: relative; margin: 0 auto; max-width: 520px; aspect-ratio: 3 / 4;
@@ -860,8 +863,16 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
   box-shadow: 0 1px 2px rgba(26,28,32,.12);
 }
 .wwyhd-seat p { margin: 0; }
-.wwyhd-seat--you { border-color: var(--sapphire); width: 8.6rem; }
-.wwyhd-seat--acting { box-shadow: 0 0 0 3px var(--sapphire); }
+/* The visitor's seat wears a green ring and glow so there is never a question
+   which seat is theirs (Mike, 2026-09-21). Green, not lime: lime is the RSVP
+   button's and nothing else's. The seat to act gets the sapphire ring, and
+   when that is the visitor the green stays and the glow widens. */
+.wwyhd-seat--you {
+  border-color: var(--seat-green); width: 8.6rem;
+  box-shadow: 0 0 0 3px var(--seat-green), 0 0 18px 4px rgba(44, 160, 96, .45);
+}
+.wwyhd-seat--acting:not(.wwyhd-seat--you) { box-shadow: 0 0 0 3px var(--sapphire); }
+.wwyhd-seat--acting.wwyhd-seat--you { box-shadow: 0 0 0 3px var(--seat-green), 0 0 28px 8px rgba(44, 160, 96, .6); }
 .wwyhd-seat--folded { opacity: .4; }
 .wwyhd-seat--folded .wwyhd-hole { visibility: hidden; }
 .wwyhd-pos-line { display: flex; justify-content: center; align-items: center; gap: .35em; }

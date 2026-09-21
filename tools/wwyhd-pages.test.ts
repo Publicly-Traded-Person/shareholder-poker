@@ -894,3 +894,21 @@ describe("the table shows who sits where and who acts when", () => {
     });
   });
 });
+
+// --- Mike, 2026-09-21: the fields above the table, and your seat ringed ---
+describe("the fields sit above the table under the cue, and the visitor's seat is the marked one", () => {
+  test("Enter email to play. precedes the form, and the form precedes the table", async () => {
+    const html = await handPage();
+    const cue = html.indexOf("Enter email to play.");
+    const form = html.indexOf('id="wwyhd-sit"');
+    const table = html.indexOf('class="wwyhd-table"');
+    expect(cue).toBeGreaterThan(-1);
+    expect(form).toBeGreaterThan(cue);
+    expect(table).toBeGreaterThan(form);
+  });
+  test("exactly one seat carries the visitor's class, and it is the seat player's", async () => {
+    const html = await handPage();
+    const marked = [...html.matchAll(/<li class="wwyhd-seat wwyhd-seat--you" data-handle="([^"]+)"/g)].map((m) => m[1]);
+    expect(marked).toEqual([HAND.seat]);
+  });
+});
