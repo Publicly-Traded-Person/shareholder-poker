@@ -1,33 +1,29 @@
 {
-  "wave": 3,
+  "wave": 4,
   "entries": {
-    "functions/api/wwyhd.js": {
-      "stateBlob": "89ea0079f8839a3ca514a5bdffe375a1cb309d4682c78efc0924e2ac3a95a0c6",
-      "visibleSha": "2c74c170583f694bec3e0bef8e9a66896c7d849e"
+    "site/styles.css": {
+      "stateBlob": "8a97a6a57ecc81ce16c993b2eb94952ab91cc41edd82c866de6a7fa1629a58b6",
+      "visibleSha": "a76de426ecef9b309559683146bb5f0481f07543"
     },
-    "site/schema.sql": {
-      "stateBlob": "2d473b02472407d21e606bd7031ebc131004321fd5bac2deed7d9cd802dc5a4e",
-      "visibleSha": "23767fd2fc2d43d770c20b6da27c1b89687ced49"
+    "site/wwyhd.js": {
+      "stateBlob": "f4e3d89c5088d61bfd46edfa8aa4a9572512c67da0800f009f651e2a15ffabc8",
+      "visibleSha": "0c7460c1f95e87fb8f07eceddcc0f9ce904bb0c6"
     },
-    "tools/fixtures/wwyhd-mini.json": {
-      "stateBlob": "23c1740373a3bdcc50b51d27c2d8e2e9659d305e32a1a99c7de4f48d8636f8d6",
-      "visibleSha": "711a942acca545ba552001ab35d9ca639c706040"
+    "tools/lib/render-inputs.ts": {
+      "stateBlob": "faf5cd5409dae996d0c548a711ea43e867ae3fd1d5dcae05ec13a62eebf0f0de",
+      "visibleSha": "0cb9029a00714eb1db2bd0b87e577134da60eb9e"
     },
-    "tools/lib/wwyhd.ts": {
-      "stateBlob": "7804ad047bf3f512f5212dd73dff1a25fab05572719fba2252fcd646a010b9ed",
-      "visibleSha": "9125f69387cdf96e10a8eacb4dfea5c03c0db8e1"
+    "tools/render.ts": {
+      "stateBlob": "da143ec322e4e79b6f3c2d48f7b9d13c0253982d3cceccd2c802d479571950fb",
+      "visibleSha": "2ee201ac28f56983e76d2e42115cd4f5029c111a"
     },
-    "tools/wwyhd-api.test.ts": {
-      "stateBlob": "8a549fbd07f504f58060828427d0480f8acfb302cb49b42cbb3223390ad3b4f8",
-      "visibleSha": "0daf8993faed086a15a12fe6e30f5009a041550d"
+    "tools/site.test.ts": {
+      "stateBlob": "1eece976168a8869023985c070a221bfd7686f374bd597749242879df4f367c2",
+      "visibleSha": "942096995b07f7e23a5e280a33db7852ea60ad02"
     },
-    "tools/wwyhd-check.ts": {
-      "stateBlob": "faee545d5f7c8dcca204dcdc583e3ceba842019ab55053c6a1e6dfa32c8ea5d5",
-      "visibleSha": "a1e163eb7a0037c442b9ce2de1d26fccab39a2da"
-    },
-    "tools/wwyhd-files.test.ts": {
-      "stateBlob": "6f754c67c002b09d6db967e27e27decf584275d6b7f3dca69c63ba08348df8dd",
-      "visibleSha": "6d9a652b1041783fd2863b6e4fd405d6f2d426e4"
+    "tools/wwyhd-pages.test.ts": {
+      "stateBlob": "74fa75c19c84cd2576e38f07760d7c22647333305373cb01c2a36dfba196d769",
+      "visibleSha": "0b1cf22705b4c8c3f9ab83a2070d37a3ba9fff64"
     }
   }
 }
