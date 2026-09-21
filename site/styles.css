@@ -877,7 +877,7 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
 .wwyhd-seat--folded .wwyhd-hole { visibility: hidden; }
 .wwyhd-pos-line { display: flex; justify-content: center; align-items: center; gap: .35em; }
 .wwyhd-pos { font-size: .6rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted-ink); }
-.wwyhd-pos-line .eyebrow { margin: 0; font-size: .6rem; color: var(--sapphire); }
+.wwyhd-pos-line .eyebrow { margin: 0; font-size: .6rem; color: var(--seat-green); }
 .wwyhd-button {
   display: inline-grid; place-items: center; width: 1.3em; height: 1.3em; border-radius: 50%;
   background: #fff; color: var(--ink); border: 1.5px solid var(--ink); font-size: .65rem; font-weight: 800;
