@@ -1,29 +1,17 @@
 {
-  "wave": 4,
+  "wave": 5,
   "entries": {
-    "site/styles.css": {
-      "stateBlob": "8a97a6a57ecc81ce16c993b2eb94952ab91cc41edd82c866de6a7fa1629a58b6",
-      "visibleSha": "a76de426ecef9b309559683146bb5f0481f07543"
+    "CLAUDE.md": {
+      "stateBlob": "19a9b04350cec205ca33ba336d312c67932118414d3b4f1c74371131bd059372",
+      "visibleSha": "ec25b1c36bee4e0c86da0fa11cfabef9e9faf82e"
     },
-    "site/wwyhd.js": {
-      "stateBlob": "f4e3d89c5088d61bfd46edfa8aa4a9572512c67da0800f009f651e2a15ffabc8",
-      "visibleSha": "0c7460c1f95e87fb8f07eceddcc0f9ce904bb0c6"
+    "docs/publishing.md": {
+      "stateBlob": "cccb7f91c9dcd0149fc3dc83e9cb072e79b6cafa9e6293d631431351d5181728",
+      "visibleSha": "cdf2ce808e08b18352c4600f203cddddf33c5881"
     },
-    "tools/lib/render-inputs.ts": {
-      "stateBlob": "faf5cd5409dae996d0c548a711ea43e867ae3fd1d5dcae05ec13a62eebf0f0de",
-      "visibleSha": "0cb9029a00714eb1db2bd0b87e577134da60eb9e"
-    },
-    "tools/render.ts": {
-      "stateBlob": "da143ec322e4e79b6f3c2d48f7b9d13c0253982d3cceccd2c802d479571950fb",
-      "visibleSha": "2ee201ac28f56983e76d2e42115cd4f5029c111a"
-    },
-    "tools/site.test.ts": {
-      "stateBlob": "1eece976168a8869023985c070a221bfd7686f374bd597749242879df4f367c2",
-      "visibleSha": "942096995b07f7e23a5e280a33db7852ea60ad02"
-    },
-    "tools/wwyhd-pages.test.ts": {
-      "stateBlob": "74fa75c19c84cd2576e38f07760d7c22647333305373cb01c2a36dfba196d769",
-      "visibleSha": "0b1cf22705b4c8c3f9ab83a2070d37a3ba9fff64"
+    "docs/superpowers/specs/2026-09-20-what-would-you-have-done-design.md": {
+      "stateBlob": "b8cb456d09c668877deeac22d298e0b2d239a401103b5451bf13b5ddd27ad4d5",
+      "visibleSha": "3a101c9bfcce581261387bb81c4dfdab54797197"
     }
   }
 }

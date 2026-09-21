@@ -1,0 +1,56 @@
+{
+  "mode": "gate",
+  "stamp": "run-1",
+  "reportPath": "/home/exedev/target/.claude/ultrapowers/run-run-1/report.json",
+  "branch": "ultra/integration-run-1",
+  "gateCheck": {
+    "verdict": "PASS",
+    "checks": [
+      {
+        "name": "report-parse",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "name": "clean-tree",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "name": "wave-merges",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "name": "head-match",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "name": "git-verified",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "name": "ancestry",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "name": "deliverables",
+        "ok": true,
+        "detail": ""
+      }
+    ],
+    "acks": [],
+    "notes": [],
+    "repo": "/home/exedev/target"
+  },
+  "gateCheckExit": 0,
+  "suite": {
+    "passed": true,
+    "unattributed": [],
+    "output": " derives entries from chip conservation [0.01ms]\n(pass) entryCount > throws when totals do not divide by the starting stack [0.04ms]\n\ntools/lib/slugs.test.ts:\n(pass) resolveSlug > resolves any aka to the slug [0.03ms]\n(pass) resolveSlug > is case-insensitive [0.01ms]\n(pass) resolveSlug > throws UnknownHandleError naming the handle, never invents a player [0.05ms]\n\ntools/lib/archive.test.ts:\n(pass) BOUNTY_NAMES > maps exactly the five recognized kinds to their display names [0.05ms]\n(pass) validateArchive: M2 - the full-field fixture passes, and the pass is not vacuous > the fixture returns without throwing [0.20ms]\n(pass) validateArchive: M2 - the full-field fixture passes, and the pass is not vacuous > the same fixture with one podium name corrupted to lowercase throws [0.64ms]\n(pass) validateArchive: M3 - the nine per-file rules, each isolated > M3(a): a name failing the First L. pattern with no handle throws, naming the date [0.08ms]\n(pass) validateArchive: M3 - the nine per-file rules, each isolated > M3(b): a slug naming no spine result throws, naming the date [0.08ms]\n(pass) validateArchive: M3 - the nine per-file rules, each isolated > M3(c): entrants smaller than the podium's distinct names throws, naming the date [0.06ms]\n(pass) validateArchive: M3 - the nine per-file rules, each isolated > M3(d): the same date on two games throws, naming it [0.05ms]\n(pass) validateArchive: M3 - the nine per-file rules, each isolated > M3(e): a game dated on or after the spine's earliest game throws, naming it; the day before passes [0.08ms]\n(pass) validateArchive: M3 - the nine per-file rules, each isolated > M3(f): a bounty kind outside the five recognized kinds throws, naming the date [0.08ms]\n(pass) validateArchive: M3 - the nine per-file rules, each isolated > M3(g): podium places out of order, outside 1 to 3, or more than three entries, throw naming the date [0.15ms]\n(pass) validateArchive: M3 - the nine per-file rules, each isolated > M3(h): an em dash in a name, a game note, a season note, or a season title throws, naming the game or the season [0.17ms]\n(pass) validateArchive: M3 - the nine per-file rules, each isolated > M3(i): the word \"experiment\" in a game note or a season note throws, naming the game or the season [0.09ms]\n(pass) validateArchive: M3 - the nine per-file rules, each isolated > M3(j): an empty seasons list, a season with no games, or a duplicate season id throws [0.12ms]\n(pass) validateArchive: M4 - the name rule's two exceptions > name: \"Gene\" with no initial passes [0.05ms]\n(pass) validateArchive: M4 - the name rule's two exceptions > name: \"K5M Guy\" passes when handle: \"K5M Guy\" matches it exactly [0.04ms]\n(pass) validateArchive: M4 - the name rule's two exceptions > name: \"K5M Guy\" with no handle throws, naming the date [0.05ms]\n\ntools/lib/args.test.ts:\n(pass) positionals > returns the bare arguments in order, skipping every flag and its value [0.04ms]\n(pass) positionals > is empty when only flags were given [0.01ms]\n(pass) flag > returns the value after the named flag, or undefined when absent [0.02ms]\n\ntools/lib/standings.test.ts:\n(pass) deriveStandings > aggregates per player across games [0.09ms]\n(pass) deriveStandings > best finish is the one hardest to earn: 4th of 14 beats 4th of 6 [0.13ms]\n(pass) deriveStandings > sorts by winnings first: a bigger cash outranks a smaller win [0.06ms]\n(pass) deriveStandings > cashes break a winnings tie [0.05ms]\n(pass) deriveStandings > best share breaks a cashes tie: 4th of 14 sorts above 4th of 7 [0.09ms]\n(pass) deriveStandings > a win is always Best: 1st of 6 stays over a later 2nd of 14 [0.10ms]\n(pass) deriveStandings > between two wins, the bigger field is Best [0.10ms]\n(pass) deriveStandings > the live table, September 2026: money, then cashes, then best share, then name [0.20ms]\n(pass) deriveStandings > carries the seeded coin holder and counts skulls from trophies [0.04ms]\n\n 1154 pass\n 0 fail\n 5002 expect() calls\nRan 1154 tests across 29 files. [481.00ms]\n"
+  },
+  "verdict": "PASS"
+}

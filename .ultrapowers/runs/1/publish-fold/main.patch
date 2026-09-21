@@ -1,0 +1,13 @@
+diff --git a/site/cards/how-to-read/index.html b/site/cards/how-to-read/index.html
+index 20768a2b3d61dbdb55ed863de382bccea4099da7..d7720fd858a25430d6186f0eb90d439a7c08d01c 100644
+--- a/site/cards/how-to-read/index.html
++++ b/site/cards/how-to-read/index.html
+@@ -107,7 +107,7 @@
+         <li><b>The art</b> The player's own image, uploaded by them, or their initial until they add one.</li>
+         <li><b>The type line</b> One phrase for how they played that night. Always the strong side of it.</li>
+         <li><b>The signature line</b> What the night was, in one sentence, from the log.</li>
+-        <li><b>How to play them</b> The scouting read: what to do at the table against this player, based on the six numbers. Written by the co-pilot that watches the logs, and not edited.</li>
++        <li><b>How to play them</b> The scouting read: what to do at the table against this player, based on the six numbers and the log.</li>
+         <li><b>Stamps</b> The night's achievements and trophies.</li>
+         <li><b>The set line</b> Which set the card belongs to, and its rarity, spelled out.</li>
+       </ul>

@@ -17,3 +17,6 @@
 {"event": "emitted", "wave": 4, "path": "tools/render.ts", "stateBlob": "da143ec322e4e79b6f3c2d48f7b9d13c0253982d3cceccd2c802d479571950fb", "visibleSha": "2ee201ac28f56983e76d2e42115cd4f5029c111a"}
 {"event": "emitted", "wave": 4, "path": "tools/site.test.ts", "stateBlob": "1eece976168a8869023985c070a221bfd7686f374bd597749242879df4f367c2", "visibleSha": "942096995b07f7e23a5e280a33db7852ea60ad02"}
 {"event": "emitted", "wave": 4, "path": "tools/wwyhd-pages.test.ts", "stateBlob": "74fa75c19c84cd2576e38f07760d7c22647333305373cb01c2a36dfba196d769", "visibleSha": "0b1cf22705b4c8c3f9ab83a2070d37a3ba9fff64"}
+{"event": "emitted", "wave": 5, "path": "CLAUDE.md", "stateBlob": "19a9b04350cec205ca33ba336d312c67932118414d3b4f1c74371131bd059372", "visibleSha": "ec25b1c36bee4e0c86da0fa11cfabef9e9faf82e"}
+{"event": "emitted", "wave": 5, "path": "docs/publishing.md", "stateBlob": "cccb7f91c9dcd0149fc3dc83e9cb072e79b6cafa9e6293d631431351d5181728", "visibleSha": "cdf2ce808e08b18352c4600f203cddddf33c5881"}
+{"event": "emitted", "wave": 5, "path": "docs/superpowers/specs/2026-09-20-what-would-you-have-done-design.md", "stateBlob": "b8cb456d09c668877deeac22d298e0b2d239a401103b5451bf13b5ddd27ad4d5", "visibleSha": "3a101c9bfcce581261387bb81c4dfdab54797197"}
