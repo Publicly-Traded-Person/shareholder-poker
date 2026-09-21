@@ -924,7 +924,7 @@ describe("every puzzle page ends on the RSVP band for the next game", () => {
   test("both pages carry the felt band, one lime RSVP button, and the runtime script", async () => {
     for (const [label, html] of await pages()) {
       expect(html, `${label}: no felt band`).toContain('class="band-cta"');
-      expect(html, `${label}: no RSVP link`).toContain('href="/#rsvp-form"');
+      expect(html, `${label}: no RSVP link`).toContain('href="/#rsvp"');
       expect(html.split("btn-primary").length - 1, `${label}: lime count`).toBe(1);
       expect(html, `${label}: does not load the date script`).toContain('src="/next-game.js"');
     }

@@ -483,7 +483,7 @@ ${played}
       <p class="eyebrow">${MONTHS[nextM - 1]} · Next game</p>
       <p class="season-date">${data.nextGame.date}</p>
       <p>${data.nextGame.time}, cards on Poker Now, faces on Zoom. New players welcome.</p>
-      <p><a class="btn-primary" href="/#rsvp-form">RSVP for ${shortDate(data.nextGame.date)}</a></p>
+      <p><a class="btn-primary" href="/#rsvp">RSVP for ${shortDate(data.nextGame.date)}</a></p>
       <p class="season-links"><a href="/next-game.ics">Add to calendar</a></p>
     </li>
 ${upcoming}
@@ -2140,7 +2140,7 @@ function wwyhdRsvpBand(data: GamesData): string {
   <div class="band-inner">
     <h2 class="display">Play the real thing</h2>
     <p>The next Shareholder Poker game is <span data-next-game>${when}</span>. No-limit Hold'em, second Tuesday of the month, $50 buy-in. Cards on Poker Now, faces on Zoom.</p>
-    <a class="btn-primary" href="/#rsvp-form">RSVP for the next game</a>
+    <a class="btn-primary" href="/#rsvp">RSVP for the next game</a>
   </div>
 </section>`;
 }
