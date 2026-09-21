@@ -132,13 +132,20 @@ const HAND = {
 /** The seat's line the whole exam submits: five decisions, one on each street
  *  and two preflop. It is a legal line for the hand above, which is what lets
  *  leg (b) make a one-action-short copy that is illegal for exactly one
- *  reason. */
+ *  reason.
+ *
+ *  It checks the last three streets because bob's own profile decides what
+ *  the hand allows (rules rewritten 2026-09-21 so every decision comes from
+ *  the player's numbers): bob holds queens on a king-high board, an underpair,
+ *  and his foldToRaise of 40 sets a continue bar above that, so he folds to any
+ *  bet. A line that bet a street would end the hand there and leave actions
+ *  over. Nothing here hardcodes a chip count; REPLAY below computes it. */
 const SEAT_LINE = [
   { street: "PRE", type: "raise", amount: 600 },
   { street: "PRE", type: "call", amount: 0 },
-  { street: "FLOP", type: "bet", amount: 800 },
-  { street: "TURN", type: "bet", amount: 1600 },
-  { street: "RIVER", type: "bet", amount: 2000 },
+  { street: "FLOP", type: "check", amount: 0 },
+  { street: "TURN", type: "check", amount: 0 },
+  { street: "RIVER", type: "check", amount: 0 },
 ];
 
 /** The opponents answered exactly as the Function's Context says the Function

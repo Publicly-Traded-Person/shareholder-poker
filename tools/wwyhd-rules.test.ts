@@ -416,9 +416,9 @@ describe("decide [M3]", () => {
   });
 
   test("leg (d): tight-passive folds unopened, folds the flop raise, folds the river bet", () => {
-    // vpip 15 and the percentile is above 20, so it never enters.
-    // foldToRaise 80 sets the bar at band 3, and the flop holding is band 2.
-    // callDown 30 is under CALL_DOWN 50, so the river needs band 3.
+    // entry 15 x 1.25 (late) = 18.75, under JTo's percentile, so it never
+    // enters. continueBar 80/30 = 2.67 on the flop; (100-30)/30 = 2.33 on the
+    // river; the holdings are band 2 in both spots.
     const p = TIGHT_PASSIVE;
     expect(decide(UNOPENED_PRE("alice"), p)).toEqual({ type: "fold", amount: 0 });
     expect(decide(FLOP_RAISE_BAND2("alice"), p)).toEqual({ type: "fold", amount: 0 });
@@ -426,36 +426,36 @@ describe("decide [M3]", () => {
   });
 
   test("leg (e): loose-passive calls unopened, calls the flop raise, calls the river bet", () => {
-    // vpip 55 is above the percentile so it enters, and af 0.7 is under
-    // RAISE_AF 1.5 so it calls rather than raises.
-    // foldToRaise 30 sets the bar at band 1, and band 2 is not 3 or 4, so call.
-    // callDown 70 is at or above CALL_DOWN 50, so band 2 calls on the river.
+    // entry 68.75 so it enters; betBar 4 - 1.2 x 0.7 = 3.16, above band 2, so
+    // it limps. Flop: continueBar 1.0, share 1200/11000 = 0.109 against
+    // maxShare risk 0.547 x 0.25 = 0.137, raiseBar 4.66: call. River: bar
+    // 1.0, share 0.130 against 0.137: call.
     const p = LOOSE_PASSIVE;
     expect(decide(UNOPENED_PRE("bob"), p)).toEqual({ type: "call", amount: 0 });
     expect(decide(FLOP_RAISE_BAND2("bob"), p)).toEqual({ type: "call", amount: 0 });
     expect(decide(RIVER_BET_BAND2("bob"), p)).toEqual({ type: "call", amount: 0 });
   });
 
-  test("leg (f): tight-aggressive folds unopened, calls the flop raise, folds the river bet", () => {
-    // vpip 20 and the percentile is strictly above 20, so it does not enter.
-    // foldToRaise 60 sets the bar at band 2, so band 2 clears it and, not
-    // being 3 or 4, calls despite af 3.0.
-    // callDown 40 is under CALL_DOWN 50, so the river needs band 3.
+  test("leg (f): tight-aggressive raises unopened in late position, calls the flop raise, folds the river bet", () => {
+    // entry 20 x 1.25 = 25, just over JTo's 24.26, so in late position it
+    // plays, and betBar floors at 1 (af 3.0), so it raises: 400 + 0.9 x 300 =
+    // 670. Flop: continueBar 2.0, share 0.109 under maxShare 0.467 x 0.25 =
+    // 0.117, raiseBar 2.5 above band 2: call. River: bar 2.0 ok, but share
+    // 0.130 is over 0.117: fold.
     const p = TIGHT_AGGRESSIVE;
-    expect(decide(UNOPENED_PRE("carol"), p)).toEqual({ type: "fold", amount: 0 });
+    expect(decide(UNOPENED_PRE("carol"), p)).toEqual({ type: "raise", amount: 670 });
     expect(decide(FLOP_RAISE_BAND2("carol"), p)).toEqual({ type: "call", amount: 0 });
     expect(decide(RIVER_BET_BAND2("carol"), p)).toEqual({ type: "fold", amount: 0 });
   });
 
-  test("leg (g): loose-aggressive raises unopened to minRaiseTo, calls the flop raise, calls the river bet", () => {
-    // vpip 50 is above the percentile so it enters, and af 2.5 is at or above
-    // RAISE_AF 1.5, so it raises to the view's own `legal.minRaiseTo`, 400.
-    // foldToRaise 25 sets the bar at band 1 and band 2 is not 3 or 4, so call.
-    // callDown 65 is at or above CALL_DOWN 50, so band 2 calls on the river.
+  test("leg (g): loose-aggressive raises unopened to 640, calls the flop raise, calls the river bet", () => {
+    // entry 62.5 so it enters; betBar 1.0 (af 2.5) so it raises; shoveBar
+    // 4 - 1.2 = 2.8 is above band 2 so not all in; 400 + 0.8 x 300 = 640.
+    // Flop: continueBar 0.83, risk capped at 1 so maxShare 0.25, raiseBar
+    // 2.5 above band 2: call. River: bar 1.17, share 0.130 under 0.25: call.
     const p = LOOSE_AGGRESSIVE;
     const unopened = UNOPENED_PRE("dave");
-    expect(decide(unopened, p)).toEqual({ type: "raise", amount: unopened.legal.minRaiseTo });
-    expect(decide(unopened, p)).toEqual({ type: "raise", amount: 400 });
+    expect(decide(unopened, p)).toEqual({ type: "raise", amount: 640 });
     expect(decide(FLOP_RAISE_BAND2("dave"), p)).toEqual({ type: "call", amount: 0 });
     expect(decide(RIVER_BET_BAND2("dave"), p)).toEqual({ type: "call", amount: 0 });
   });
@@ -469,11 +469,11 @@ describe("decide [M3]", () => {
     }
   });
 
-  test("[M3] RAISE_AF is 1.5 and CALL_DOWN is 50, the defaults the table above is stated for", () => {
-    // M3 gives its archetype table "with RAISE_AF 1.5 and CALL_DOWN 50", so
-    // those two numbers are part of the clause legs (d) to (g) encode.
-    expect(THRESHOLDS.RAISE_AF).toBe(1.5);
-    expect(THRESHOLDS.CALL_DOWN).toBe(50);
+  test("the scale factors the archetype table above is computed with", () => {
+    expect(THRESHOLDS.POS_LATE).toBe(1.25);
+    expect(THRESHOLDS.BET_BAR_SLOPE).toBe(1.2);
+    expect(THRESHOLDS.CONTINUE_SCALE).toBe(30);
+    expect(THRESHOLDS.RISK_CALLDOWN).toBe(150);
   });
 });
 
@@ -548,7 +548,7 @@ describe("the invariants [M4]", () => {
 
 describe("THRESHOLDS [M5]", () => {
   /** The five names M5 fixes, spelled as the task spells them. */
-  const NAMES = ["RAISE_AF", "CALL_DOWN", "ALL_IN_STRONG", "CHEAP_CALL_SHARE", "MIN_SHARED", "BET_AF"];
+  const NAMES = ["POS_LATE", "POS_EARLY", "BET_BAR_SLOPE", "RAISE_OVER_BET", "BET_FRAC_BASE", "BET_FRAC_SLOPE", "CONTINUE_SCALE", "RISK_ALLIN", "RISK_CALLDOWN", "SHOVE_SLOPE", "COMMIT_SHARE", "COMMIT_ALLIN", "MIN_SHARED"];
 
   test("leg (j): the exported keys sorted are exactly the five names sorted", () => {
     expect(Object.keys(THRESHOLDS).sort()).toEqual([...NAMES].sort());
@@ -561,14 +561,14 @@ describe("THRESHOLDS [M5]", () => {
     }
   });
 
-  test("leg (j): the loose-aggressive unopened spot turns from raise to call under RAISE_AF 3.0", () => {
-    // af 2.5 clears the default 1.5 and does not clear 3.0, so the same spot
-    // must answer differently. This is what proves the table reads its third
-    // argument rather than an inlined copy of the constant.
+  test("leg (j): the loose-aggressive unopened spot turns from raise to call when BET_BAR_SLOPE is 0", () => {
+    // With the slope at 0 every betBar is 4, so band 2 no longer raises. This
+    // is what proves the table reads its third argument rather than an
+    // inlined copy of the constant.
     const v = UNOPENED_PRE("dave");
-    expect(decide(v, LOOSE_AGGRESSIVE)).toEqual({ type: "raise", amount: 400 });
+    expect(decide(v, LOOSE_AGGRESSIVE)).toEqual({ type: "raise", amount: 640 });
 
-    const raised = { ...THRESHOLDS, RAISE_AF: 3.0 };
+    const raised = { ...THRESHOLDS, BET_BAR_SLOPE: 0 };
     const action = decide(v, LOOSE_AGGRESSIVE, raised);
     expect(action).toEqual({ type: "call", amount: 0 });
     expectLegal(action, v.legal);
@@ -584,7 +584,7 @@ describe("THRESHOLDS [M5]", () => {
     // this, one call with a tuned copy would silently retune the rest of the
     // hand, and the browser and the Function would stop agreeing.
     const before = { ...THRESHOLDS };
-    decide(UNOPENED_PRE("dave"), LOOSE_AGGRESSIVE, { ...THRESHOLDS, RAISE_AF: 3.0 });
+    decide(UNOPENED_PRE("dave"), LOOSE_AGGRESSIVE, { ...THRESHOLDS, BET_BAR_SLOPE: 0 });
     expect({ ...THRESHOLDS }).toEqual(before);
   });
 });
@@ -698,14 +698,16 @@ describe("betting when checked to", () => {
       ...over,
     });
   const CHRIS = { vpip: 30, af: 0.84, allInRate: 0.01, foldToRaise: 48, callDown: 67 };
-  test("an overpair on a dry flop bets half the pot at Chris H.'s aggression", () => {
-    expect(decide(checkedTo(["Ah", "Ac"], ["Qs", "3s", "7s"], 1000), CHRIS)).toEqual({ type: "bet", amount: 500 });
+  test("an overpair on a dry flop bets at Chris H.'s aggression, sized by it", () => {
+    // betBar 4 - 1.2 x 0.84 = 2.99, band 3 clears it; betFrac 0.3 + 0.168 = 0.468 of 1000.
+    expect(decide(checkedTo(["Ah", "Ac"], ["Qs", "3s", "7s"], 1000), CHRIS)).toEqual({ type: "bet", amount: 468 });
   });
   test("the same hand checks behind at a passive profile", () => {
     expect(decide(checkedTo(["Ah", "Ac"], ["Qs", "3s", "7s"], 1000), TIGHT_PASSIVE)).toEqual({ type: "check", amount: 0 });
   });
   test("a set bets whatever the profile", () => {
-    expect(decide(checkedTo(["7h", "7d"], ["Qs", "3s", "7s"], 1000), TIGHT_PASSIVE)).toEqual({ type: "bet", amount: 500 });
+    // betBar 3.28 at af 0.6; a set is band 4; betFrac 0.42 of 1000.
+    expect(decide(checkedTo(["7h", "7d"], ["Qs", "3s", "7s"], 1000), TIGHT_PASSIVE)).toEqual({ type: "bet", amount: 420 });
   });
   test("a bet never goes below the minimum or above the stack", () => {
     expect(decide(checkedTo(["7h", "7d"], ["Qs", "3s", "7s"], 100), CHRIS)).toEqual({ type: "bet", amount: 200 });
