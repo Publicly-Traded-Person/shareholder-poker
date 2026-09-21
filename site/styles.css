@@ -841,7 +841,7 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
   background: var(--parchment); border: 1px solid var(--line); border-radius: 50% / 50%;
 }
 .wwyhd-felt {
-  position: absolute; inset: 15% 15%; border-radius: 50% / 50%;
+  position: absolute; inset: 19% 21%; border-radius: 50% / 50%;
   background: var(--felt); color: var(--felt-ink);
   display: grid; place-items: center; align-content: center; gap: .35rem;
   box-shadow: inset 0 0 0 5px rgba(255,255,255,.06);
