@@ -443,6 +443,115 @@ record starts with..." line links to the archive) the same way any other
 generated-page change gets reviewed, then run `bun test tools` before
 committing.
 
+## The weekly puzzle
+
+Once a week between games, one real showdown hand from the last game becomes
+a playable puzzle at `/wwyhd/`. Charlie writes one small data file; every
+page is generated from it. The design is in
+`docs/superpowers/specs/2026-09-20-what-would-you-have-done-design.md`, and
+the steps below are the whole job.
+
+**One-time, before the first puzzle ever merges.** Apply the schema so the
+results table exists:
+
+```
+npx wrangler d1 execute poker-rsvp-db --remote --file site/schema.sql
+```
+
+(and the `--local` twin for rehearsal:
+`npx wrangler d1 execute poker-rsvp-db --local --file site/schema.sql`). This
+is the same command the consent tables already use above, and it is
+idempotent: `schema.sql` is all `CREATE TABLE IF NOT EXISTS`, so running it
+again on a database that already has the table changes nothing. Skip this
+step every week after the first.
+
+1. **Pick the hand.** From the last game's PokerNow log, take a hand that
+   reached showdown and had a real decision in it; prefer one already
+   written up in the recap. The seat player has to be someone who showed
+   down, because their cards are the only ones that are real and that is
+   what the disclosure below promises.
+2. **Write the hand file**, at `site/data/wwyhd/<YYYY-MM-DD>-<n>.json`, one
+   per puzzle, committed by PR like everything else. Every number that came
+   from the log is copied from the log, never typed from memory: stacks,
+   blinds, dealer, the real action list, the board, the cards that showed
+   down. Then add the parts the log cannot give you:
+   - `real.endStacks`, each player's stack at the START of the next hand,
+     read off that next hand's `Player stacks:` line in the log. This is the
+     number the check in step 3 replays against, so get it from the log and
+     nowhere else.
+   - a holding for every player who folded before showdown (`shown: false`),
+     chosen to fit the line that player actually took
+   - the rest of the runout, if the real hand ended before the river
+   - the `title`, `setup` and `result` lines. Dignity rule, no em dashes,
+     First name plus last initial beside the handle, same as any page.
+   - `opens` and `closes`. `closes` is the only source of truth for when
+     this puzzle stops ranking; nothing infers it from the next one's
+     `opens`.
+3. **Check the file:**
+
+   ```
+   bun tools/wwyhd-check.ts site/data/wwyhd/<YYYY-MM-DD>-<n>.json
+   ```
+
+   It validates the file against `games.json` (an unknown handle halts, same
+   as publish-game) and then replays `real.actions` through the same engine
+   the browser runs, asserting the stacks it lands on are exactly
+   `real.endStacks`. Exit 0 prints `ok <id>` per file, in the order given.
+   Exit 1 names the first file that failed and why, on stderr, and stops
+   there. Exit 2 means you named no file at all. A replay failure means the
+   FILE is wrong, not the engine: reread the log, fix the input, never the
+   check. Run it from the repo root; it reads `site/data/games.json`
+   relative to the working directory.
+4. **Render the pages:**
+
+   ```
+   bun tools/render.ts
+   ```
+
+   It writes `site/wwyhd/index.html` (the index: the current puzzle at the
+   top, past ones below with their leaderboard winner) and one
+   `site/wwyhd/<id>/index.html` per hand file. Everything under
+   `site/wwyhd/` is generated and is never hand-edited. The player-facing
+   code one level up, `site/wwyhd.js` and the `site/wwyhd-*.js` modules, is
+   hand-written and is not touched by the renderer.
+5. **Commit the generated pages** before testing, for the reason at the top
+   of this runbook: the drift check re-runs the renderer for real and
+   refuses while any generated path is dirty.
+6. **Run the suite:**
+
+   ```
+   bun test tools
+   ```
+
+   It runs the same validation and the same replay over every committed hand
+   file, so a wrong file cannot merge even if step 3 was skipped.
+7. **PR.** Mike reads the title, the setup line and the result line. Merge
+   on Mike's go, same as anything visitor-facing. Every push to `main`
+   deploys.
+8. **Email the poker list**: one line, the table image, the link. Mike
+   sends, same shape as the portrait email, and it is also how the players
+   in the hand find out their hand is this week's puzzle. The puzzle is
+   deliberately not in the site's shared nav; the link travels by email and
+   from `/wwyhd/`.
+
+**The disclosure, verbatim.** The renderer puts this sentence on the page,
+in the display voice:
+
+> This is a simulation. The cards shown at showdown are the real ones. Everything else was filled in with what we judged likely.
+
+It is on every puzzle page, the index included, not only on the reveal,
+because a visitor can land anywhere. Past the visitor's first move away from
+the real line the hand is a simulation and the page has to say so before
+they play, not after. The reveal marks each authored holding and an authored
+runout the same way, one by one.
+
+**What ranks.** A visitor's first attempt is the one that ranks. Replays are
+allowed and recorded and they do not rank, because the hand is deterministic
+and a replay is a search for the ceiling rather than a second try at the same
+puzzle. The page says so once, before the deal. A result submitted after the
+file's `closes` date is recorded and does not rank either, and a closed
+puzzle stays playable.
+
 ## Portrait consent (per set, Tier 2b)
 
 Card portraits ship only with the player's yes, given on a private page that
