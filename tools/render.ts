@@ -2052,8 +2052,8 @@ export function wwyhdSeatPlan(hand: HandFile): WwyhdSeatPlan[] {
       player: hand.players[i],
       tag: tags[i],
       posted: i === sbIndex ? hand.blinds.sb : i === bbIndex ? hand.blinds.bb : 0,
-      x: Math.round(50 + 44 * Math.cos(angle)),
-      y: Math.round(50 + 42 * Math.sin(angle)),
+      x: Math.round(50 + 41 * Math.cos(angle)),
+      y: Math.round(50 + 40 * Math.sin(angle)),
     });
   }
   return plan;
@@ -2064,7 +2064,7 @@ function wwyhdSeat(data: GamesData, hand: HandFile, seat: WwyhdSeatPlan): string
   const you = player.handle === hand.seat;
   const cards = you
     ? player.cards.map((c) => `<span class="wwyhd-card">${esc(c)}</span>`).join("")
-    : '<span class="wwyhd-card wwyhd-card--down">two face down</span>';
+    : '<span class="wwyhd-card wwyhd-card--down" aria-hidden="true"></span><span class="wwyhd-card wwyhd-card--down" aria-hidden="true"></span>';
   const youMark = you ? ' <span class="eyebrow">You</span>' : "";
   const button = player.handle === hand.dealer ? '<span class="wwyhd-button" title="Dealer">D</span>' : "";
   const blind = posted > 0 ? `<span class="wwyhd-blind">${posted}</span>` : "";
@@ -2072,7 +2072,7 @@ function wwyhdSeat(data: GamesData, hand: HandFile, seat: WwyhdSeatPlan): string
           <p class="wwyhd-pos-line"><span class="wwyhd-pos">${esc(tag)}</span>${button}</p>
           <p class="wwyhd-who">${esc(wwyhdName(data, player.handle))} <span class="stat">${esc(player.handle)}</span>${youMark}</p>
           <p class="stat wwyhd-stack" data-stack="${esc(player.handle)}">${player.stack} chips</p>
-          <p class="wwyhd-hole">${cards}</p>
+          <p class="wwyhd-hole"${you ? "" : ' aria-label="two cards face down"'}>${cards}</p>
           <p class="wwyhd-front" data-bet="${esc(player.handle)}">${blind}</p>
         </li>`;
 }

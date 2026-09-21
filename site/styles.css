@@ -840,7 +840,19 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
   background: var(--paper); border: 1px solid var(--line);
   border-radius: var(--radius); padding: .6em .85em;
 }
-.wwyhd-felt { display: none; }
+/* Below 640px the felt is a dark strip above the seat list: the pot line and
+   the board have to be visible on a phone too, and this is the one place the
+   page keeps them. */
+.wwyhd-felt {
+  display: grid; place-items: center; gap: .35rem; margin: 0 0 .75rem;
+  padding: .8rem 1rem; border-radius: var(--radius);
+  background: var(--felt); color: var(--felt-ink);
+}
+.wwyhd-felt .wwyhd-center { color: var(--felt-ink); margin: 0; }
+.wwyhd-felt .wwyhd-board { margin: 0; min-height: 1.8em; }
+.wwyhd-felt .wwyhd-card { background: #fff; color: var(--ink); }
+.wwyhd-hole { display: flex; gap: .3em; align-items: center; }
+.wwyhd-card--down { width: 1.6em; height: 2.1em; padding: 0; box-sizing: border-box; }
 .wwyhd-pos-line { display: flex; gap: .5em; align-items: center; margin: 0 0 .15em; }
 .wwyhd-pos {
   font-size: .62rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
@@ -861,26 +873,23 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
 .wwyhd-seat--folded .wwyhd-hole { visibility: hidden; }
 @media (min-width: 640px) {
   .wwyhd-table {
-    position: relative; margin: 1.5rem auto 0; max-width: 720px;
-    aspect-ratio: 5 / 3.3; background: var(--parchment); border-radius: 50% / 50%;
+    position: relative; margin: 3rem auto 1rem; max-width: 760px;
+    aspect-ratio: 5 / 3.1; background: var(--parchment); border-radius: 50% / 50%;
     border: 1px solid var(--line);
   }
   .wwyhd-felt {
-    display: grid; place-items: center; align-content: center; gap: .35rem;
-    position: absolute; inset: 15% 14%; border-radius: 50% / 50%;
-    background: var(--felt); color: var(--felt-ink);
+    margin: 0; padding: 0; align-content: center;
+    position: absolute; inset: 17% 16%; border-radius: 50% / 50%;
     box-shadow: inset 0 0 0 6px rgba(255,255,255,.06);
   }
-  .wwyhd-felt .wwyhd-center { color: var(--felt-ink); margin: 0; }
-  .wwyhd-felt .wwyhd-board { margin: 0; min-height: 1.8em; }
-  .wwyhd-felt .wwyhd-card { background: #fff; color: var(--ink); }
   .wwyhd-seats { display: block; position: absolute; inset: 0; }
   .wwyhd-seat {
     position: absolute; left: var(--seat-x); top: var(--seat-y);
-    transform: translate(-50%, -50%); width: 9.5rem; padding: .45em .7em;
+    transform: translate(-50%, -50%); width: 9rem; padding: .4em .65em;
     box-shadow: 0 1px 2px rgba(26,28,32,.12);
   }
-  .wwyhd-seat--you { width: 11rem; }
+  .wwyhd-seat .wwyhd-stack { font-size: .8rem; }
+  .wwyhd-seat--you { width: 10.5rem; }
   .wwyhd-seat .wwyhd-front { position: absolute; left: 50%; transform: translateX(-50%); top: -1.15em; margin: 0; }
   .wwyhd-seat--you .wwyhd-front { top: -1.15em; }
 }
