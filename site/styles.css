@@ -65,6 +65,13 @@ nav.band-dark a:hover { color: var(--sapphire); text-decoration: underline; }
 .band-dark  { background: var(--parchment); color: var(--ink); padding: 4rem 1.25rem; }
 .band-dark a { color: var(--sapphire); }
 .band-cta   { background: var(--felt); color: var(--felt-ink); padding: 3rem 1.25rem; text-align: center; }
+/* Arriving from another page's RSVP button (`/#rsvp`) scrolls this band to
+   the top of the window, which would put the nav above the fold and, if the
+   anchor sat on the form itself, the heading and the card fan too: Mike
+   followed one from a puzzle page on 2026-09-21 and landed part way down.
+   The anchor is the whole hero band, and this leaves the nav bar's height
+   above it so the page arrives looking like the top of the page. */
+#rsvp { scroll-margin-top: 4.5rem; }
 /* Scoped so it never outranks .btn-primary/.btn-secondary color on the
    felt band (a bare `.band-cta a` beats `.btn-primary` on specificity). */
 .band-cta a:not(.btn-primary):not(.btn-secondary) { color: #9dc3f0; }

@@ -1175,7 +1175,36 @@ describe("cards index order: unminted on top, then newest first (2026-09-04)", (
     expect(at('href="/cards/2026-08/"')).toBeLessThan(at('href="/cards/2026-07/"'));
   });
   test("the unminted row links to the RSVP form as an outlined button, never lime (lime is for felt)", () => {
-    expect(html).toContain('class="btn-secondary" href="/#rsvp-form"');
+    expect(html).toContain('class="btn-secondary" href="/#rsvp"');
     expect(html).not.toContain("btn-primary");
+  });
+});
+
+// Arriving from another page's RSVP button must land at the top of the home
+// page's hero, not part way down it (Mike, 2026-09-21: following the puzzle
+// page's button left the header cut off). The anchor is the hero band, every
+// generated RSVP button points at it, and the stylesheet keeps the nav on
+// screen when it lands.
+describe("the RSVP anchor lands at the top of the hero", () => {
+  const home = readFileSync(join(SITE, "index.html"), "utf8");
+  const css = readFileSync(join(SITE, "styles.css"), "utf8");
+
+  test("the home page's hero band carries id=\"rsvp\", above the form", () => {
+    const anchor = home.indexOf('<section class="band-cta" id="rsvp">');
+    expect(anchor, "the hero band is not the anchor").toBeGreaterThan(-1);
+    expect(home.indexOf('id="rsvp-form"'), "the form is not inside that band").toBeGreaterThan(anchor);
+  });
+
+  test("the stylesheet leaves room for the nav when that anchor is jumped to", () => {
+    expect(css).toMatch(/#rsvp\s*\{[^}]*scroll-margin-top/);
+  });
+
+  test("every generated page's RSVP button points at the band, never at the field", () => {
+    for (const page of siteHtmlFiles(SITE)) {
+      const html = readFileSync(page, "utf8");
+      const rel = page.slice(SITE.length + 1);
+      if (rel === "index.html") continue; // the home page's own jump focuses the field
+      expect(html.includes('href="/#rsvp-form"'), `${rel}: links the field, not the band`).toBe(false);
+    }
   });
 });
