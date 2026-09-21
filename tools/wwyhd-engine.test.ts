@@ -662,3 +662,34 @@ describe("leg (g) [M7]: equal inputs give deep-equal results and applyAction doe
     expect(state).toEqual(before);
   });
 });
+
+// --- 2026-09-21: the view says whether the street has been raised ----------
+// The rule table could not tell an unopened preflop pot from a raised one
+// (Mike M. called an all-in with ace-five). `raised` is true once the
+// street's bet stands above the forced blinds preflop, or above nothing
+// after the flop.
+describe("seatView carries `raised`", () => {
+  const hand = {
+    id: "t", game: "2026-01-01", handNo: 1, title: "t", setup: "s", seat: "bob",
+    blinds: { sb: 100, bb: 200, ante: 0 }, dealer: "alice",
+    players: [
+      { handle: "alice", stack: 5000, cards: ["Ah", "Ad"], shown: true, profile: null },
+      { handle: "bob", stack: 5000, cards: ["Kh", "Kd"], shown: true, profile: null },
+      { handle: "carol", stack: 5000, cards: ["Qh", "Qd"], shown: true, profile: null },
+    ],
+    board: ["2c", "3c", "4c", "5d", "9h"],
+    real: { actions: [], result: "r", seatChips: 5000, endStacks: {} },
+    startChips: 5000, profileThrough: "2026-01-01", opens: "2026-01-02", closes: "2026-01-09",
+  };
+  test("false while only the blinds stand, true once someone raises, false again on a checked flop", () => {
+    let state = startHand(hand);
+    expect(seatView(state, "alice").raised).toBe(false);
+    state = applyAction(state, { type: "raise", amount: 600 });
+    expect(seatView(state, "bob").raised).toBe(true);
+    state = applyAction(state, { type: "call", amount: 0 });
+    state = applyAction(state, { type: "call", amount: 0 });
+    expect(seatView(state, state.toAct).raised).toBe(false);
+    state = applyAction(state, { type: "bet", amount: 300 });
+    expect(seatView(state, state.toAct).raised).toBe(true);
+  });
+});

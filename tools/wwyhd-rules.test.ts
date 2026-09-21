@@ -649,3 +649,37 @@ describe("an unopened big blind never folds a free hand", () => {
     expect(decide(owed, TIGHT_PASSIVE)).toEqual({ type: "fold", amount: 0 });
   });
 });
+
+// --- 2026-09-21: preflop facing a raise ------------------------------------
+// Every preflop spot used to take the unopened branch, so a hand inside vpip
+// called any raise, an all-in included (Mike M., ace-five, 2026-09-21). With
+// `raised` on the view, a raised pot applies the fold bar, and a call that
+// costs more than CHEAP_CALL_SHARE of the stack needs band 3 or better.
+describe("preflop facing a raise", () => {
+  const MIKE = { vpip: 27, af: 1.35, allInRate: 0.11, foldToRaise: 48, callDown: 38 };
+  const facing = (cards: string[], toCall: number, stack: number) =>
+    view("mike", {
+      cards, board: [], street: "PRE", pot: 500 + toCall, toCall, stack, playersIn: 4, raised: true,
+      legal: { fold: true, check: false, call: toCall, minRaiseTo: toCall * 2, maxRaiseTo: stack },
+    });
+  test("ace-five suited folds to an all-in that costs a quarter of the stack", () => {
+    expect(decide(facing(["Ad", "5d"], 1835, 6708), MIKE)).toEqual({ type: "fold", amount: 0 });
+  });
+  test("ace-five suited calls a small raise", () => {
+    expect(decide(facing(["Ad", "5d"], 400, 6708), MIKE)).toEqual({ type: "call", amount: 0 });
+  });
+  test("pocket aces calls the all-in (it cannot raise a shove it covers only by calling)", () => {
+    const v = facing(["Ah", "Ad"], 1835, 6708);
+    const a = decide(v, MIKE);
+    expect(["call", "raise"]).toContain(a.type);
+    expect(a.type).not.toBe("fold");
+  });
+  test("a hand inside vpip but under the fold bar folds a raise: suited connectors against foldToRaise 80", () => {
+    const tight = { ...TIGHT_PASSIVE, vpip: 60 };
+    expect(decide(facing(["6h", "5h"], 400, 6708), tight)).toEqual({ type: "fold", amount: 0 });
+  });
+  test("an unopened pot is unchanged: the same holding limps when nothing is raised", () => {
+    const unopened = { ...facing(["Ad", "5d"], 200, 6708), raised: false, pot: 300, legal: { fold: true, check: false, call: 200, minRaiseTo: 400, maxRaiseTo: 6708 } };
+    expect(decide(unopened, MIKE)).toEqual({ type: "call", amount: 0 });
+  });
+});

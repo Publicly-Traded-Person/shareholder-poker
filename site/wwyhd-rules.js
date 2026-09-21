@@ -440,6 +440,19 @@ export function decide(view, profile, thresholds) {
     // for exactly that spot; every other preflop spot has chips to call.
     if (toCall <= NO_AMOUNT && view.legal.check === true) return check();
     if (preflopPercentile(view.cards) > profile.vpip) return fold();
+    // A raised pot (the view's `raised`, 2026-09-21): rule 3's bar applies,
+    // and a call that costs more than CHEAP_CALL_SHARE of the stack needs a
+    // strong hand. Before this, a hand inside vpip called any raise, an
+    // all-in included.
+    if (view.raised === true) {
+      if (band < foldBar(profile.foldToRaise)) return fold();
+      const stackBefore = (view.stack ?? 0) + toCall;
+      if (toCall > stackBefore * table.CHEAP_CALL_SHARE && band < BAND_STRONG) return fold();
+      if (band >= BAND_THAT_RAISES && profile.af >= table.RAISE_AF && view.legal.minRaiseTo != null) {
+        return raiseTo(view.legal.minRaiseTo);
+      }
+      return call();
+    }
     if (profile.af >= table.RAISE_AF && view.legal.minRaiseTo != null) {
       return raiseTo(view.legal.minRaiseTo);
     }

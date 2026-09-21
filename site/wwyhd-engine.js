@@ -665,6 +665,10 @@ export function seatView(state, handle) {
     stack: seat.stack,
     playersIn: liveSeats(state).length,
     position: positionOf(state, seat),
+    // True once this street's bet stands above what is forced: above the big
+    // blind preflop, above nothing after the flop. It is what lets the rule
+    // table tell a raised pot from an unopened one.
+    raised: state.currentBet > (state.street === "PRE" ? state.blinds.bb : 0),
     legal: !state.over && state.toAct === handle ? legalActions(state) : null,
   };
 }
