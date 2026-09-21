@@ -326,8 +326,9 @@ function assertCopyRules(html: string, label: string): void {
   expect(html.includes("—"), `${label}: contains an em dash`).toBe(false);
   // docs/brand.md: the word never appears, in any case.
   expect(html.toLowerCase().includes("experiment"), `${label}: says "experiment"`).toBe(false);
-  // docs/brand.md: lime is the RSVP CTA's, so no puzzle page carries it.
-  expect(html.includes("btn-primary"), `${label}: carries btn-primary`).toBe(false);
+  // docs/brand.md: exactly one lime call to action per page, and it is the
+  // RSVP one. Since 2026-09-21 every puzzle page ends on that band.
+  expect(html.split("btn-primary").length - 1, `${label}: lime button count`).toBe(1);
   // Two adjacent bands never share a tone.
   const bands = bandSequence(html);
   expect(bands.length, `${label}: names no band tones at all`).toBeGreaterThan(1);
@@ -910,5 +911,43 @@ describe("the fields sit above the table under the cue, and the visitor's seat i
     const html = await handPage();
     const marked = [...html.matchAll(/<li class="wwyhd-seat wwyhd-seat--you" data-handle="([^"]+)"/g)].map((m) => m[1]);
     expect(marked).toEqual([HAND.seat]);
+  });
+});
+
+// --- Mike, 2026-09-21: the RSVP promo footer, always the NEXT game ---------
+describe("every puzzle page ends on the RSVP band for the next game", () => {
+  const pages = async (): Promise<[string, string][]> => [
+    ["hand page", await handPage()],
+    ["index page", await indexPage()],
+  ];
+
+  test("both pages carry the felt band, one lime RSVP button, and the runtime script", async () => {
+    for (const [label, html] of await pages()) {
+      expect(html, `${label}: no felt band`).toContain('class="band-cta"');
+      expect(html, `${label}: no RSVP link`).toContain('href="/#rsvp-form"');
+      expect(html.split("btn-primary").length - 1, `${label}: lime count`).toBe(1);
+      expect(html, `${label}: does not load the date script`).toContain('src="/next-game.js"');
+    }
+  });
+
+  test("the date rendered is games.json's nextGame, in a slot the script can correct", async () => {
+    const [y, m, d] = DATA.nextGame.date.split("-").map(Number);
+    const month = ["January","February","March","April","May","June","July","August","September","October","November","December"][m - 1];
+    const expected = `${month} ${d}, ${y} at ${DATA.nextGame.time}`;
+    for (const [label, html] of await pages()) {
+      expect(html, `${label}: does not name the next game date`).toContain(expected);
+      expect(html, `${label}: the date is not in a data-next-game slot`).toContain(
+        `<span data-next-game>${expected}</span>`
+      );
+    }
+  });
+
+  test("no date is hardcoded anywhere else: moving nextGame moves both pages", async () => {
+    const { renderWwyhdHand, renderWwyhdIndex } = await renderModule();
+    const moved: GamesData = { ...DATA, nextGame: { date: "2027-03-09", time: "8:00pm PT" } };
+    for (const html of [renderWwyhdHand!(moved, HAND), renderWwyhdIndex!(moved, [HAND])]) {
+      expect(html).toContain("March 9, 2027 at 8:00pm PT");
+      expect(html).not.toContain(`${DATA.nextGame.date}`);
+    }
   });
 });

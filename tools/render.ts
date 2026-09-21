@@ -2113,6 +2113,38 @@ function wwyhdSeat(data: GamesData, hand: HandFile, seat: WwyhdSeatPlan): string
  * `btn-primary`, belongs to the one RSVP call to action per page and this
  * page has none.
  */
+/**
+ * The RSVP band every puzzle page ends on (Mike, 2026-09-21: the puzzle
+ * should promote the next real game, dynamically, the way the home page
+ * does).
+ *
+ * Takes the games data and returns a `band-cta` section: the next game's date
+ * from `games.json`'s `nextGame`, and the one lime button this page carries,
+ * pointing at the home page's RSVP form. Throws nothing.
+ *
+ * The date is written in twice over: rendered here, so the band is right with
+ * JavaScript off and before anything loads, and marked `data-next-game` so
+ * /next-game.js can correct it from games.json at runtime if `nextGame` has
+ * moved since the page was generated. Nothing here is a constant to update;
+ * the runbook's publish step regenerates these pages anyway.
+ *
+ * Lime: docs/brand.md allows exactly one lime call to action per page and
+ * says it is the RSVP one, on a felt band. This is that button, and a puzzle
+ * page carries no other.
+ */
+function wwyhdRsvpBand(data: GamesData): string {
+  const next = data.nextGame;
+  const [y, m, d] = next.date.split("-").map(Number);
+  const when = `${MONTHS[m - 1]} ${d}, ${y}${next.time ? ` at ${esc(next.time)}` : ""}`;
+  return `<section class="band-cta">
+  <div class="band-inner">
+    <h2 class="display">Play the real thing</h2>
+    <p>The next Shareholder Poker game is <span data-next-game>${when}</span>. No-limit Hold'em, second Tuesday of the month, $50 buy-in. Cards on Poker Now, faces on Zoom.</p>
+    <a class="btn-primary" href="/#rsvp-form">RSVP for the next game</a>
+  </div>
+</section>`;
+}
+
 export function renderWwyhdHand(data: GamesData, hand: HandFile): string {
   const seats = wwyhdSeatPlan(hand).map((s) => wwyhdSeat(data, hand, s)).join("\n");
   const ante = hand.blinds.ante > 0 ? `, ${hand.blinds.ante} ante` : "";
@@ -2164,9 +2196,11 @@ ${seats}
     <p class="stat">${WWYHD_DISCLOSURE}</p>
   </div>
 </section>
+${wwyhdRsvpBand(data)}
 <script type="application/json" id="hand">${wwyhdHandJson(hand)}</script>
 <script type="application/json" id="names">${wwyhdNamesJson(data, hand)}</script>
-<script type="module" src="/wwyhd.js"></script>`;
+<script type="module" src="/wwyhd.js"></script>
+<script src="/next-game.js" defer></script>`;
 
   return page(
     hand.title, body, "band-light", `/wwyhd/${hand.id}/`,
@@ -2216,7 +2250,9 @@ ${rows}
     <p class="stat">${WWYHD_DISCLOSURE}</p>
   </div>
 </section>
-<script type="module" src="/wwyhd.js"></script>`;
+${wwyhdRsvpBand(data)}
+<script type="module" src="/wwyhd.js"></script>
+<script src="/next-game.js" defer></script>`;
 
   return page(
     "What would you have done?", body, "band-dark", "/wwyhd/",
