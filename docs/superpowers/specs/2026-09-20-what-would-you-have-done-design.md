@@ -1,6 +1,8 @@
 # What Would You Have Done? (design)
 
-**Status:** spec, approved for build by Mike 2026-09-20. **Builder:** Nova.
+**Status:** spec, approved for build by Mike 2026-09-20; reviewed with Mike
+by Nova the same day and amended (the rows marked *review* in section 2 and
+the notes marked *review* below). **Builder:** Nova.
 **Author of this spec and of the weekly hand files:** Charlie.
 
 ## 1. What it is
@@ -29,6 +31,10 @@ the cards do.
 | the reveal | what really happened, in one line, shown separately from the score | drama without pretending the real line was the right one |
 | where it runs | the hand engine in the browser; one Pages Function records the result | nothing per visitor to host; instant; the hand is a reviewable file |
 | commentary | none in v1 | no "you should have"; the leaderboard and the real outcome teach |
+| ranking (*review*) | the first attempt ranks; replays are allowed, recorded, never ranked | the hand is deterministic, so replaying is a search for the ceiling; "each person's first attempt is what is logged, but they are allowed to play again" |
+| the unknowns (*review*) | authored, and every page says so | "we have to guess or it's not fun"; the disclosure sentence is in section 3 |
+| cheating (*review*) | not designed against in v1 | small audience playing honestly; a fake name to scout then a real name to win is a problem for later, if it happens |
+| display names (*review*) | resolve through the roster, as RSVP does | a regular shows as their handle; the same helper, `resolveDisplay` |
 
 ## 3. Two constraints from the source material
 
@@ -45,6 +51,11 @@ real) and every opponent who folded before showdown gets a holding chosen
 by Charlie when the hand is authored. Those holdings are fiction, chosen
 to be plausible for that player's line, and the reveal labels them as
 such: "Beau folded; for this puzzle he was holding K♣ 9♣."
+
+*Review:* every page of the puzzle carries this, in the display voice: **This
+is a simulation. The cards shown at showdown are the real ones. Everything
+else was filled in with what we judged likely.** The reveal marks each authored
+holding and an authored runout the same way.
 
 ## 4. Components
 
@@ -75,6 +86,7 @@ PR like everything else. Schema, v1:
     "seatChips": 57500
   },
   "startChips": 18900,
+  "profileThrough": "2026-09-08",
   "opens": "2026-09-23",
   "closes": "2026-09-30"
 }
@@ -93,6 +105,12 @@ Rules for the file:
   river, the remaining cards are authored, marked in the reveal.
 - The dignity rule applies to `title`, `setup` and `result`: the strong
   side of every player, always.
+- *Review:* `profile` numbers are the player's **lifetime** numbers from
+  munger, not one night's, through the game named in `profileThrough`. Lifetime
+  is steadier and closer to who the player is; the date lets a reader check
+  the numbers against munger.
+- *Review:* `closes` in the file is the only source of truth for when a puzzle
+  stops ranking. Nothing infers it from the next puzzle's `opens`.
 
 ### 4.2 The engine (browser, `site/wwyhd.js`)
 
@@ -104,7 +122,9 @@ Responsibilities:
 
 - Betting rounds for no-limit hold'em: preflop through river, blinds and
   antes, minimum raise, all-in, **side pots** (the one known-hard part;
-  test it with three-way all-ins at different stack sizes).
+  test it with three-way all-ins at different stack sizes). *Review:* the
+  second classic trap gets its own tests: an all-in for less than a full
+  raise does not reopen the action for players who have already acted.
 - The visitor's action set at each decision: fold, check or call, and a
   bet or raise with a size picker (min, half pot, pot, all-in, plus a
   free entry). No advice, no highlighting.
@@ -118,6 +138,12 @@ Responsibilities:
   machine. A test asserts this by replaying a recorded line.
 - Output: the chip count, and the visitor's line as a list of
   `{ street, type, amount }`.
+- *Review:* one file, run in three places (browser, Worker, `bun test`).
+  Nova checks first, in a local `wrangler pages dev`, whether the Function
+  can import it from `site/` directly. If it can, there is one copy and
+  nothing to drift. If it cannot, the Function carries a verbatim copy and a
+  test fails the suite the moment the two differ, which is how munger keeps
+  its userscript and `preflop.ts` in step.
 
 ### 4.3 The opponent rules (`site/wwyhd-rules.js`)
 
@@ -153,8 +179,10 @@ The v1 table, deliberately simple so it can be argued with in a PR:
 4. River, facing a bet: call with medium or better when `callDown` >=
    50, otherwise strong or better.
 5. All-in: with a monster always; with strong when `allInRate` is above
-   the table median; never otherwise unless the call would be less than
-   a fifth of the stack.
+   `ALL_IN_STRONG`, a named constant (*review:* not the table median, which
+   would make one opponent's play depend on who else is seated and leave
+   the per-regular fixtures with no canonical answer); never otherwise
+   unless the call would be less than a fifth of the stack.
 6. Every threshold is a named constant at the top of the file, with the
    number's source in a comment. No number is inlined.
 
@@ -171,7 +199,9 @@ One job per page (Mike's standard, 2026-09-20; the rule is in
 - **Sit down.** The title, the setup line, the table drawn from the hand
   file (seats, stacks, the seat's cards face up, everyone else face
   down), and one button: Deal. Below it, the email and display name
-  fields, prefilled from `localStorage` if the visitor has RSVP'd before.
+  fields. *Review:* the RSVP form keeps nothing in the browser, so the
+  puzzle page saves both fields to `localStorage` after the visitor's first
+  submit and prefills them next time. No dependence on RSVP.
 - **Play.** The action to you, the pot, the board as it comes, and the
   visitor's options. No text beyond what the table shows. The opponents
   act with a short pause so the hand reads as a hand.
@@ -181,6 +211,14 @@ One job per page (Mike's standard, 2026-09-20; the rule is in
   seat's decisions, what share of visitors chose what; the hidden
   holdings, labeled as authored; the leaderboard (display names and
   chips, top ten plus the visitor's own row).
+- *Review, the share-of-visitors figure:* everyone faces the same first
+  decision, so that breakdown is always real. After the first deviation,
+  visitors are in different hands, and a breakdown "on the turn" only means
+  something among the visitors who took the same path there. A decision is
+  keyed by the street plus the full action sequence before it; the page
+  shows the breakdown at a spot only when at least `MIN_SHARED` (5) first
+  attempts reached it, and shows just the visitor's own choice otherwise.
+  The first decision always qualifies.
 - The index page lists past puzzles with the leaderboard winner's name,
   and the current one at the top. Closed puzzles can still be played;
   results after `closes` are recorded but not ranked.
@@ -197,18 +235,25 @@ Cloned from `functions/api/rsvp.js`, same discipline:
 CREATE TABLE IF NOT EXISTS wwyhd_results (
   hand_id      TEXT NOT NULL,
   email        TEXT NOT NULL,
+  attempt      INTEGER NOT NULL,   -- 1 for the first submit, then 2, 3, ...
   display_name TEXT NOT NULL,
-  line         TEXT NOT NULL,   -- JSON list of {street,type,amount}
-  chips        INTEGER NOT NULL,
-  created_at   TEXT NOT NULL,
-  PRIMARY KEY (hand_id, email)
+  line         TEXT NOT NULL,      -- JSON list of {street,type,amount}
+  chips        INTEGER NOT NULL,   -- the SERVER's replay of `line`, never the client's number
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (hand_id, email, attempt)
 );
 ```
 
-- `POST /api/wwyhd/<hand_id>` with `{ email, displayName, line, chips }`.
-  One row per email per hand, upsert, so a replay overwrites (the
-  leaderboard is best-of-one-attempt only if Mike wants it; default is
-  last attempt, stated on the page).
+*Review:* append-only, one row per attempt. The leaderboard and the
+share-of-visitors figures read `attempt = 1` only; replays are kept so the
+visitor can see their own history and so nothing is ever overwritten, but
+they rank nowhere. `count` on the GET is distinct emails.
+
+- `POST /api/wwyhd/<hand_id>` with `{ email, displayName, line }`. The
+  Function assigns `attempt` (one more than that email's highest for the
+  hand) and the display name resolves through the roster with
+  `resolveDisplay`, as RSVP does. The page says, once, that the first go is
+  the one that counts.
 - The Function **re-runs the engine on the submitted line** against the
   hand file and uses its own chip count, never the client's. The engine
   is pure JS so the same file runs in the Worker. This is the whole
@@ -218,6 +263,13 @@ CREATE TABLE IF NOT EXISTS wwyhd_results (
   **Never an email.** Same rule as RSVP, same test.
 - Validation as RSVP: email shape, display name length, hand id must
   exist in `site/data/wwyhd/`, line must replay without error.
+- *Review, the hand file at runtime:* the Function reads it through the
+  Pages static asset binding (`env.ASSETS.fetch` of
+  `/data/wwyhd/<hand_id>.json`). A missing asset is a 404 and is the whole
+  hand-id validation; no second list of ids to keep in step.
+- *Review, abuse:* nothing stops a visitor submitting under someone else's
+  email. RSVP has the same property. Not designed against in v1 (section 2);
+  if it is abused, a per-browser token issued at first submit is the fix.
 
 ### 4.6 Per-person stats (v1: minimal)
 
@@ -241,19 +293,33 @@ Goes into `docs/publishing.md` when the feature ships:
 4. PR. Mike reads the setup and result lines. Merge on his go.
 5. Email the poker list. One line, the table image, the link. Same shape
    as the portrait email.
-6. When the next puzzle opens, the previous closes.
+6. The previous puzzle stops ranking on its own `closes` date; set the new
+   one's `opens` to match.
+
+*Review, later:* most of step 2 is transcription. Stacks, blinds, dealer, the
+real action list, the board and the shown cards are all in the log, in the
+shape munger's parser already produces. Once this repo's log reader knows the
+action lines (#57), a `bun tools/wwyhd-draft.ts <log> --hand N` writes the
+skeleton and leaves Charlie only the judgment: hidden holdings, the runout if
+the hand ended early, and the title, setup and result lines. Not a v1
+dependency; Charlie writes the first files by hand.
 
 ## 6. Testing
 
 - Engine: betting-round unit tests; side pots with two and three all-ins
-  at unequal stacks; showdown ties; determinism by replay.
+  at unequal stacks; a short all-in that does not reopen the action;
+  showdown ties; determinism by replay.
 - Rules: one fixture per regular; canonical spots; a table-wide
   "nobody folds a monster, nobody shoves air" invariant.
 - Hand files: every committed file replays its real line to its real
   result (`wwyhd-check` runs inside `bun test tools`, so a wrong file
   cannot merge).
 - Function: never returns an email; rejects a line that does not
-  replay; server chip count wins over client.
+  replay; server chip count wins over client; a second submit from the same
+  email is `attempt` 2 and changes neither the leaderboard nor the
+  share-of-visitors figures; display names resolve through the roster.
+- If the engine is copied into the Function rather than imported: the copy
+  matches the source byte for byte.
 - Page: one job per state; bands alternate; no lime; no em dashes.
 
 ## 7. Out of scope for v1
@@ -265,10 +331,23 @@ Goes into `docs/publishing.md` when the feature ships:
   separate feature with its own consent question for the players named.
 - Accounts, passwords, or a cross-week leaderboard.
 
-## 8. Open questions for Mike (not blocking the build)
+## 8. Questions put to Mike, and his answers (review, 2026-09-20)
 
-- Leaderboard: last attempt or best attempt? Default in this spec: last.
-- Does the leaderboard show display names to everyone, as RSVP does?
-  Default: yes, that is the point.
-- Should the real players be told when their hand is the puzzle? Default:
-  yes, in the weekly email, since their cards and line are shown.
+- Leaderboard, last attempt or best attempt? **Neither: the first attempt.**
+  Replays allowed, recorded, never ranked.
+- Does the leaderboard show display names to everyone, as RSVP does? **Yes.**
+- Should the real players be told when their hand is the puzzle? **Yes**, in
+  the weekly email. The page's own disclosure (section 3) says which cards
+  were real and which were filled in.
+- Invented holdings in a named player's hands? **Yes, that is the game**:
+  "we have to guess or it's not fun." The disclosure sentence is the
+  condition.
+- Cheating, and one visitor overwriting another's row? **Not a v1 concern.**
+  Revisit if it happens.
+
+## 9. Order of work (review)
+
+Engine and its tests first, side pots and the short all-in before anything
+else. Then the rule table with one fixture per regular. Then the Function
+and the table. Then the page. Charlie hand-writes the first hand file as
+soon as the engine can replay one; the draft tool waits for #57.
