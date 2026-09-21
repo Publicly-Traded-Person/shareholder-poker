@@ -1,0 +1,232 @@
+{
+  "tasks": {
+    "1": {
+      "hash": "51027bf9dbd95a111e8ebd5ca9a20b4b24c30fadf5c2ecf4bca5785737b10b71",
+      "verdict": "pass",
+      "reason": "Round 3: 5/6/7-card cases and each M5 error isolated in otherwise valid hands; every pinned hand computes."
+    },
+    "2": {
+      "hash": "a818cb24cfb328dd453488861c5cf37b48fe5b13d73fe469c8836f1b42f72661",
+      "verdict": "pass",
+      "reason": "Round 2: every Run is sed-scoped to the section its clause names and each M5 item has its own Run; headings exist or are new as assumed."
+    },
+    "6": {
+      "hash": "118528a138f038b34e2fbe99885237742c1574a7fdba57b202d4d537b49e3bed",
+      "verdict": "pass",
+      "reason": "Round 1: every clause has a falsifying leg; PK admits the two-attempt rows; new paths absent at base, schema present without the table."
+    },
+    "8": {
+      "hash": "c34402a4b2d94c65b7261cf12f72379fbac10764070b6e9d0598bfb9471aeefc",
+      "verdict": "pass",
+      "reason": "Round 1: the pasted one-row SELECT against the live database is the evidence for the clause."
+    },
+    "4": {
+      "hash": "a778571777c8777b12b0e37120a0678bc87555182970a7190d20d71159cc2e21",
+      "verdict": "pass",
+      "reason": "Round 3: every band and every archetype-by-spot action derives from the clause's own rules; the RAISE_AF override flips the raise to call."
+    },
+    "5": {
+      "hash": "cca91cbfd3e8a342bad500a1cac563ac8993b7394e9da2d45d845c55c216d5d3",
+      "verdict": "pass",
+      "reason": "Round 3: one leg per M1 row asserting the stated field; M3 validation and ordering both falsified; all three CLI exits covered."
+    },
+    "7": {
+      "hash": "53155808ea384ce5ea7f6e64f3c71634e0df605e0f5218f250eeef1cf2c8e226",
+      "verdict": "pass",
+      "reason": "Round 3: seedRenderInputs exercised with and without the hand-file directory; three Run lines pin the drift block's rewiring against the base's two copyFileSync calls."
+    },
+    "3": {
+      "hash": "3ed53bd9d7afc55ae1d87437f6419cad600318e461a15808f293a385bb3d8766",
+      "verdict": "pass",
+      "reason": "Round 4: every clause falsified in its failing direction and every pinned number computes under no-limit rules (blinds, min and max raise, short all-in, side pots, odd chip, the seat's one decision key)."
+    }
+  },
+  "tally": {
+    "base": "d24511baa1e94fa18fbac2ff10287b5ec2db490f (spec branch verdicts read at 8396fd8; the merge squashed the same docs onto main)",
+    "dispatched": 19,
+    "rejected": 11,
+    "rounds": {
+      "1": {
+        "dispatched": 8,
+        "pass": 2,
+        "fail": 6
+      },
+      "2": {
+        "dispatched": 6,
+        "pass": 2,
+        "fail": 4
+      },
+      "3": {
+        "dispatched": 4,
+        "pass": 3,
+        "fail": 1
+      },
+      "4": {
+        "dispatched": 1,
+        "pass": 1,
+        "fail": 0
+      }
+    }
+  },
+  "history": [
+    {
+      "round": 1,
+      "task": "1",
+      "verdict": "fail",
+      "reason": "all positive legs seven cards; error legs five cards fail for the wrong reason"
+    },
+    {
+      "round": 1,
+      "task": "2",
+      "verdict": "fail",
+      "reason": "M5 pinned one of four module paths; whole-file greps not scoped to the named sections"
+    },
+    {
+      "round": 1,
+      "task": "3",
+      "verdict": "fail",
+      "reason": "leg (b) pinned call 600 where B's posted small blind makes it 500"
+    },
+    {
+      "round": 1,
+      "task": "4",
+      "verdict": "fail",
+      "reason": "a straight draw pinned on a five-card board"
+    },
+    {
+      "round": 1,
+      "task": "5",
+      "verdict": "fail",
+      "reason": "legs (c),(d) asserted the value but not the field name the clause promised"
+    },
+    {
+      "round": 1,
+      "task": "6",
+      "verdict": "pass",
+      "reason": ""
+    },
+    {
+      "round": 1,
+      "task": "7",
+      "verdict": "fail",
+      "reason": "drift list gained wwyhd but the empty-tree seed never copied the hand files"
+    },
+    {
+      "round": 1,
+      "task": "8",
+      "verdict": "pass",
+      "reason": ""
+    },
+    {
+      "round": 2,
+      "task": "1",
+      "verdict": "fail",
+      "reason": "leg (k) five-card literal was A A K 7 2, best five of the longer hands is A A K 9 7"
+    },
+    {
+      "round": 2,
+      "task": "2",
+      "verdict": "pass",
+      "reason": ""
+    },
+    {
+      "round": 2,
+      "task": "3",
+      "verdict": "fail",
+      "reason": "leg (f) decisions key ambiguous about whose decisions and the prefix"
+    },
+    {
+      "round": 2,
+      "task": "4",
+      "verdict": "fail",
+      "reason": "band-1 underpair rule failed on a board with a deuce; no preflop rule for AA=4"
+    },
+    {
+      "round": 2,
+      "task": "5",
+      "verdict": "fail",
+      "reason": "clause promised field name and value; six legs asserted the name only"
+    },
+    {
+      "round": 2,
+      "task": "7",
+      "verdict": "fail",
+      "reason": "Run greps could not prove the drift block copies the hand files"
+    },
+    {
+      "round": 3,
+      "task": "1",
+      "verdict": "pass",
+      "reason": ""
+    },
+    {
+      "round": 3,
+      "task": "4",
+      "verdict": "pass",
+      "reason": ""
+    },
+    {
+      "round": 3,
+      "task": "5",
+      "verdict": "pass",
+      "reason": ""
+    },
+    {
+      "round": 3,
+      "task": "7",
+      "verdict": "pass",
+      "reason": ""
+    },
+    {
+      "round": 3,
+      "task": "3",
+      "verdict": "fail",
+      "reason": "no leg named check false while chips are owed; no-reopen table stacks and odd-chip dealer unstated in the legs"
+    },
+    {
+      "round": 4,
+      "task": "3",
+      "verdict": "pass",
+      "reason": ""
+    }
+  ],
+  "authoring": {
+    "minutes": 118,
+    "probes": 0,
+    "routing": {
+      "branch": "risk",
+      "lane": "ultrapowers"
+    },
+    "questions": [
+      {
+        "question": "Claim and summary",
+        "options": [
+          "Play-and-see",
+          "Charlie-first"
+        ],
+        "recommended": "Play-and-see",
+        "picked": "Play-and-see"
+      },
+      {
+        "question": "Execution lane",
+        "options": [
+          "Ultrapowers",
+          "Subagent-driven",
+          "Inline"
+        ],
+        "recommended": "Ultrapowers",
+        "picked": "Ultrapowers"
+      },
+      {
+        "question": "Fleet setup for this repo",
+        "options": [
+          "Add the integration and launch",
+          "Add the integration, then stop",
+          "Skip the fleet, build sequentially"
+        ],
+        "recommended": "Add the integration and launch",
+        "picked": "Add the integration and launch"
+      }
+    ]
+  }
+}

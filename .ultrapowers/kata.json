@@ -1,0 +1,49 @@
+{
+  "url": "https://kata.int.exe.xyz",
+  "project": {
+    "id": 6,
+    "uid": "01M314K9184AGMVATK1213MNM5",
+    "name": "publicly-traded-person-shareholder-poker"
+  },
+  "run": {
+    "uid": "01M314K9APMN8K6GAYH7FFYDZC",
+    "revision": 1
+  },
+  "tasks": {
+    "1": {
+      "uid": "01M314K9MPNM0FXB98SXX02BMA",
+      "short_id": "2bma",
+      "revision": 2
+    },
+    "2": {
+      "uid": "01M314KGVPB4F0Z6TT89S1XN95",
+      "short_id": "xn95",
+      "revision": 2
+    },
+    "3": {
+      "uid": "01M314KAT11DE3213C88221NAJ",
+      "short_id": "1naj",
+      "revision": 2
+    },
+    "4": {
+      "uid": "01M314KC0HW1AQFQGE8G7QJX88",
+      "short_id": "jx88",
+      "revision": 2
+    },
+    "5": {
+      "uid": "01M314KD91ZVNGXTEX9DXJJ6XM",
+      "short_id": "j6xm",
+      "revision": 2
+    },
+    "6": {
+      "uid": "01M314KED6H1R20MXS1QYGFEEW",
+      "short_id": "feew",
+      "revision": 2
+    },
+    "7": {
+      "uid": "01M314KFMHM2SAXED0J8HD4CRW",
+      "short_id": "4crw",
+      "revision": 2
+    }
+  }
+}
