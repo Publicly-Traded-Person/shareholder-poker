@@ -244,3 +244,5 @@
 {"kind":"driver:approved","stamp":"run-1","integrationBranch":"ultra/integration-run-1","id":"01M31824TT0000QXYEHXDTSEVA","ts":1789969634138}
 {"kind":"run:open","runId":"run-1","base":"d24511baa1e94fa18fbac2ff10287b5ec2db490f","source":"fleet/publish-fold.mjs","id":"01M318279N0000ZR0Z9W8YYVZB","ts":1789969636661}
 {"kind":"driver:publish-fold","run":"1","attempt":"1","base":"d24511baa1e94fa18fbac2ff10287b5ec2db490f","tip":"ae5e38004c34b5a0a3ed55bb69ea3226b75f6e34","candidate":"ddcf75d8c1179090846394b665f77b04915439e9","pathsJoined":0,"pathsConflicted":0,"resolversDispatched":0,"resolverRetries":0,"suite":"pass","disposition":"folded","checks":[],"checkRetries":0,"id":"01M3182A6N0000NNEA89C3Q93D","ts":1789969639637}
+{"kind":"publish:pr","url":"https://github.com/Publicly-Traded-Person/shareholder-poker/pull/73","number":73,"draft":false,"id":"01M3182GQB0000M0SZD7B3X636","ts":1789969646315}
+{"kind":"publish:hold","why":"hold=1","id":"01M3182GSZ0000KTJJMFXH6RFM","ts":1789969646399}
