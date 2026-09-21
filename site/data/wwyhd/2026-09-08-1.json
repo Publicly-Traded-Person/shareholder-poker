@@ -3,7 +3,7 @@
   "game": "2026-09-08",
   "handNo": 39,
   "title": "Seven-deuce against the aces",
-  "setup": "Table 1, hand 39, blinds 100/200, seven-handed. Drew is in the cutoff with the shortest stack at the table, and everyone limps.",
+  "setup": "Table 1, hand 39, blinds 100/200, seven-handed. Drew A. is in the cutoff with the shortest stack at the table, and everyone limps.",
   "seat": "MoHDI_Drew",
   "blinds": {
     "sb": 100,
@@ -255,7 +255,7 @@
         "amount": 0
       }
     ],
-    "result": "Drew called Chris down with seven-deuce, two pair on the river, and took a 2,000 pot from pocket aces. Drew left the hand with 3,235 chips; Chris with 5,280.",
+    "result": "Drew A. called Chris H. down with seven-deuce, two pair on the river, and took a 2,000 pot from pocket aces. Drew A. left the hand with 3,235 chips; Chris H. with 5,280.",
     "seatChips": 3235,
     "endStacks": {
       "U_perfection": 3850,
