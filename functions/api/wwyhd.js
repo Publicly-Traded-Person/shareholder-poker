@@ -25,7 +25,7 @@
 // ES modules. That works because both are plain modules with no Node or Bun API
 // in them: a `wrangler pages dev` probe on 2026-09-20 returned a computed value
 // from a Function importing ../../site/engine.js, so the import bundles.
-import { validEmail, cleanDisplayName, resolveDisplay } from "./_lib.js";
+import { validEmail, cleanDisplayName } from "./_lib.js";
 import { playSeat } from "../../site/wwyhd-engine.js";
 import { decide, THRESHOLDS } from "../../site/wwyhd-rules.js";
 
@@ -43,6 +43,31 @@ const LEADERBOARD_SIZE = 10;
 // The fallback display name, as in rsvp.js: display_name is NOT NULL and a
 // visitor whose name cleans away to nothing still has to be called something.
 const ANONYMOUS = "player";
+
+/**
+ * The name this player appears under on the leaderboard.
+ *
+ * Takes the email, the name they typed, and the roster rows. Returns, in
+ * order: what they typed once cleaned, else their roster handle, else the
+ * part of their email before the @. Never the whole email. Throws nothing.
+ *
+ * WHAT THEY TYPED WINS. This deliberately differs from RSVP's
+ * `resolveDisplay`, where the roster handle beats the typed name: an RSVP
+ * list answers "who is coming" and the handle is how the room knows each
+ * other, while this is a field labelled Display name on a leaderboard, and a
+ * field that ignores what you put in it is a lie. Mike typed "Mike" on
+ * 2026-09-21 and the board showed "kmikeym".
+ *
+ * The roster is still the fallback, so a regular who leaves the field empty
+ * shows as the handle everyone knows rather than an email fragment.
+ */
+function displayNameFor(email, typed, rosterRows) {
+  const cleaned = cleanDisplayName(typed);
+  if (cleaned) return cleaned;
+  const hit = rosterRows.find((r) => String(r.email).toLowerCase() === String(email).toLowerCase());
+  if (hit && hit.handle) return hit.handle;
+  return cleanDisplayName(String(email).split("@")[0]);
+}
 
 /**
  * The D1 database this endpoint writes to.
@@ -307,7 +332,7 @@ export async function onRequestPost({ request, env }) {
   const key = email.toLowerCase();
 
   const { results: roster } = await db.prepare("SELECT email, handle FROM roster").all();
-  const display = resolveDisplay(email, displayName, roster ?? []);
+  const display = displayNameFor(email, displayName, roster ?? []);
 
   // One more than this email's highest attempt at this hand, so the first submit
   // is 1 and nothing is ever overwritten.

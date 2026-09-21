@@ -622,10 +622,14 @@ describe("(e) no response body carries an email [M5]", () => {
 
 // --- leg (f) ---------------------------------------------------------------
 
-describe("(f) the display name is the roster handle, or the cleaned typed name [M6]", () => {
+// M6 as signed said the roster handle wins, cloning RSVP. Mike, playing the
+// live puzzle on 2026-09-21, typed "Mike" and the board showed "kmikeym": on a
+// field labelled Display name the typed name has to win, and the roster is the
+// fallback for someone who leaves it empty.
+describe("(f) the display name is what they typed, else their roster handle [M6]", () => {
   const ROSTER: RosterRow[] = [{ email: "known@example.com", handle: "alice", slug: "alice" }];
 
-  test("a roster email shows its handle on the leaderboard, not what they typed", async () => {
+  test("a roster email shows the name they typed, not their handle", async () => {
     const { env } = makeEnv({ roster: ROSTER });
     await onRequestPost({
       request: postReq({
@@ -636,7 +640,28 @@ describe("(f) the display name is the roster handle, or the cleaned typed name [
       env,
     });
     const body = await (await onRequestGet({ request: getReq(), env })).json();
+    expect(body.leaderboard).toEqual([{ name: "Some Other Name", chips: REPLAY.chips }]);
+  });
+
+  test("a roster email that types nothing falls back to their handle", async () => {
+    const { env } = makeEnv({ roster: ROSTER });
+    await onRequestPost({
+      request: postReq({ email: "known@example.com", displayName: "   ", line: SEAT_LINE }),
+      env,
+    });
+    const body = await (await onRequestGet({ request: getReq(), env })).json();
     expect(body.leaderboard).toEqual([{ name: "alice", chips: REPLAY.chips }]);
+  });
+
+  test("a stranger who types nothing falls back to the part before the @, never the email", async () => {
+    const { env } = makeEnv({ roster: ROSTER });
+    await onRequestPost({
+      request: postReq({ email: "Nobody@example.com", displayName: "", line: SEAT_LINE }),
+      env,
+    });
+    const text = await (await onRequestGet({ request: getReq(), env })).text();
+    expect(text).toContain("Nobody");
+    expect(text).not.toContain("@");
   });
 
   test("a stranger shows the name they typed, cleaned", async () => {
@@ -655,7 +680,7 @@ describe("(f) the display name is the roster handle, or the cleaned typed name [
     expect(body.leaderboard).toEqual([{ name: "bNewcomer/b", chips: REPLAY.chips }]);
   });
 
-  test("both together: the handle for the known email, the cleaned name for the stranger", async () => {
+  test("both together: each shows the name they typed", async () => {
     const { env } = makeEnv({ roster: ROSTER });
     for (const body of [
       { email: "known@example.com", displayName: "Some Other Name", line: SEAT_LINE },
@@ -669,7 +694,7 @@ describe("(f) the display name is the roster handle, or the cleaned typed name [
     // the two may land either way round within the same second: the names are
     // compared as a set, which is what M6 is about.
     expect(got.leaderboard.map((r: { name: string }) => r.name).sort()).toEqual([
-      "alice",
+      "Some Other Name",
       "bNewcomer/b",
     ]);
     expect(got.leaderboard.every((r: { chips: number }) => r.chips === REPLAY.chips)).toBe(true);
