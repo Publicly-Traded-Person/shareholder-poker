@@ -551,7 +551,11 @@ function boot() {
     const again = el("p", "wwyhd-again");
     const button = el("button", "wwyhd-act", "Play again");
     button.type = "button";
-    button.addEventListener("click", () => window.location.reload());
+    button.addEventListener("click", () => {
+      deal();
+      const table = document.querySelector(".wwyhd-table");
+      if (table) table.scrollIntoView({ block: "center" });
+    });
     again.appendChild(button);
     body.appendChild(again);
 
@@ -666,6 +670,30 @@ function boot() {
     return table;
   }
 
+  /**
+   * Deals the hand from the top: the first time, and every time after that.
+   *
+   * Takes nothing. Returns nothing. Clears the line, the reveal and the
+   * submit guard, puts the fields away, and starts a fresh state, so a
+   * second go is the same deal from the same stacks rather than a reload
+   * (Mike, 2026-09-21: Play again should not make him click Deal again).
+   * Every seat's stack, chips in front, folded state and the action log are
+   * painted from that new state, so nothing of the last hand survives on
+   * screen.
+   */
+  function deal() {
+    line.length = 0;
+    pending = false;
+    revealBand.hidden = true;
+    form.hidden = true;
+    const cue = byId("wwyhd-cue");
+    if (cue) cue.hidden = true;
+    controls.hidden = false;
+    if (history) history.open = false;
+    state = startHand(hand);
+    paint();
+  }
+
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     if (state) return;
@@ -677,12 +705,7 @@ function boot() {
     // Remembered the moment they sit down, not after the submit succeeds, so
     // a replay never asks for them again even if the room was unreachable.
     remember(emailField.value.trim(), nameField ? nameField.value.trim() : "");
-    form.hidden = true;
-    const cue = byId("wwyhd-cue");
-    if (cue) cue.hidden = true;
-    controls.hidden = false;
-    state = startHand(hand);
-    paint();
+    deal();
   });
 }
 
