@@ -548,7 +548,7 @@ describe("the invariants [M4]", () => {
 
 describe("THRESHOLDS [M5]", () => {
   /** The five names M5 fixes, spelled as the task spells them. */
-  const NAMES = ["RAISE_AF", "CALL_DOWN", "ALL_IN_STRONG", "CHEAP_CALL_SHARE", "MIN_SHARED"];
+  const NAMES = ["RAISE_AF", "CALL_DOWN", "ALL_IN_STRONG", "CHEAP_CALL_SHARE", "MIN_SHARED", "BET_AF"];
 
   test("leg (j): the exported keys sorted are exactly the five names sorted", () => {
     expect(Object.keys(THRESHOLDS).sort()).toEqual([...NAMES].sort());
@@ -681,5 +681,38 @@ describe("preflop facing a raise", () => {
   test("an unopened pot is unchanged: the same holding limps when nothing is raised", () => {
     const unopened = { ...facing(["Ad", "5d"], 200, 6708), raised: false, pot: 300, legal: { fold: true, check: false, call: 200, minRaiseTo: 400, maxRaiseTo: 6708 } };
     expect(decide(unopened, MIKE)).toEqual({ type: "call", amount: 0 });
+  });
+});
+
+// --- 2026-09-21: betting when checked to ------------------------------------
+// "When I folded the hand played out in a really boring way": the v1 table
+// never bet, so four players checked every street down. Checked to after the
+// flop, a strong hand bets half the pot when the profile is aggressive enough
+// (BET_AF), and a monster bets whatever the profile.
+describe("betting when checked to", () => {
+  const checkedTo = (cards: string[], board: string[], pot: number, over: Record<string, unknown> = {}) =>
+    view("p", {
+      cards, board, street: board.length === 3 ? "FLOP" : board.length === 4 ? "TURN" : "RIVER",
+      pot, toCall: 0, stack: 5000, playersIn: 3, raised: false,
+      legal: { fold: true, check: true, call: 0, minRaiseTo: 200, maxRaiseTo: 5000 },
+      ...over,
+    });
+  const CHRIS = { vpip: 30, af: 0.84, allInRate: 0.01, foldToRaise: 48, callDown: 67 };
+  test("an overpair on a dry flop bets half the pot at Chris H.'s aggression", () => {
+    expect(decide(checkedTo(["Ah", "Ac"], ["Qs", "3s", "7s"], 1000), CHRIS)).toEqual({ type: "bet", amount: 500 });
+  });
+  test("the same hand checks behind at a passive profile", () => {
+    expect(decide(checkedTo(["Ah", "Ac"], ["Qs", "3s", "7s"], 1000), TIGHT_PASSIVE)).toEqual({ type: "check", amount: 0 });
+  });
+  test("a set bets whatever the profile", () => {
+    expect(decide(checkedTo(["7h", "7d"], ["Qs", "3s", "7s"], 1000), TIGHT_PASSIVE)).toEqual({ type: "bet", amount: 500 });
+  });
+  test("a bet never goes below the minimum or above the stack", () => {
+    expect(decide(checkedTo(["7h", "7d"], ["Qs", "3s", "7s"], 100), CHRIS)).toEqual({ type: "bet", amount: 200 });
+    expect(decide(checkedTo(["7h", "7d"], ["Qs", "3s", "7s"], 20000, { stack: 900, legal: { fold: true, check: true, call: 0, minRaiseTo: 200, maxRaiseTo: 900 } }), CHRIS)).toEqual({ type: "bet", amount: 900 });
+  });
+  test("air and a weak pair check behind", () => {
+    expect(decide(checkedTo(["9d", "4c"], ["Qs", "3s", "7s"], 1000), CHRIS)).toEqual({ type: "check", amount: 0 });
+    expect(decide(checkedTo(["6c", "6d"], ["Qs", "3s", "7s"], 1000), CHRIS)).toEqual({ type: "check", amount: 0 });
   });
 });

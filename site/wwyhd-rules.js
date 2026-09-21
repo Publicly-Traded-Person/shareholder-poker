@@ -76,6 +76,11 @@ export const THRESHOLDS = Object.freeze({
   // than from the page so the Function that aggregates and the page that
   // renders cannot disagree; the table itself does not read it.
   MIN_SHARED: 5,
+  // Bet when checked to (2026-09-21): a strong hand (band 3) bets half the
+  // pot when the profile's af is at least this; a monster (band 4) bets
+  // whatever the profile. 0.8 because Chris H. bet pocket aces on the flop
+  // of hand 39 at af 0.84, and the table should reproduce the real hand.
+  BET_AF: 0.8,
 });
 
 // The bar `foldToRaise` sets, spec §4.3 rule 3 ("higher foldToRaise, higher
@@ -464,7 +469,21 @@ export function decide(view, profile, thresholds) {
   // hold. That is the conservative half of the rule and it is visible to the
   // visitor as a quiet table, which the fixtures would rather have than a
   // bluffing engine nobody can predict.
-  if (toCall <= NO_AMOUNT) return check();
+  if (toCall <= NO_AMOUNT) {
+    // Checked to after the flop (2026-09-21): the v1 table never bet, and a
+    // hand the visitor folded out of was checked down four ways. A monster
+    // bets whatever the profile; a strong hand bets at BET_AF or above; the
+    // size is half the pot, clamped to what the engine allows. Air and weak
+    // pairs still check behind.
+    const wantsToBet =
+      band >= BAND_MONSTER || (band >= BAND_STRONG && profile.af >= table.BET_AF);
+    if (wantsToBet && view.legal && view.legal.minRaiseTo != null && view.legal.maxRaiseTo != null) {
+      const half = Math.round((view.pot ?? 0) / 2);
+      const amount = Math.min(Math.max(half, view.legal.minRaiseTo), view.legal.maxRaiseTo);
+      return { type: "bet", amount };
+    }
+    return check();
+  }
 
   // The river, rule 4: no card left to come, so the only question is whether
   // this player pays to see the hand.
