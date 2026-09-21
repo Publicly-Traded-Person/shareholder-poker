@@ -1,0 +1,7 @@
+Running as unit: fleet-engine-1.service
+run-main: preflight
+run-main: kata — record /home/exedev/plans/run-1.kata.json → https://kata.int.exe.xyz
+run-main: tiers — 7 null tier slot(s) stamped mostCapable (uniform driver fill; per-task tier is the intent document's slot, #243)
+run-main: provision — BASE d24511baa1e94fa18fbac2ff10287b5ec2db490f; 7 task clone(s) + integration
+run-main: engine — waves 1/2/2/1/1, width bound 2, patch input armed
+jev: status 403

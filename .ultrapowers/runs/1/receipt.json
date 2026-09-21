@@ -1,0 +1,829 @@
+{
+  "ok": true,
+  "stamp": "run-1",
+  "stages": [
+    {
+      "stage": "fleet-run",
+      "ok": true,
+      "detail": "fleet run run-1"
+    },
+    {
+      "stage": "git-repo",
+      "ok": true,
+      "detail": "/home/exedev/target"
+    },
+    {
+      "stage": "worktree-probe",
+      "ok": true,
+      "detail": "worktree capability verified (probe cut and removed)"
+    },
+    {
+      "stage": "compile",
+      "ok": true,
+      "detail": "7 task(s) in 5 wave(s)"
+    },
+    {
+      "stage": "test-command",
+      "ok": true,
+      "detail": "npm test (detected:package-json-npm)"
+    },
+    {
+      "stage": "bootstrap-command",
+      "ok": true,
+      "detail": "npm install --no-package-lock (detected:package-json)"
+    },
+    {
+      "stage": "add-command",
+      "ok": true,
+      "detail": "no dependencies declared \u2014 nothing to add"
+    },
+    {
+      "stage": "dirty-baseline",
+      "ok": true,
+      "detail": "dirty baseline recorded: 0 pre-existing line(s)"
+    },
+    {
+      "stage": "base-branch",
+      "ok": true,
+      "detail": "detached HEAD \u2192 fell back to repo default 'main'"
+    }
+  ],
+  "compile": {
+    "tasks": [
+      {
+        "id": "1",
+        "title": "The hand evaluator",
+        "disposition": "implementation",
+        "heuristic": false,
+        "writes": [
+          "site/wwyhd-eval.js"
+        ],
+        "depends_on": [],
+        "interfaces": {
+          "consumes": [
+            "nothing"
+          ],
+          "produces": [
+            "`evaluate(cards: string[]): number`",
+            "`handCategory(score: number): string`"
+          ]
+        }
+      },
+      {
+        "id": "2",
+        "title": "The weekly runbook, the commands block and the spec in step",
+        "disposition": "implementation",
+        "heuristic": false,
+        "writes": [
+          "CLAUDE.md",
+          "docs/publishing.md",
+          "docs/superpowers/specs/2026-09-20-what-would-you-have-done-design.md"
+        ],
+        "depends_on": [],
+        "interfaces": {
+          "consumes": [
+            "nothing"
+          ],
+          "produces": [
+            "nothing"
+          ]
+        }
+      },
+      {
+        "id": "3",
+        "title": "The hand engine",
+        "disposition": "implementation",
+        "heuristic": false,
+        "writes": [
+          "site/wwyhd-engine.js"
+        ],
+        "depends_on": [],
+        "interfaces": {
+          "consumes": [
+            "`evaluate(cards: string[]): number`"
+          ],
+          "produces": [
+            "`startHand(hand: HandFile): State`",
+            "`legalActions(state: State): {fold: boolean, check: boolean, call: number, minRaiseTo: number|null, maxRaiseTo: number|null}`",
+            "`applyAction(state: State, action: {type: string, amount: number}): State`",
+            "`isHandOver(state: State): boolean`",
+            "`settle(state: State): {stacks: Record<string, number>, pots: {amount: number, eligible: string[], winners: string[]}[]}`",
+            "`replay(hand: HandFile, actions: {street: string, handle: string, type: string, amount: number}[]): State`",
+            "`playSeat(hand: HandFile, seatLine: {street: string, type: string, amount: number}[], decide: (view: View) => {type: string, amount: number}): {chips: number, line: object[], decisions: {key: string, type: string}[]}`",
+            "`seatView(state: State, handle: string): View`"
+          ]
+        }
+      },
+      {
+        "id": "4",
+        "title": "The opponent rule table",
+        "disposition": "implementation",
+        "heuristic": false,
+        "writes": [
+          "site/wwyhd-rules.js"
+        ],
+        "depends_on": [],
+        "interfaces": {
+          "consumes": [
+            "`evaluate(cards: string[]): number`"
+          ],
+          "produces": [
+            "`THRESHOLDS: Record<string, number>`",
+            "`strengthBand(cards: string[], board: string[]): number`",
+            "`preflopPercentile(cards: string[]): number`",
+            "`decide(view: View, profile: Profile, thresholds?: Record<string, number>): {type: string, amount: number}`"
+          ]
+        }
+      },
+      {
+        "id": "5",
+        "title": "Hand files: the loader, the check tool and the suite sweep",
+        "disposition": "implementation",
+        "heuristic": false,
+        "writes": [
+          "tools/fixtures/wwyhd-mini.json",
+          "tools/lib/wwyhd.ts",
+          "tools/wwyhd-check.ts"
+        ],
+        "depends_on": [],
+        "interfaces": {
+          "consumes": [
+            "`replay(hand: HandFile, actions: {street: string, handle: string, type: string, amount: number}[]): State`"
+          ],
+          "produces": [
+            "`HandFile` (type)",
+            "`validateHandFile(hand: unknown, data: GamesData): HandFile`",
+            "`checkHandFile(hand: HandFile): void`",
+            "`loadHandFiles(dir: string, data: GamesData): HandFile[]`"
+          ]
+        }
+      },
+      {
+        "id": "6",
+        "title": "The Function and the table",
+        "disposition": "implementation",
+        "heuristic": false,
+        "writes": [
+          "functions/api/wwyhd.js",
+          "site/schema.sql"
+        ],
+        "depends_on": [],
+        "interfaces": {
+          "consumes": [
+            "`playSeat(hand: HandFile, seatLine: {street: string, type: string, amount: number}[], decide: (view: View) => {type: string, amount: number}): {chips: number, line: object[], decisions: {key: string, type: string}[]}`",
+            "`decide(view: View, profile: Profile): {type: string, amount: number}`",
+            "`THRESHOLDS: Record<string, number>`",
+            "`validEmail(s: unknown): boolean`",
+            "`cleanDisplayName(s: unknown): string`",
+            "`resolveDisplay(email: string, providedName: string, rosterRows: {email: string, handle: string}[]): string`"
+          ],
+          "produces": [
+            "`onRequestGet(ctx): Promise<Response>`",
+            "`onRequestPost(ctx): Promise<Response>`"
+          ]
+        }
+      },
+      {
+        "id": "7",
+        "title": "The puzzle pages and the browser controller",
+        "disposition": "implementation",
+        "heuristic": false,
+        "writes": [
+          "site/styles.css",
+          "site/wwyhd.js",
+          "tools/lib/render-inputs.ts",
+          "tools/render.ts",
+          "tools/site.test.ts"
+        ],
+        "depends_on": [],
+        "interfaces": {
+          "consumes": [
+            "`loadHandFiles(dir: string, data: GamesData): HandFile[]`",
+            "`HandFile` (type)"
+          ],
+          "produces": [
+            "`renderWwyhdHand(data: GamesData, hand: HandFile): string`",
+            "`renderWwyhdIndex(data: GamesData, hands: HandFile[]): string`",
+            "`lineVsReal(line: object[], realActions: object[], seat: string): {street: string, mine: string, real: string, differs: boolean}[]`",
+            "`seedRenderInputs(tempRoot: string, siteDir: string): void`"
+          ]
+        }
+      },
+      {
+        "id": "8",
+        "title": "Apply the schema to the live database",
+        "disposition": "manual",
+        "heuristic": false,
+        "writes": [],
+        "depends_on": [],
+        "interfaces": {
+          "consumes": [
+            "nothing"
+          ],
+          "produces": [
+            "nothing"
+          ]
+        }
+      }
+    ],
+    "dag_edges": [
+      {
+        "from": "1",
+        "to": "3",
+        "why": "interface"
+      },
+      {
+        "from": "1",
+        "to": "4",
+        "why": "interface"
+      },
+      {
+        "from": "3",
+        "to": "5",
+        "why": "interface"
+      },
+      {
+        "from": "3",
+        "to": "6",
+        "why": "interface"
+      },
+      {
+        "from": "4",
+        "to": "6",
+        "why": "interface"
+      },
+      {
+        "from": "5",
+        "to": "7",
+        "why": "interface"
+      },
+      {
+        "from": "5",
+        "to": "2",
+        "why": "proof-run"
+      },
+      {
+        "from": "1",
+        "to": "2",
+        "why": "proof-run"
+      },
+      {
+        "from": "3",
+        "to": "2",
+        "why": "proof-run"
+      },
+      {
+        "from": "4",
+        "to": "2",
+        "why": "proof-run"
+      },
+      {
+        "from": "7",
+        "to": "2",
+        "why": "proof-run"
+      }
+    ],
+    "marker_conflicts": [],
+    "waves": [
+      [
+        "1"
+      ],
+      [
+        "3",
+        "4"
+      ],
+      [
+        "5",
+        "6"
+      ],
+      [
+        "7"
+      ],
+      [
+        "2"
+      ]
+    ],
+    "launch_waves": [
+      [
+        {
+          "id": "1",
+          "title": "The hand evaluator",
+          "files": [
+            "site/wwyhd-eval.js",
+            "tools/wwyhd-eval.test.ts"
+          ],
+          "depends_on": [],
+          "interfaces": {
+            "consumes": [
+              "nothing"
+            ],
+            "produces": [
+              "`evaluate(cards: string[]): number`",
+              "`handCategory(score: number): string`"
+            ]
+          },
+          "tier": null,
+          "review": "peer",
+          "writes": [
+            "site/wwyhd-eval.js"
+          ],
+          "commutes": [],
+          "proofTests": [
+            "tools/wwyhd-eval.test.ts"
+          ],
+          "testCmd": "bun test tools/wwyhd-eval.test.ts",
+          "proofRuns": [],
+          "proofGuards": [],
+          "factsheet": {
+            "files": [
+              "site/wwyhd-eval.js",
+              "tools/wwyhd-eval.test.ts"
+            ],
+            "deletes": [],
+            "guards": [],
+            "proofTests": [
+              "tools/wwyhd-eval.test.ts"
+            ],
+            "landing": {
+              "tools/wwyhd-eval.test.ts": "tools/wwyhd-eval.test.ts"
+            },
+            "driverOwned": [
+              "tools/wwyhd-eval.test.ts"
+            ],
+            "siblingOwned": [],
+            "produces": [
+              "`evaluate(cards: string[]): number`",
+              "`handCategory(score: number): string`"
+            ],
+            "consumes": []
+          }
+        }
+      ],
+      [
+        {
+          "id": "3",
+          "title": "The hand engine",
+          "files": [
+            "site/wwyhd-engine.js",
+            "tools/wwyhd-engine.test.ts"
+          ],
+          "depends_on": [],
+          "interfaces": {
+            "consumes": [
+              "`evaluate(cards: string[]): number`"
+            ],
+            "produces": [
+              "`startHand(hand: HandFile): State`",
+              "`legalActions(state: State): {fold: boolean, check: boolean, call: number, minRaiseTo: number|null, maxRaiseTo: number|null}`",
+              "`applyAction(state: State, action: {type: string, amount: number}): State`",
+              "`isHandOver(state: State): boolean`",
+              "`settle(state: State): {stacks: Record<string, number>, pots: {amount: number, eligible: string[], winners: string[]}[]}`",
+              "`replay(hand: HandFile, actions: {street: string, handle: string, type: string, amount: number}[]): State`",
+              "`playSeat(hand: HandFile, seatLine: {street: string, type: string, amount: number}[], decide: (view: View) => {type: string, amount: number}): {chips: number, line: object[], decisions: {key: string, type: string}[]}`",
+              "`seatView(state: State, handle: string): View`"
+            ]
+          },
+          "tier": null,
+          "review": "peer",
+          "writes": [
+            "site/wwyhd-engine.js"
+          ],
+          "commutes": [],
+          "proofTests": [
+            "tools/wwyhd-engine.test.ts"
+          ],
+          "testCmd": "bun test tools/wwyhd-engine.test.ts",
+          "proofRuns": [],
+          "proofGuards": [],
+          "factsheet": {
+            "files": [
+              "site/wwyhd-engine.js",
+              "tools/wwyhd-engine.test.ts"
+            ],
+            "deletes": [],
+            "guards": [],
+            "proofTests": [
+              "tools/wwyhd-engine.test.ts"
+            ],
+            "landing": {
+              "tools/wwyhd-engine.test.ts": "tools/wwyhd-engine.test.ts"
+            },
+            "driverOwned": [
+              "tools/wwyhd-engine.test.ts"
+            ],
+            "siblingOwned": [
+              "site/wwyhd-rules.js",
+              "tools/wwyhd-rules.test.ts"
+            ],
+            "produces": [
+              "`startHand(hand: HandFile): State`",
+              "`legalActions(state: State): {fold: boolean, check: boolean, call: number, minRaiseTo: number|null, maxRaiseTo: number|null}`",
+              "`applyAction(state: State, action: {type: string, amount: number}): State`",
+              "`isHandOver(state: State): boolean`",
+              "`settle(state: State): {stacks: Record<string, number>, pots: {amount: number, eligible: string[], winners: string[]}[]}`",
+              "`replay(hand: HandFile, actions: {street: string, handle: string, type: string, amount: number}[]): State`",
+              "`playSeat(hand: HandFile, seatLine: {street: string, type: string, amount: number}[], decide: (view: View) => {type: string, amount: number}): {chips: number, line: object[], decisions: {key: string, type: string}[]}`",
+              "`seatView(state: State, handle: string): View`"
+            ],
+            "consumes": [
+              "`evaluate(cards: string[]): number`"
+            ]
+          }
+        },
+        {
+          "id": "4",
+          "title": "The opponent rule table",
+          "files": [
+            "site/wwyhd-rules.js",
+            "tools/wwyhd-rules.test.ts"
+          ],
+          "depends_on": [],
+          "interfaces": {
+            "consumes": [
+              "`evaluate(cards: string[]): number`"
+            ],
+            "produces": [
+              "`THRESHOLDS: Record<string, number>`",
+              "`strengthBand(cards: string[], board: string[]): number`",
+              "`preflopPercentile(cards: string[]): number`",
+              "`decide(view: View, profile: Profile, thresholds?: Record<string, number>): {type: string, amount: number}`"
+            ]
+          },
+          "tier": null,
+          "review": "peer",
+          "writes": [
+            "site/wwyhd-rules.js"
+          ],
+          "commutes": [],
+          "proofTests": [
+            "tools/wwyhd-rules.test.ts"
+          ],
+          "testCmd": "bun test tools/wwyhd-rules.test.ts",
+          "proofRuns": [],
+          "proofGuards": [],
+          "factsheet": {
+            "files": [
+              "site/wwyhd-rules.js",
+              "tools/wwyhd-rules.test.ts"
+            ],
+            "deletes": [],
+            "guards": [],
+            "proofTests": [
+              "tools/wwyhd-rules.test.ts"
+            ],
+            "landing": {
+              "tools/wwyhd-rules.test.ts": "tools/wwyhd-rules.test.ts"
+            },
+            "driverOwned": [
+              "tools/wwyhd-rules.test.ts"
+            ],
+            "siblingOwned": [
+              "site/wwyhd-engine.js",
+              "tools/wwyhd-engine.test.ts"
+            ],
+            "produces": [
+              "`THRESHOLDS: Record<string, number>`",
+              "`strengthBand(cards: string[], board: string[]): number`",
+              "`preflopPercentile(cards: string[]): number`",
+              "`decide(view: View, profile: Profile, thresholds?: Record<string, number>): {type: string, amount: number}`"
+            ],
+            "consumes": [
+              "`evaluate(cards: string[]): number`"
+            ]
+          }
+        }
+      ],
+      [
+        {
+          "id": "5",
+          "title": "Hand files: the loader, the check tool and the suite sweep",
+          "files": [
+            "tools/fixtures/wwyhd-mini.json",
+            "tools/lib/wwyhd.ts",
+            "tools/wwyhd-check.ts",
+            "tools/wwyhd-files.test.ts"
+          ],
+          "depends_on": [],
+          "interfaces": {
+            "consumes": [
+              "`replay(hand: HandFile, actions: {street: string, handle: string, type: string, amount: number}[]): State`"
+            ],
+            "produces": [
+              "`HandFile` (type)",
+              "`validateHandFile(hand: unknown, data: GamesData): HandFile`",
+              "`checkHandFile(hand: HandFile): void`",
+              "`loadHandFiles(dir: string, data: GamesData): HandFile[]`"
+            ]
+          },
+          "tier": null,
+          "review": "peer",
+          "writes": [
+            "tools/fixtures/wwyhd-mini.json",
+            "tools/lib/wwyhd.ts",
+            "tools/wwyhd-check.ts"
+          ],
+          "commutes": [],
+          "proofTests": [
+            "tools/wwyhd-files.test.ts"
+          ],
+          "testCmd": "bun test tools/wwyhd-files.test.ts",
+          "proofRuns": [],
+          "proofGuards": [],
+          "factsheet": {
+            "files": [
+              "tools/fixtures/wwyhd-mini.json",
+              "tools/lib/wwyhd.ts",
+              "tools/wwyhd-check.ts",
+              "tools/wwyhd-files.test.ts"
+            ],
+            "deletes": [],
+            "guards": [],
+            "proofTests": [
+              "tools/wwyhd-files.test.ts"
+            ],
+            "landing": {
+              "tools/wwyhd-files.test.ts": "tools/wwyhd-files.test.ts"
+            },
+            "driverOwned": [
+              "tools/wwyhd-files.test.ts"
+            ],
+            "siblingOwned": [
+              "functions/api/wwyhd.js",
+              "site/schema.sql",
+              "tools/wwyhd-api.test.ts"
+            ],
+            "produces": [
+              "`HandFile` (type)",
+              "`validateHandFile(hand: unknown, data: GamesData): HandFile`",
+              "`checkHandFile(hand: HandFile): void`",
+              "`loadHandFiles(dir: string, data: GamesData): HandFile[]`"
+            ],
+            "consumes": [
+              "`replay(hand: HandFile, actions: {street: string, handle: string, type: string, amount: number}[]): State`"
+            ]
+          }
+        },
+        {
+          "id": "6",
+          "title": "The Function and the table",
+          "files": [
+            "functions/api/wwyhd.js",
+            "site/schema.sql",
+            "tools/wwyhd-api.test.ts"
+          ],
+          "depends_on": [],
+          "interfaces": {
+            "consumes": [
+              "`playSeat(hand: HandFile, seatLine: {street: string, type: string, amount: number}[], decide: (view: View) => {type: string, amount: number}): {chips: number, line: object[], decisions: {key: string, type: string}[]}`",
+              "`decide(view: View, profile: Profile): {type: string, amount: number}`",
+              "`THRESHOLDS: Record<string, number>`",
+              "`validEmail(s: unknown): boolean`",
+              "`cleanDisplayName(s: unknown): string`",
+              "`resolveDisplay(email: string, providedName: string, rosterRows: {email: string, handle: string}[]): string`"
+            ],
+            "produces": [
+              "`onRequestGet(ctx): Promise<Response>`",
+              "`onRequestPost(ctx): Promise<Response>`"
+            ]
+          },
+          "tier": null,
+          "review": "peer",
+          "writes": [
+            "functions/api/wwyhd.js",
+            "site/schema.sql"
+          ],
+          "commutes": [],
+          "proofTests": [
+            "tools/wwyhd-api.test.ts"
+          ],
+          "testCmd": "bun test tools/wwyhd-api.test.ts",
+          "proofRuns": [],
+          "proofGuards": [],
+          "factsheet": {
+            "files": [
+              "functions/api/wwyhd.js",
+              "site/schema.sql",
+              "tools/wwyhd-api.test.ts"
+            ],
+            "deletes": [],
+            "guards": [],
+            "proofTests": [
+              "tools/wwyhd-api.test.ts"
+            ],
+            "landing": {
+              "tools/wwyhd-api.test.ts": "tools/wwyhd-api.test.ts"
+            },
+            "driverOwned": [
+              "tools/wwyhd-api.test.ts"
+            ],
+            "siblingOwned": [
+              "tools/fixtures/wwyhd-mini.json",
+              "tools/lib/wwyhd.ts",
+              "tools/wwyhd-check.ts",
+              "tools/wwyhd-files.test.ts"
+            ],
+            "produces": [
+              "`onRequestGet(ctx): Promise<Response>`",
+              "`onRequestPost(ctx): Promise<Response>`"
+            ],
+            "consumes": [
+              "`playSeat(hand: HandFile, seatLine: {street: string, type: string, amount: number}[], decide: (view: View) => {type: string, amount: number}): {chips: number, line: object[], decisions: {key: string, type: string}[]}`",
+              "`decide(view: View, profile: Profile): {type: string, amount: number}`",
+              "`THRESHOLDS: Record<string, number>`",
+              "`validEmail(s: unknown): boolean`",
+              "`cleanDisplayName(s: unknown): string`",
+              "`resolveDisplay(email: string, providedName: string, rosterRows: {email: string, handle: string}[]): string`"
+            ]
+          }
+        }
+      ],
+      [
+        {
+          "id": "7",
+          "title": "The puzzle pages and the browser controller",
+          "files": [
+            "site/styles.css",
+            "site/wwyhd.js",
+            "tools/lib/render-inputs.ts",
+            "tools/render.ts",
+            "tools/site.test.ts",
+            "tools/wwyhd-pages.test.ts"
+          ],
+          "depends_on": [],
+          "interfaces": {
+            "consumes": [
+              "`loadHandFiles(dir: string, data: GamesData): HandFile[]`",
+              "`HandFile` (type)"
+            ],
+            "produces": [
+              "`renderWwyhdHand(data: GamesData, hand: HandFile): string`",
+              "`renderWwyhdIndex(data: GamesData, hands: HandFile[]): string`",
+              "`lineVsReal(line: object[], realActions: object[], seat: string): {street: string, mine: string, real: string, differs: boolean}[]`",
+              "`seedRenderInputs(tempRoot: string, siteDir: string): void`"
+            ]
+          },
+          "tier": null,
+          "review": "peer",
+          "writes": [
+            "site/styles.css",
+            "site/wwyhd.js",
+            "tools/lib/render-inputs.ts",
+            "tools/render.ts",
+            "tools/site.test.ts"
+          ],
+          "commutes": [],
+          "proofTests": [
+            "tools/wwyhd-pages.test.ts"
+          ],
+          "testCmd": "bun test tools/wwyhd-pages.test.ts",
+          "proofRuns": [
+            "sed -n '/run into an empty directory/,/^});/p' tools/site.test.ts | grep -q 'hope-coin\", \"archive\", \"wwyhd\"'",
+            "sed -n '/run into an empty directory/,/^});/p' tools/site.test.ts | grep -q 'seedRenderInputs(tempRoot'",
+            "sed -n '/run into an empty directory/,/^});/p' tools/site.test.ts | grep -c 'copyFileSync' | grep -qx 0"
+          ],
+          "proofGuards": [],
+          "factsheet": {
+            "files": [
+              "site/styles.css",
+              "site/wwyhd.js",
+              "tools/lib/render-inputs.ts",
+              "tools/render.ts",
+              "tools/site.test.ts",
+              "tools/wwyhd-pages.test.ts"
+            ],
+            "deletes": [],
+            "guards": [],
+            "proofTests": [
+              "tools/wwyhd-pages.test.ts"
+            ],
+            "landing": {
+              "tools/wwyhd-pages.test.ts": "tools/wwyhd-pages.test.ts"
+            },
+            "driverOwned": [
+              "tools/wwyhd-pages.test.ts"
+            ],
+            "siblingOwned": [],
+            "produces": [
+              "`renderWwyhdHand(data: GamesData, hand: HandFile): string`",
+              "`renderWwyhdIndex(data: GamesData, hands: HandFile[]): string`",
+              "`lineVsReal(line: object[], realActions: object[], seat: string): {street: string, mine: string, real: string, differs: boolean}[]`",
+              "`seedRenderInputs(tempRoot: string, siteDir: string): void`"
+            ],
+            "consumes": [
+              "`loadHandFiles(dir: string, data: GamesData): HandFile[]`",
+              "`HandFile` (type)"
+            ]
+          }
+        }
+      ],
+      [
+        {
+          "id": "2",
+          "title": "The weekly runbook, the commands block and the spec in step",
+          "files": [
+            "CLAUDE.md",
+            "docs/publishing.md",
+            "docs/superpowers/specs/2026-09-20-what-would-you-have-done-design.md"
+          ],
+          "depends_on": [],
+          "interfaces": {
+            "consumes": [
+              "nothing"
+            ],
+            "produces": [
+              "nothing"
+            ]
+          },
+          "tier": null,
+          "review": "lean",
+          "writes": [
+            "CLAUDE.md",
+            "docs/publishing.md",
+            "docs/superpowers/specs/2026-09-20-what-would-you-have-done-design.md"
+          ],
+          "commutes": [],
+          "proofTests": [],
+          "testCmd": null,
+          "proofRuns": [
+            "sed -n '/^## The weekly puzzle/,/^## /p' docs/publishing.md | tr '\\n' ' ' | grep -q 'site/data/wwyhd/.*wwyhd-check.*render.ts.*bun test tools.*Mike.s go'",
+            "sed -n '/^## The weekly puzzle/,/^## /p' docs/publishing.md | tr '\\n' ' ' | grep -q 'wrangler d1 execute poker-rsvp-db --remote --file site/schema.sql.*idempotent'",
+            "sed -n '/^## The weekly puzzle/,/^## /p' docs/publishing.md | tr '\\n' ' ' | grep -q 'This is a simulation. The cards shown at showdown are the real ones. Everything else was filled in with what we judged likely.*every puzzle page'",
+            "sed -n '/^## The weekly puzzle/,/^## /p' docs/publishing.md | tr '\\n' ' ' | grep -qi 'first attempt.*rank.*replay.*not rank'",
+            "sed -n '/^## Commands/,/^## /p' CLAUDE.md | grep -q 'bun tools/wwyhd-check.ts'",
+            "sed -n '/^### 4.1/,/^### 4.2/p' docs/superpowers/specs/2026-09-20-what-would-you-have-done-design.md | tr '\\n' ' ' | grep -q '\"real\".*endStacks'",
+            "sed -n '/^### 4.5/,/^### 4.6/p' docs/superpowers/specs/2026-09-20-what-would-you-have-done-design.md | grep -q 'decisions *TEXT'",
+            "sed -n '/^### 4.5/,/^### 4.6/p' docs/superpowers/specs/2026-09-20-what-would-you-have-done-design.md | grep -q 'ranked *INTEGER'",
+            "sed -n '/^### 4.2/,/^### 4.3/p' docs/superpowers/specs/2026-09-20-what-would-you-have-done-design.md | grep -q 'site/wwyhd-eval.js'",
+            "sed -n '/^### 4.2/,/^### 4.3/p' docs/superpowers/specs/2026-09-20-what-would-you-have-done-design.md | grep -q 'site/wwyhd-engine.js'",
+            "sed -n '/^### 4.3/,/^### 4.4/p' docs/superpowers/specs/2026-09-20-what-would-you-have-done-design.md | grep -q 'site/wwyhd-rules.js'",
+            "sed -n '/^### 4.4/,/^### 4.5/p' docs/superpowers/specs/2026-09-20-what-would-you-have-done-design.md | grep -q 'site/wwyhd.js'",
+            "sed -n '/^### 4.3/,/^### 4.4/p' docs/superpowers/specs/2026-09-20-what-would-you-have-done-design.md | tr '\\n' ' ' | grep -qi 'four archetype.*inline in each hand file'",
+            "sed -n '/^### 4.5/,/^### 4.6/p' docs/superpowers/specs/2026-09-20-what-would-you-have-done-design.md | grep -q 'api/wwyhd?hand='"
+          ],
+          "proofGuards": [],
+          "factsheet": {
+            "files": [
+              "CLAUDE.md",
+              "docs/publishing.md",
+              "docs/superpowers/specs/2026-09-20-what-would-you-have-done-design.md"
+            ],
+            "deletes": [],
+            "guards": [],
+            "proofTests": [],
+            "landing": {},
+            "driverOwned": [],
+            "siblingOwned": [],
+            "produces": [],
+            "consumes": []
+          }
+        }
+      ]
+    ],
+    "waveLabels": [
+      "The hand evaluator",
+      "2 parallel tasks",
+      "2 parallel tasks",
+      "The puzzle pages and the browser controller",
+      "The weekly runbook, the commands block and the spec in \u2026"
+    ],
+    "mode": "parallel",
+    "degrade_reason": null,
+    "globalConstraints": "- Privacy (spec \u00a73, repo CLAUDE.md): no email in any GET response, any generated page, any hand file or any fixture. Test fixtures are synthetic: invented handles only (`alice`, `bob`, `carol`, `dave` in this plan), never a real player's handle.\n- Determinism: nothing under `site/wwyhd-*.js` reads a clock or a random source; the same hand file and the same choices give the same chips on every machine.\n- Every `site/wwyhd-*.js` file is a plain ES module that loads in a browser and under bun: no `require`, no Node or Bun API, no DOM access at module top level (the controller guards its DOM work behind a `typeof document` check).\n- Card notation everywhere: two characters, rank in `23456789TJQKA`, suit in `shdc` (`Ah`, `Td`, `7d`). Amounts are integers in chips. A bet or raise carries `amount` as the TOTAL the player's street contribution becomes (PokerNow's \"raises to N\"); fold, check and call carry `amount` 0.\n- Copy rules on every generated puzzle page (docs/brand.md): no em dash, the word \"experiment\" never, real players named First + last initial from `games.json` beside their handle, `band-light` and `band-dark` alternate, no `btn-primary` (lime is the RSVP CTA's), and the disclosure sentence verbatim: \"This is a simulation. The cards shown at showdown are the real ones. Everything else was filled in with what we judged likely.\"\n- `site/data/games.json` is not touched by this plan.\n- Every new file opens with a header comment (what it is, where it sits in the publish flow, how to run it or where it is served) and every exported function carries a comment saying what it takes, returns and throws, with the why of each invariant (repo CLAUDE.md, Mike 2026-08-18).\n- The whole suite stays green on every folded tree.\n- Never push to `main`: every push deploys the live site.",
+    "constraintChecks": [
+      {
+        "cmd": "! grep -rliE 'kmikeym|lewd|joshb|mohdi|spladow|webvee|nickmershon|amaxwell|gamzie|mawttm|u_perfection|exis0008|chrishiggins' tools --include='wwyhd-*'",
+        "minor": false
+      },
+      {
+        "cmd": "! cat site/wwyhd-*.js | grep -v '^[[:space:]]*//' | grep -E 'Math\\.random|Date\\.now|new Date'",
+        "minor": false
+      },
+      {
+        "cmd": "git diff --quiet $ULTRA_BASE -- site/data/games.json",
+        "minor": false
+      },
+      {
+        "cmd": "bun test tools",
+        "minor": false
+      }
+    ],
+    "launch_file": "/home/exedev/target/.claude/ultrapowers/run-run-1/launch.json",
+    "args_file": "/home/exedev/target/.claude/ultrapowers/run-run-1/args.json"
+  },
+  "baseBranch": "main",
+  "launchFile": "/home/exedev/target/.claude/ultrapowers/run-run-1/launch.json",
+  "argsFile": "/home/exedev/target/.claude/ultrapowers/run-run-1/args.json",
+  "workflowName": "ultrapowers-run",
+  "llmDerives": [
+    "waves[][].tier on the args-file wave entries (slots pre-emitted as null; the engine reads knobs ONLY from these inline entries \u2014 never a top-level launch key)",
+    "nothing for waves[][].testCmd \u2014 the per-task command is compiler-derived from the task's Proof `Test:` paths and pre-filled on the wave entries (run-wide testCmd is driver-derived \u2014 knob or detection \u2014 and already stamped in the args file and receipt)",
+    "nothing for bootstrapCmd \u2014 driver-derived from the target's lockfile/manifest (or the --bootstrap-cmd knob) and stamped in the args file and receipt, so validation, the engine and the gate share one value",
+    "nothing for addCmd/addDevCmd \u2014 the package-add commands are driver-derived from the same lockfile/manifest beside the bootstrap and stamped in the args file and receipt (only when the plan declares packages); there is no knob for them",
+    "nothing for regenerateCmd \u2014 the lockfile regenerator is derived from the same lockfile/manifest beside the bootstrap (and only when the bootstrap itself was derived) and stamped in the args file and receipt; there is no knob for it",
+    "nothing for review depth \u2014 it is plan-authored (**Review:** marker), pre-filled on the args wave entries"
+  ],
+  "testCmd": "npm test",
+  "testCmdSource": "detected:package-json-npm",
+  "bootstrapCmd": "npm install --no-package-lock",
+  "bootstrapCmdSource": "detected:package-json"
+}
