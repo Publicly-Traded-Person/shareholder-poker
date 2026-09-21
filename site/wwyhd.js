@@ -253,6 +253,22 @@ function nameOf(handle) {
   return namesCache[handle] || handle;
 }
 
+/** One playing card, drawn the way the generator draws the visitor's own:
+ *  rank and suit glyph on a white face, red for hearts and diamonds, the
+ *  two-character code kept in data-card. The classes must match
+ *  tools/render.ts's wwyhdCard. */
+const SUIT_GLYPH = { s: "\u2660", h: "\u2665", d: "\u2666", c: "\u2663" };
+function cardEl(code) {
+  const rank = code[0] === "T" ? "10" : code[0];
+  const suit = code[1];
+  const card = el("span", `pc pc--${suit}`);
+  card.dataset.card = code;
+  card.setAttribute("aria-label", `${rank} of ${suit}`);
+  card.appendChild(el("b", null, rank));
+  card.appendChild(el("i", null, SUIT_GLYPH[suit] || suit));
+  return card;
+}
+
 /** Paints the seat rows the generator wrote: every stack as it now stands,
  *  and the seat to act marked. */
 function paintSeats(state) {
@@ -282,7 +298,7 @@ function paintBoard(state) {
   const view = seatView(state, state.seat);
   board.textContent = "";
   if (view.board.length === 0) return;
-  for (const card of view.board) board.appendChild(el("span", "wwyhd-card", card));
+  for (const card of view.board) board.appendChild(cardEl(card));
 }
 
 /** The running action list, one line per decision, postings included. */
@@ -302,8 +318,8 @@ function paintPot(state) {
   if (!pot) return;
   const street = STREET_NAME[state.street] || state.street;
   pot.textContent = state.over
-    ? `${street}. Pot ${state.pot}.`
-    : `${street}. Pot ${state.pot}. ${state.toAct === state.seat ? "Your turn." : `Waiting on ${nameOf(state.toAct)}.`}`;
+    ? `Pot ${state.pot}`
+    : `Pot ${state.pot} \u00b7 ${state.toAct === state.seat ? "your turn" : `${nameOf(state.toAct)} to act`}`;
 }
 
 /**
@@ -346,10 +362,10 @@ function boot() {
   const emailField = byId("wwyhd-email");
   const nameField = byId("wwyhd-name");
   const sitError = byId("wwyhd-sit-error");
-  const playBand = byId("wwyhd-play");
   const revealBand = byId("wwyhd-reveal");
   const controls = byId("wwyhd-controls");
-  if (!form || !emailField || !playBand || !revealBand || !controls) return;
+  const history = byId("wwyhd-history");
+  if (!form || !emailField || !revealBand || !controls) return;
 
   if (!emailField.value) emailField.value = remembered(EMAIL_KEY);
   if (nameField && !nameField.value) nameField.value = remembered(NAME_KEY);
@@ -368,6 +384,7 @@ function boot() {
     paintPot(state);
     if (isHandOver(state)) {
       fill(controls, el("p", "stat", "The hand is over."));
+      if (history) history.open = true;
       finish();
       return;
     }
@@ -569,9 +586,13 @@ function boot() {
   function holdingsList() {
     const list = el("ul", "wwyhd-holdings");
     for (const seat of hand.players) {
-      const cards = seat.cards.join(" ");
-      const note = seat.shown ? "shown at showdown" : "for this puzzle";
-      list.appendChild(el("li", "stat", `${nameOf(seat.handle)} (${seat.handle}): ${cards} (${note})`));
+      const item = el("li", "wwyhd-holding");
+      item.appendChild(el("span", "wwyhd-holding-who", `${nameOf(seat.handle)} (${seat.handle})`));
+      const cards = el("span", "wwyhd-holding-cards");
+      for (const card of seat.cards) cards.appendChild(cardEl(card));
+      item.appendChild(cards);
+      item.appendChild(el("span", "stat", seat.shown ? "shown at showdown" : "for this puzzle"));
+      list.appendChild(item);
     }
     return list;
   }
@@ -623,7 +644,7 @@ function boot() {
     }
     if (sitError) sitError.textContent = "";
     form.hidden = true;
-    playBand.hidden = false;
+    controls.hidden = false;
     state = startHand(hand);
     paint();
   });

@@ -2059,18 +2059,34 @@ export function wwyhdSeatPlan(hand: HandFile): WwyhdSeatPlan[] {
   return plan;
 }
 
+/**
+ * One playing card as the page draws it: rank and suit glyph on a white card
+ * face, hearts and diamonds in red, in a `.pc` element that carries the
+ * two-character code in `data-card` for anything that reads the page (the
+ * exam, a screen reader through aria-label). Takes a card in the repo's
+ * notation (`Qs`, `Td`); returns markup. Throws nothing; an unknown suit
+ * letter renders as itself. The controller (site/wwyhd.js) draws the same
+ * card for the board and the reveal, and the two must agree on the classes.
+ */
+const SUIT_GLYPH: Record<string, string> = { s: "\u2660", h: "\u2665", d: "\u2666", c: "\u2663" };
+export function wwyhdCard(code: string): string {
+  const rank = code[0] === "T" ? "10" : code[0];
+  const suit = code[1];
+  return `<span class="pc pc--${esc(suit)}" data-card="${esc(code)}" aria-label="${esc(rank)} of ${esc(suit)}"><b>${esc(rank)}</b><i>${SUIT_GLYPH[suit] ?? esc(suit)}</i></span>`;
+}
+
 function wwyhdSeat(data: GamesData, hand: HandFile, seat: WwyhdSeatPlan): string {
   const { player, tag, posted } = seat;
   const you = player.handle === hand.seat;
   const cards = you
-    ? player.cards.map((c) => `<span class="wwyhd-card">${esc(c)}</span>`).join("")
-    : '<span class="wwyhd-card wwyhd-card--down" aria-hidden="true"></span><span class="wwyhd-card wwyhd-card--down" aria-hidden="true"></span>';
+    ? player.cards.map(wwyhdCard).join("")
+    : '<span class="pc pc--down" aria-hidden="true"></span><span class="pc pc--down" aria-hidden="true"></span>';
   const youMark = you ? ' <span class="eyebrow">You</span>' : "";
   const button = player.handle === hand.dealer ? '<span class="wwyhd-button" title="Dealer">D</span>' : "";
   const blind = posted > 0 ? `<span class="wwyhd-blind">${posted}</span>` : "";
   return `        <li class="wwyhd-seat${you ? " wwyhd-seat--you" : ""}" data-handle="${esc(player.handle)}" style="--seat-x: ${seat.x}%; --seat-y: ${seat.y}%">
-          <p class="wwyhd-pos-line"><span class="wwyhd-pos">${esc(tag)}</span>${button}</p>
-          <p class="wwyhd-who">${esc(wwyhdName(data, player.handle))} <span class="stat">${esc(player.handle)}</span>${youMark}</p>
+          <p class="wwyhd-pos-line"><span class="wwyhd-pos">${esc(tag)}</span>${button}${youMark}</p>
+          <p class="wwyhd-name">${esc(wwyhdName(data, player.handle))}</p>
           <p class="stat wwyhd-stack" data-stack="${esc(player.handle)}">${player.stack} chips</p>
           <p class="wwyhd-hole"${you ? "" : ' aria-label="two cards face down"'}>${cards}</p>
           <p class="wwyhd-front" data-bet="${esc(player.handle)}">${blind}</p>
@@ -2102,12 +2118,11 @@ export function renderWwyhdHand(data: GamesData, hand: HandFile): string {
   const ante = hand.blinds.ante > 0 ? `, ${hand.blinds.ante} ante` : "";
 
   const body = `
-<section class="band-light">
+<section class="band-light wwyhd-page">
   <div class="band-inner">
     <p class="eyebrow">What would you have done?</p>
-    <h1 class="display">${esc(hand.title)}</h1>
-    <p>${esc(hand.setup)}</p>
-    <p class="stat">Blinds ${hand.blinds.sb}/${hand.blinds.bb}${ante}. You are ${esc(wwyhdName(data, hand.seat))}, playing as ${esc(hand.seat)}.</p>
+    <h1 class="wwyhd-title">${esc(hand.title)}</h1>
+    <p class="wwyhd-setup">${esc(hand.setup)}</p>
     <div class="wwyhd-table">
       <div class="wwyhd-felt">
         <p class="stat wwyhd-center" id="wwyhd-pot">Blinds ${hand.blinds.sb}/${hand.blinds.bb}${ante}</p>
@@ -2117,32 +2132,31 @@ export function renderWwyhdHand(data: GamesData, hand: HandFile): string {
 ${seats}
       </ol>
     </div>
-    <form class="wwyhd-sit" id="wwyhd-sit">
-      <p class="wwyhd-field">
-        <label for="wwyhd-email">Email</label>
-        <input id="wwyhd-email" name="email" type="email" autocomplete="email" required>
-      </p>
-      <p class="wwyhd-field">
-        <label for="wwyhd-name">Display name</label>
-        <input id="wwyhd-name" name="displayName" type="text" autocomplete="nickname">
-      </p>
-      <p class="wwyhd-field">
-        <button class="btn-secondary" id="wwyhd-deal" type="submit">Deal</button>
-      </p>
-      <p class="stat" id="wwyhd-sit-error" role="alert"></p>
-    </form>
-    <p class="stat">${WWYHD_FIRST_GO}</p>
-    <p class="stat">${WWYHD_DISCLOSURE}</p>
+    <div class="wwyhd-bar">
+      <form class="wwyhd-sit" id="wwyhd-sit">
+        <p class="wwyhd-field">
+          <label for="wwyhd-email">Email</label>
+          <input id="wwyhd-email" name="email" type="email" autocomplete="email" required>
+        </p>
+        <p class="wwyhd-field">
+          <label for="wwyhd-name">Display name</label>
+          <input id="wwyhd-name" name="displayName" type="text" autocomplete="nickname">
+        </p>
+        <p class="wwyhd-field wwyhd-field--go">
+          <button class="btn-secondary" id="wwyhd-deal" type="submit">Deal</button>
+        </p>
+        <p class="stat wwyhd-sit-error" id="wwyhd-sit-error" role="alert"></p>
+      </form>
+      <div class="wwyhd-controls" id="wwyhd-controls" hidden></div>
+    </div>
+    <details class="wwyhd-history" id="wwyhd-history">
+      <summary>Hand history</summary>
+      <ol class="wwyhd-log" id="wwyhd-log"></ol>
+    </details>
+    <p class="wwyhd-fine">${WWYHD_FIRST_GO} ${WWYHD_DISCLOSURE}</p>
   </div>
 </section>
-<section class="band-dark" id="wwyhd-play" hidden>
-  <div class="band-inner">
-    <h2 class="display">The hand</h2>
-    <ol class="wwyhd-log" id="wwyhd-log"></ol>
-    <div class="wwyhd-controls" id="wwyhd-controls"></div>
-  </div>
-</section>
-<section class="band-light" id="wwyhd-reveal" hidden>
+<section class="band-dark" id="wwyhd-reveal" hidden>
   <div class="band-inner">
     <h2 class="display" id="wwyhd-score"></h2>
     <div id="wwyhd-reveal-body"></div>
@@ -2154,7 +2168,7 @@ ${seats}
 <script type="module" src="/wwyhd.js"></script>`;
 
   return page(
-    hand.title, body, "band-dark", `/wwyhd/${hand.id}/`,
+    hand.title, body, "band-light", `/wwyhd/${hand.id}/`,
     `${hand.setup} Play the hand, then see what really happened.`,
     { navCurrent: "" }
   );

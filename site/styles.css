@@ -820,132 +820,119 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
    why every button here is .btn-secondary (docs/brand.md, "Lime is
    quarantined"). */
 
-/* The table: one card per seat, wrapping to a single column on a phone. */
-.wwyhd-table { margin: 1.25rem 0; }
-/* The table. On a phone the seats are an ordered list in preflop action
-   order (first to act at the top, the big blind last), each carrying its
-   position tag, so the order is readable without a drawing. From 640px the
-   same markup becomes the oval every trainer draws: a felt ellipse (the one
-   near-black object on the page, the card-art precedent) inside a parchment
-   rail, the visitor's seat at the bottom center, the other seats clockwise
-   from it, the dealer's D chip and the posted blinds on the felt, and the pot
-   and the board in the middle. Each seat's place comes from the renderer as
-   --seat-x/--seat-y, percentages of the table box, so this file never
-   computes an angle. */
-.wwyhd-seats {
-  list-style: none; margin: 0; padding: 0;
-  display: grid; gap: .75rem; grid-template-columns: 1fr;
+/* The puzzle page is one screen, the way every trainer lays a hand out: a
+   short title line, then the table filling the width, then the action bar
+   under it, and the hand history folded into a disclosure below that. The
+   table is a felt oval (the one near-black object on the page, the card-art
+   precedent) inside a parchment rail. Seats are small pucks on the rail in
+   preflop action order, the visitor's at the bottom center and the rest
+   clockwise from it; each puck's place comes from the renderer as
+   --seat-x/--seat-y, percentages of the table box, clamped here so no puck
+   hangs off the edge on a narrow screen. Cards are drawn as cards (.pc):
+   rank and suit on a white face, red hearts and diamonds, a sapphire back
+   for a holding the visitor cannot see. On a phone the oval stands taller
+   than wide so seven pucks fit around it; from 640px it lies flat. */
+.wwyhd-page .band-inner { max-width: 840px; }
+.wwyhd-title { font-size: clamp(1.25rem, 3vw, 1.6rem); font-weight: 800; letter-spacing: -.01em; margin: 0 0 .1em; }
+.wwyhd-setup { margin: 0 0 .75rem; color: var(--muted-ink); font-size: .95rem; }
+
+.wwyhd-table {
+  position: relative; margin: 0 auto; max-width: 520px; aspect-ratio: 3 / 4;
+  background: var(--parchment); border: 1px solid var(--line); border-radius: 50% / 50%;
 }
-.wwyhd-seat {
-  background: var(--paper); border: 1px solid var(--line);
-  border-radius: var(--radius); padding: .6em .85em;
-}
-/* Below 640px the felt is a dark strip above the seat list: the pot line and
-   the board have to be visible on a phone too, and this is the one place the
-   page keeps them. */
 .wwyhd-felt {
-  display: grid; place-items: center; gap: .35rem; margin: 0 0 .75rem;
-  padding: .8rem 1rem; border-radius: var(--radius);
+  position: absolute; inset: 15% 15%; border-radius: 50% / 50%;
   background: var(--felt); color: var(--felt-ink);
+  display: grid; place-items: center; align-content: center; gap: .35rem;
+  box-shadow: inset 0 0 0 5px rgba(255,255,255,.06);
 }
-.wwyhd-felt .wwyhd-center { color: var(--felt-ink); margin: 0; }
-.wwyhd-felt .wwyhd-board { margin: 0; min-height: 1.8em; }
-.wwyhd-felt .wwyhd-card { background: #fff; color: var(--ink); }
-.wwyhd-hole { display: flex; gap: .3em; align-items: center; }
-.wwyhd-card--down { width: 1.6em; height: 2.1em; padding: 0; box-sizing: border-box; }
-.wwyhd-pos-line { display: flex; gap: .5em; align-items: center; margin: 0 0 .15em; }
-.wwyhd-pos {
-  font-size: .62rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
-  color: var(--muted-ink);
+.wwyhd-center { margin: 0; color: var(--felt-ink); font-size: .85rem; text-align: center; }
+.wwyhd-board { margin: 0; display: flex; gap: .25rem; min-height: 3rem; }
+
+.wwyhd-seats { list-style: none; margin: 0; padding: 0; position: absolute; inset: 0; }
+.wwyhd-seat {
+  position: absolute;
+  left: clamp(3.4rem, var(--seat-x), calc(100% - 3.4rem));
+  top: clamp(2.6rem, var(--seat-y), calc(100% - 2.6rem));
+  transform: translate(-50%, -50%); width: 6.6rem; padding: .3em .45em;
+  text-align: center; font-size: .78rem; line-height: 1.25;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(26,28,32,.12);
 }
-.wwyhd-button {
-  display: inline-grid; place-items: center; width: 1.35em; height: 1.35em;
-  border-radius: 50%; background: #fff; color: var(--ink);
-  border: 1.5px solid var(--ink); font-size: .7rem; font-weight: 800;
-}
-.wwyhd-front { margin: .25em 0 0; min-height: 1.4em; }
-.wwyhd-blind {
-  display: inline-block; padding: .05em .55em; border-radius: 999px;
-  background: var(--pewter); color: #fff; font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
-  font-size: .72rem; font-weight: 700;
-}
-.wwyhd-seat--folded { opacity: .45; }
+.wwyhd-seat p { margin: 0; }
+.wwyhd-seat--you { border-color: var(--sapphire); width: 8.6rem; }
+.wwyhd-seat--acting { box-shadow: 0 0 0 3px var(--sapphire); }
+.wwyhd-seat--folded { opacity: .4; }
 .wwyhd-seat--folded .wwyhd-hole { visibility: hidden; }
+.wwyhd-pos-line { display: flex; justify-content: center; align-items: center; gap: .35em; }
+.wwyhd-pos { font-size: .6rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted-ink); }
+.wwyhd-pos-line .eyebrow { margin: 0; font-size: .6rem; color: var(--sapphire); }
+.wwyhd-button {
+  display: inline-grid; place-items: center; width: 1.3em; height: 1.3em; border-radius: 50%;
+  background: #fff; color: var(--ink); border: 1.5px solid var(--ink); font-size: .65rem; font-weight: 800;
+}
+.wwyhd-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wwyhd-stack { font-size: .72rem; }
+.wwyhd-hole { display: flex; justify-content: center; gap: .2rem; margin-top: .25em !important; }
+.wwyhd-front { position: absolute; left: 50%; top: -1.1em; transform: translateX(-50%); }
+.wwyhd-blind {
+  display: inline-block; padding: .05em .5em; border-radius: 999px; background: var(--pewter); color: #fff;
+  font: 700 .66rem "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+}
 @media (min-width: 640px) {
-  .wwyhd-table {
-    position: relative; margin: 3rem auto 1rem; max-width: 760px;
-    aspect-ratio: 5 / 3.1; background: var(--parchment); border-radius: 50% / 50%;
-    border: 1px solid var(--line);
-  }
-  .wwyhd-felt {
-    margin: 0; padding: 0; align-content: center;
-    position: absolute; inset: 17% 16%; border-radius: 50% / 50%;
-    box-shadow: inset 0 0 0 6px rgba(255,255,255,.06);
-  }
-  .wwyhd-seats { display: block; position: absolute; inset: 0; }
-  .wwyhd-seat {
-    position: absolute; left: var(--seat-x); top: var(--seat-y);
-    transform: translate(-50%, -50%); width: 9rem; padding: .4em .65em;
-    box-shadow: 0 1px 2px rgba(26,28,32,.12);
-  }
-  .wwyhd-seat .wwyhd-stack { font-size: .8rem; }
-  .wwyhd-seat--you { width: 10.5rem; }
-  .wwyhd-seat .wwyhd-front { position: absolute; left: 50%; transform: translateX(-50%); top: -1.15em; margin: 0; }
-  .wwyhd-seat--you .wwyhd-front { top: -1.15em; }
-}
-.wwyhd-seat p { margin: 0 0 .2em; }
-.wwyhd-seat p:last-child { margin-bottom: 0; }
-/* The visitor's own seat, and the seat the action is on. Sapphire, never a
-   rarity metal: whose turn it is is structure, not a placing. */
-.wwyhd-seat--you { border-color: var(--sapphire); }
-.wwyhd-seat--acting { box-shadow: inset 3px 0 0 var(--sapphire); }
-.wwyhd-who { font-weight: 700; }
-.wwyhd-who .stat { font-weight: 400; }
-
-/* One card, in the two-character notation the whole feature uses. Monospace
-   so a board of five lines up as a set, the same reason .stat is. */
-.wwyhd-card {
-  display: inline-block; margin-right: .3em; padding: .15em .5em;
-  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
-  border: 1px solid var(--line); border-radius: 6px; background: #fff;
-}
-/* A holding the visitor cannot see. Parchment and muted, so it reads as an
-   absence rather than as a card with a strange rank on it. */
-.wwyhd-card--down {
-  background: var(--parchment); color: var(--muted-ink); border-style: dashed;
+  .wwyhd-table { max-width: 840px; aspect-ratio: 5 / 3; }
+  .wwyhd-felt { inset: 16% 15%; }
+  .wwyhd-seat { width: 8.2rem; font-size: .85rem; }
+  .wwyhd-seat--you { width: 11rem; }
 }
 
-/* The sit-down form: the two fields and Deal. Stacked, full width on a
-   phone, which is where the Discord link lands. */
-.wwyhd-sit { margin: 1.25rem 0; }
-.wwyhd-field { margin: 0 0 .75em; display: grid; gap: .25em; max-width: 24rem; }
+/* A playing card. The seat pucks draw them small; the visitor's own seat,
+   the board and the reveal draw them full size. */
+.pc {
+  display: inline-grid; place-items: center; width: 2.1rem; height: 2.9rem; border-radius: 5px;
+  background: #fff; border: 1px solid var(--line); color: var(--ink); font-weight: 800; line-height: 1;
+  box-shadow: 0 1px 1px rgba(0,0,0,.15);
+}
+.pc b { font-size: 1rem; }
+.pc i { font-style: normal; font-size: .95rem; }
+.pc--h, .pc--d { color: #b3261e; }
+.pc--down {
+  background: repeating-linear-gradient(45deg, var(--sapphire) 0 3px, #1f4577 3px 6px); border-color: #1f4577;
+}
+.wwyhd-seat .pc { width: 1.45rem; height: 2rem; }
+.wwyhd-seat .pc b { font-size: .78rem; }
+.wwyhd-seat .pc i { font-size: .7rem; }
+.wwyhd-seat--you .pc { width: 2.1rem; height: 2.9rem; }
+.wwyhd-seat--you .pc b { font-size: 1rem; }
+.wwyhd-seat--you .pc i { font-size: .95rem; }
+
+/* The bar under the table: the two fields and Deal before the hand, the
+   action buttons during it. */
+.wwyhd-bar { margin: .75rem 0 0; }
+.wwyhd-sit { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; margin: 0; }
+.wwyhd-field { display: grid; gap: .15em; margin: 0; flex: 1 1 10rem; }
+.wwyhd-field label { font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-ink); }
 .wwyhd-field input {
-  font: inherit; padding: .6em .7em;
-  border: 1px solid var(--line); border-radius: var(--radius); background: #fff;
+  font: inherit; padding: .45em .6em; border: 1px solid var(--line); border-radius: 8px;
+  background: #fff; color: var(--ink); width: 100%; box-sizing: border-box;
 }
 .wwyhd-field input:focus-visible { outline: 3px solid var(--sapphire); outline-offset: 2px; }
+.wwyhd-field--go { flex: 0 0 auto; }
+.wwyhd-sit-error { flex-basis: 100%; margin: 0; min-height: 1.2em; }
+.wwyhd-controls { display: grid; gap: .5rem; }
+.wwyhd-buttons, .wwyhd-sizer { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.wwyhd-amount { font: inherit; width: 6.5rem; padding: .45em .6em; border: 1px solid var(--line); border-radius: 8px; }
+.wwyhd-history { margin: .75rem 0 0; font-size: .85rem; }
+.wwyhd-history summary { cursor: pointer; color: var(--muted-ink); }
+.wwyhd-log { margin: .4rem 0 0; padding-left: 1.2em; }
+.wwyhd-fine { margin: .75rem 0 0; font-size: .75rem; color: var(--muted-ink); }
 
-/* Play: the board, the running action list, and the controls. */
-.wwyhd-board { margin: .5rem 0 1rem; }
-.wwyhd-log {
-  list-style: none; margin: 0 0 1rem; padding: 0;
-  max-height: 12rem; overflow-y: auto;
-}
-.wwyhd-controls { display: grid; gap: .6rem; }
-.wwyhd-buttons, .wwyhd-sizer { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
-.wwyhd-amount {
-  font: inherit; width: 7rem; padding: .5em .6em;
-  border: 1px solid var(--line); border-radius: var(--radius); background: #fff;
-}
-
-/* Reveal: the line comparison, the room's choices, the holdings. A street
-   the visitor played differently is marked with a copper rule down its left
-   edge, not with color on the text: the comparison is a difference, not a
-   mistake, and nothing on this page tells a visitor they were wrong. */
-.wwyhd-differs td:first-child { box-shadow: inset 3px 0 0 var(--copper-deep); }
-.wwyhd-choices, .wwyhd-holdings { list-style: none; margin: 0 0 1rem; padding: 0; }
-.wwyhd-choices li, .wwyhd-holdings li { margin: 0 0 .35em; }
-/* The visitor's own leaderboard row, always present under the top ten. */
+/* The reveal. */
+.wwyhd-holdings { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; }
+.wwyhd-holding { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.wwyhd-holding-who { min-width: 12rem; font-weight: 700; }
+.wwyhd-holding-cards { display: inline-flex; gap: .2rem; }
+.wwyhd-differs td { color: var(--copper); font-weight: 700; }
 .wwyhd-you td { font-weight: 700; border-top: 2px solid var(--line); }
 
 /* The index: one row per puzzle, newest first, the newest marked. */
