@@ -548,6 +548,13 @@ function boot() {
     body.appendChild(el("h3", "rule-label", "Leaderboard"));
     body.appendChild(leaderboardTable(room, chips, result.name));
 
+    const again = el("p", "wwyhd-again");
+    const button = el("button", "wwyhd-act", "Play again");
+    button.type = "button";
+    button.addEventListener("click", () => window.location.reload());
+    again.appendChild(button);
+    body.appendChild(again);
+
     revealBand.scrollIntoView({ block: "start" });
   }
 
@@ -667,6 +674,9 @@ function boot() {
       return;
     }
     if (sitError) sitError.textContent = "";
+    // Remembered the moment they sit down, not after the submit succeeds, so
+    // a replay never asks for them again even if the room was unreachable.
+    remember(emailField.value.trim(), nameField ? nameField.value.trim() : "");
     form.hidden = true;
     const cue = byId("wwyhd-cue");
     if (cue) cue.hidden = true;
