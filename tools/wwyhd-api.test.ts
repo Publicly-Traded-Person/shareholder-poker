@@ -233,7 +233,7 @@ function assetUrl(input: unknown): URL {
 
 /** A fresh database built from `site/schema.sql` (M7), an ASSETS stub over the
  *  synthetic hand, and the injected `now`. */
-function makeEnv(options: { now?: string; roster?: RosterRow[] } = {}) {
+function makeEnv(options: { now?: string; roster?: RosterRow[]; hand?: unknown } = {}) {
   const db = new Database(":memory:");
   db.run(SCHEMA);
   for (const row of options.roster ?? []) {
@@ -249,7 +249,7 @@ function makeEnv(options: { now?: string; roster?: RosterRow[] } = {}) {
       fetch: async (input: unknown) => {
         const url = assetUrl(input);
         if (url.pathname === `/data/wwyhd/${HAND_ID}.json`) {
-          return new Response(JSON.stringify(HAND), {
+          return new Response(JSON.stringify(options.hand ?? HAND), {
             status: 200,
             headers: { "Content-Type": "application/json" },
           });
@@ -436,6 +436,19 @@ describe("(c) ranked is the first attempt, on or before closes [M3]", () => {
     expect(rows.length).toBe(1);
     expect(rows[0]!.attempt).toBe(1);
     expect(rows[0]!.ranked).toBe(0);
+  });
+
+  // A hand file with no `closes` ranks forever (Mike, 2026-09-22: "can't the
+  // puzzle stay open... forever?"). Years past any date the fixture names,
+  // a first attempt still counts.
+  test("a first attempt years later, on a file with no closes, is ranked 1", async () => {
+    const { closes: _dropped, ...forever } = HAND;
+    const { env, db } = makeEnv({ now: "2031-06-01", hand: forever });
+    await submit(env);
+    const rows = storedRows(db);
+    expect(rows.length).toBe(1);
+    expect(rows[0]!.attempt).toBe(1);
+    expect(rows[0]!.ranked).toBe(1);
   });
 
   test("a second attempt on the closes date is ranked 0", async () => {
