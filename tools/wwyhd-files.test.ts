@@ -552,3 +552,23 @@ describe("the seat's profile must be written null, not omitted", () => {
     throwsWith(() => validateHandFile(hand, DATA), "profile");
   });
 });
+
+// --- `closes` is optional ----------------------------------------------------
+// A puzzle with no `closes` ranks forever, the normal case since 2026-09-22
+// (Mike: "can't the puzzle stay open... forever?"). A date is still allowed
+// for a puzzle that should stop ranking on purpose, and still has to come
+// after `opens`.
+
+describe("`closes` is optional: a file without one validates and ranks forever", () => {
+  test("the fixture with `closes` removed validates", () => {
+    const hand = fixture();
+    delete hand.closes;
+    expect(() => validateHandFile(hand, DATA)).not.toThrow();
+  });
+
+  test("a `closes` that is present but empty still halts, naming `closes`", () => {
+    const hand = fixture();
+    hand.closes = "";
+    throwsWith(() => validateHandFile(hand, DATA), "closes");
+  });
+});

@@ -493,9 +493,12 @@ step every week after the first.
      gave the hand away (Mike, 2026-09-22); it is now "Seven-deuce in the
      cutoff". Everything the hand is about belongs in `result`, which only
      the reveal shows.
-   - `opens` and `closes`. `closes` is the only source of truth for when
-     this puzzle stops ranking; nothing infers it from the next one's
-     `opens`.
+   - `opens`, and normally NO `closes`. A puzzle with no `closes` ranks
+     forever, like an arcade high score: every visitor's first go counts
+     whenever they play, and a tie goes to whoever got there first (Mike,
+     2026-09-22). Add `closes` only for a puzzle that should stop ranking
+     on purpose; when present it is the only source of truth for that, and
+     nothing infers it from the next puzzle's `opens`.
 3. **Check the file:**
 
    ```
@@ -557,9 +560,10 @@ runout the same way, one by one.
 **What ranks.** A visitor's first attempt is the one that ranks. Replays are
 allowed and recorded and they do not rank, because the hand is deterministic
 and a replay is a search for the ceiling rather than a second try at the same
-puzzle. The page says so once, before the deal. A result submitted after the
-file's `closes` date is recorded and does not rank either, and a closed
-puzzle stays playable.
+puzzle. The page says so once, before the deal. Puzzles normally have no
+`closes` date and rank forever. When a file does carry one, a result
+submitted after it is recorded and does not rank, and the puzzle stays
+playable.
 
 ## Portrait consent (per set, Tier 2b)
 

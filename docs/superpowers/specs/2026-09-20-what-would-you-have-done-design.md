@@ -112,6 +112,10 @@ Rules for the file:
   the numbers against munger.
 - *Review:* `closes` in the file is the only source of truth for when a puzzle
   stops ranking. Nothing infers it from the next puzzle's `opens`.
+  *Changed 2026-09-22 (Mike: "can't the puzzle stay open... forever?"):*
+  `closes` is now optional and normally absent. A puzzle without it ranks
+  forever; ties go to the earlier attempt, so early players keep their
+  place. The Function already treated a missing `closes` as never.
 - *Build:* `real` carries `endStacks` as well as `seatChips`: a map from every
   handle at the table to that player's stack at the start of the NEXT hand,
   copied from that hand's `Player stacks:` line in the log. `wwyhd-check`
@@ -402,7 +406,8 @@ disclosure and what ranks) added there.
 5. Email the poker list. One line, the table image, the link. Same shape
    as the portrait email.
 6. The previous puzzle stops ranking on its own `closes` date; set the new
-   one's `opens` to match.
+   one's `opens` to match. *(Superseded 2026-09-22: puzzles normally have no
+   `closes` and keep ranking alongside the new one.)*
 
 *Review, later:* most of step 2 is transcription. Stacks, blinds, dealer, the
 real action list, the board and the shown cards are all in the log, in the

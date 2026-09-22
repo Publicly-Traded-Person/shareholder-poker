@@ -91,7 +91,8 @@ export type HandFile = {
   startChips: number;
   profileThrough: string;
   opens: string;
-  closes: string;
+  // Optional: absent means the puzzle ranks forever (the normal case).
+  closes?: string;
 };
 
 /** The five fields an opponent profile must carry. Listed once so the halt
@@ -152,7 +153,8 @@ function knownHandles(data: GamesData): Set<string> {
  * an opponent profile missing one of vpip, af, allInRate, foldToRaise or
  * callDown, a `startChips` that is not the seat's own starting stack
  * (`startChips`), a board that is not exactly five cards (`board`), and a
- * `closes` earlier than `opens` (`closes`).
+ * `closes` earlier than `opens` (`closes`). `closes` itself is optional;
+ * a file without one ranks forever.
  *
  * Why an unknown handle halts rather than passing through: it is the rule
  * publish-game already applies to a log handle (repo CLAUDE.md, "never invent
@@ -182,7 +184,11 @@ export function validateHandFile(hand: unknown, data: GamesData): HandFile {
   text(file.setup, "setup");
   text(file.profileThrough, "profileThrough");
   const opens = text(file.opens, "opens");
-  const closes = text(file.closes, "closes");
+  // `closes` is optional, and absent is the normal case: a puzzle ranks
+  // forever, like an arcade high score, and ties go to whoever got there
+  // first (Mike, 2026-09-22: "can't the puzzle stay open... forever?"). A
+  // date is for the rare puzzle that should stop ranking on purpose.
+  const closes = file.closes === undefined ? undefined : text(file.closes, "closes");
 
   const blinds = file.blinds;
   if (!blinds || typeof blinds !== "object") fail("blinds", "must be an object with sb, bb and ante");
@@ -347,7 +353,7 @@ export function validateHandFile(hand: unknown, data: GamesData): HandFile {
   // `closes` is the only source of truth for when a puzzle stops ranking
   // (spec §4.1 review note). A window that closes before it opens ranks
   // nobody, and the page would say so to nobody.
-  if (closes < opens) fail("closes", `${closes} is earlier than opens ${opens}`);
+  if (closes !== undefined && closes < opens) fail("closes", `${closes} is earlier than opens ${opens}`);
 
   return file as HandFile;
 }
