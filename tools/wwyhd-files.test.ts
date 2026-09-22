@@ -572,3 +572,43 @@ describe("`closes` is optional: a file without one validates and ranks forever",
     throwsWith(() => validateHandFile(hand, DATA), "closes");
   });
 });
+
+// --- the spoiler check ------------------------------------------------------
+// The title and setup are shown before the deal (heading, tab, link previews,
+// index), so validateHandFile refuses one that names a card the visitor
+// cannot see yet or says how the hand ends. The first puzzle shipped as
+// "Seven-deuce against the aces" and gave itself away (Mike, 2026-09-22).
+// In the fixture the seat is bob (Qs Qc); alice holds Ah Kd, carol 7d 6d,
+// and the board is Qh 8s 3c 2h 5d.
+
+describe("the spoiler check: title and setup name only what the visitor can see", () => {
+  test("a title naming an opponent's rank halts, naming the field and the word", () => {
+    const hand = fixture();
+    hand.title = "Queens against the aces";
+    throwsWith(() => validateHandFile(hand, DATA), "title", "aces");
+  });
+
+  test("a setup naming a board rank the visitor does not hold halts", () => {
+    const hand = fixture();
+    hand.setup = "Three handed, and the eights are coming.";
+    throwsWith(() => validateHandFile(hand, DATA), "setup", "eights");
+  });
+
+  test("a title naming how the hand ends halts", () => {
+    const hand = fixture();
+    hand.title = "Bob flops the set";
+    throwsWith(() => validateHandFile(hand, DATA), "title", "set");
+  });
+
+  test("the visitor's own rank is fair game, even where an opponent shares it with the board", () => {
+    const hand = fixture();
+    hand.title = "Pocket queens on the button's left";
+    expect(() => validateHandFile(hand, DATA)).not.toThrow();
+  });
+
+  test("ordinary words that merely contain a rank word do not trip it", () => {
+    const hand = fixture();
+    hand.setup = "Three handed at 100/200, and the kingdom is quiet.";
+    expect(() => validateHandFile(hand, DATA)).not.toThrow();
+  });
+});

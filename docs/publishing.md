@@ -492,7 +492,13 @@ step every week after the first.
      first puzzle went out as "Seven-deuce against the aces" and the title
      gave the hand away (Mike, 2026-09-22); it is now "Seven-deuce in the
      cutoff". Everything the hand is about belongs in `result`, which only
-     the reveal shows.
+     the reveal shows. **This is enforced:** step 3's check refuses a
+     `title` or `setup` that names a rank the visitor cannot see (in an
+     opponent's holding or on the board, and not in the visitor's own
+     cards) or an outcome word ("flush", "set", "rivered", ...). It is a
+     word list, so it can miss a clever spoiler and may one day refuse an
+     innocent line: reword the line, never loosen the list for one file
+     (`noSpoiler` in `tools/lib/wwyhd.ts`).
    - `opens`, and normally NO `closes`. A puzzle with no `closes` ranks
      forever, like an arcade high score: every visitor's first go counts
      whenever they play, and a tie goes to whoever got there first (Mike,
@@ -540,7 +546,13 @@ step every week after the first.
 7. **PR.** Mike reads the title, the setup line and the result line. Merge
    on Mike's go, same as anything visitor-facing. Every push to `main`
    deploys.
-8. **Email the poker list**: one line, the table image, the link. Mike
+8. **Play it on the live site before anyone is told.** Once it deploys,
+   Mike plays the puzzle at `poker.kmikeym.com/wwyhd/<id>/` end to end, on a
+   phone if he can, and reads `/wwyhd/` too. The first puzzle's spoiler
+   title, unreadable caption and missing showdown pause were all found this
+   way, after the tests were green (2026-09-22). His go on the email comes
+   from this step, not from the PR.
+9. **Email the poker list**: one line, the table image, the link. Mike
    sends, same shape as the portrait email, and it is also how the players
    in the hand find out their hand is this week's puzzle. The puzzle is
    deliberately not in the site's shared nav; the link travels by email and
