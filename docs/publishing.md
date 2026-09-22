@@ -484,6 +484,15 @@ step every week after the first.
    - the rest of the runout, if the real hand ended before the river
    - the `title`, `setup` and `result` lines. Dignity rule, no em dashes,
      First name plus last initial beside the handle, same as any page.
+     **The `title` and `setup` are shown BEFORE the hand is played**, in
+     the page heading, the browser tab, every link preview (Discord, email)
+     and the puzzle index, so they may name only what the visitor can see
+     at the start: their own cards, their seat, the stacks, the action to
+     them. Never an opponent's holding, the board, or how it ended. The
+     first puzzle went out as "Seven-deuce against the aces" and the title
+     gave the hand away (Mike, 2026-09-22); it is now "Seven-deuce in the
+     cutoff". Everything the hand is about belongs in `result`, which only
+     the reveal shows.
    - `opens` and `closes`. `closes` is the only source of truth for when
      this puzzle stops ranking; nothing infers it from the next one's
      `opens`.
