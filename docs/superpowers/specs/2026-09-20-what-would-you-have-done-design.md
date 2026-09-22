@@ -273,8 +273,21 @@ used to name for the engine.
   puzzle page saves both fields to `localStorage` after the visitor's first
   submit and prefills them next time. No dependence on RSVP.
 - **Play.** The action to you, the pot, the board as it comes, and the
-  visitor's options. No text beyond what the table shows. The opponents
-  act with a short pause so the hand reads as a hand.
+  visitor's options. The opponents act with a short pause so the hand
+  reads as a hand. *Changed 2026-09-22 (Mike, after Beau: "it needs a
+  dramatic pause after the last action, it goes right to showing the
+  result"):* this used to say "no text beyond what the table shows". The
+  hand is short, so it is now paced for drama instead: the hole cards are
+  dealt in one at a time, every action is captioned across the felt
+  ("Beau G. raises to 540."), a street's cards land a beat after its last
+  action, and a hand that ends with two or more players in goes to a
+  showdown on the table (live cards turned over, authored ones labeled
+  "for this puzzle", the board run out street by street with the river
+  slowest, the pot pushed and the winner named) before one button, "See
+  how you did", opens the reveal. The line is submitted the moment the
+  hand ends, underneath the showdown. Skip runs the wait at no speed, and
+  reduced motion cuts it to a fraction. Timing only: nothing paced decides
+  anything, and the chips are the same at any speed.
 - **The reveal.** Chips finished with, in the display voice. Then, in
   order: what really happened (one line, from `real.result`); the
   visitor's line against the real line, street by street; at each of the

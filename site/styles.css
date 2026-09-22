@@ -856,7 +856,10 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
   display: grid; place-items: center; align-content: center; gap: .35rem;
   box-shadow: inset 0 0 0 5px rgba(255,255,255,.06);
 }
-.wwyhd-center { margin: 0; color: var(--felt-ink); font-size: .85rem; text-align: center; }
+/* Scoped under the felt for the same reason as the caption below: the
+   band's `.band-light .stat` muted ink outranks a bare class, and muted ink
+   on the black felt is unreadable (Mike, 2026-09-22). */
+.wwyhd-felt .wwyhd-center { margin: 0; color: var(--felt-ink); font-size: .85rem; text-align: center; }
 .wwyhd-board { margin: 0; display: flex; gap: .25rem; min-height: 3rem; }
 
 .wwyhd-seats { list-style: none; margin: 0; padding: 0; position: absolute; inset: 0; }
@@ -924,6 +927,52 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
 .wwyhd-seat--you .pc b { font-size: 1rem; }
 .wwyhd-seat--you .pc i { font-size: .95rem; }
 
+/* The paced hand (Mike, 2026-09-22, after Beau asked for a dramatic pause).
+   site/wwyhd.js writes the caption, deals the hole cards in one at a time,
+   turns live cards over at a showdown and marks whoever won the pot; these
+   are the looks for each. Every animation here is decoration only: the
+   controller's timeline decides when things happen, so switching them all
+   off (reduced motion, below) changes how the hand looks and nothing else. */
+/* Scoped under the felt on purpose: `.band-light p` paints every paragraph
+   on the page in ink and outranks a bare class, which put the caption in
+   near-black on the black felt (caught 2026-09-22 in the first run). */
+.wwyhd-felt .wwyhd-caption {
+  margin: 0; min-height: 1.3em; max-width: 92%; text-align: center;
+  font-weight: 800; font-size: .95rem; line-height: 1.25; color: #fff;
+}
+.wwyhd-caption--new { animation: wwyhd-caption-in .35s ease-out; }
+@keyframes wwyhd-caption-in {
+  from { opacity: 0; transform: translateY(.35rem); }
+  to   { opacity: 1; transform: none; }
+}
+.wwyhd-hole .pc { transition: opacity .2s ease-out, transform .2s ease-out; }
+.wwyhd-hole .pc--undealt { opacity: 0; transform: translateY(-.6rem) scale(.85); }
+.pc--deal { animation: wwyhd-deal .35s ease-out; }
+@keyframes wwyhd-deal {
+  from { opacity: 0; transform: translateY(-.6rem) scale(.9); }
+  to   { opacity: 1; transform: none; }
+}
+.pc--flip { animation: wwyhd-flip .4s ease-out; }
+@keyframes wwyhd-flip {
+  from { transform: rotateY(90deg); }
+  to   { transform: none; }
+}
+/* An opponent's holding the log never showed, turned face up at the
+   showdown: it says it was chosen for the puzzle, same as the reveal. */
+.wwyhd-authored {
+  font-size: .55rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-ink);
+}
+/* Whoever the pot went to. Foil, not lime: lime is the RSVP button's. */
+.wwyhd-seat--won:not(.wwyhd-seat--you) { box-shadow: 0 0 0 3px var(--foil), 0 0 18px 4px rgba(201, 162, 39, .5); }
+.wwyhd-seat--won.wwyhd-seat--you { box-shadow: 0 0 0 3px var(--foil), 0 0 28px 8px rgba(201, 162, 39, .6); }
+@media (min-width: 640px) {
+  .wwyhd-felt .wwyhd-caption { font-size: 1.15rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wwyhd-caption--new, .pc--deal, .pc--flip { animation: none; }
+  .wwyhd-hole .pc { transition: none; }
+}
+
 /* The bar under the table: the two fields and Deal before the hand, the
    action buttons during it.
 
@@ -949,6 +998,11 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
    three big equal buttons below. The commit button (Bet / Raise to) is the
    filled one; Fold and Check or Call are outlines. Never lime. */
 .wwyhd-controls { display: grid; gap: .5rem; }
+/* While the visitor has nothing to decide: what the table is doing, Skip
+   beside it, or, once the pot is pushed, the one button to the reveal. */
+.wwyhd-status { display: flex; align-items: center; justify-content: space-between; gap: .75rem; min-height: 3rem; }
+.wwyhd-status .stat { margin: 0; }
+.wwyhd-status .wwyhd-act { flex: 1; }
 .wwyhd-actions { display: grid; gap: .5rem; }
 .wwyhd-presets { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
 .wwyhd-preset {
