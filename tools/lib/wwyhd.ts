@@ -355,7 +355,80 @@ export function validateHandFile(hand: unknown, data: GamesData): HandFile {
   // nobody, and the page would say so to nobody.
   if (closes !== undefined && closes < opens) fail("closes", `${closes} is earlier than opens ${opens}`);
 
+  noSpoiler(file as HandFile, "title");
+  noSpoiler(file as HandFile, "setup");
+
   return file as HandFile;
+}
+
+/** How a rank is spelled in English, keyed by the card notation's rank
+ *  character. Plurals always count ("aces", "fours"); a singular counts only
+ *  for the four face cards, because "two", "three" and "four" turn up in
+ *  ordinary sentences ("three handed", "two tables") and "ace" or "king"
+ *  do not. */
+const RANK_WORDS: Record<string, string[]> = {
+  A: ["ace", "aces"], K: ["king", "kings"], Q: ["queen", "queens"], J: ["jack", "jacks"],
+  T: ["tens"], "9": ["nines"], "8": ["eights"], "7": ["sevens"], "6": ["sixes"],
+  "5": ["fives"], "4": ["fours"], "3": ["threes", "treys"], "2": ["twos", "deuces"],
+};
+
+/** Words that name how a hand turned out rather than how it started. None of
+ *  them can be true of a hand the visitor has not played yet, so none of them
+ *  belongs in copy the visitor reads before the deal. */
+const OUTCOME_WORDS = [
+  "flush", "full house", "boat", "quads", "trips", "set", "two pair",
+  "rivered", "runner-runner", "cracked", "cracks", "bad beat", "suckout",
+];
+
+/**
+ * Refuses a `title` or `setup` that gives the hand away.
+ *
+ * Takes a hand file and which of the two fields to read. Returns nothing when
+ * the line names only what a visitor can see before the deal. Throws, naming
+ * the field and the word, when it names a rank the visitor cannot see (a rank
+ * in another player's holding or on the board that is not also in the
+ * visitor's own two cards) or an outcome word from OUTCOME_WORDS.
+ *
+ * Why this is a halt and not a runbook sentence: the title and setup are the
+ * page heading, the browser tab, the link preview in Discord and in the
+ * email, and the index row, all before anybody plays. The first puzzle
+ * shipped as "Seven-deuce against the aces" and gave the whole hand away
+ * (Mike, 2026-09-22). The runbook already asked for care; a written rule is
+ * read at 10pm by somebody in a hurry, and a check is not.
+ *
+ * It is deliberately a word list, not an understanding of English: it will
+ * miss a spoiler phrased cleverly, and it may one day refuse an innocent
+ * sentence. The repair for the second case is to reword the line, never to
+ * loosen the list for one file.
+ */
+function noSpoiler(hand: HandFile, field: "title" | "setup"): void {
+  const line = String(hand[field]).toLowerCase();
+  const seat = hand.players.find((player) => player.handle === hand.seat);
+  const mine = new Set((seat?.cards ?? []).map((card) => card[0]));
+  const unseen = new Set<string>();
+  for (const player of hand.players) {
+    if (player.handle === hand.seat) continue;
+    for (const card of player.cards ?? []) unseen.add(card[0]);
+  }
+  for (const card of hand.board ?? []) unseen.add(card[0]);
+  for (const rank of mine) unseen.delete(rank);
+
+  const says = (word: string) => new RegExp(`(^|[^a-z])${word}([^a-z]|$)`).test(line);
+  for (const rank of unseen) {
+    for (const word of RANK_WORDS[rank] ?? []) {
+      if (says(word)) {
+        fail(field, `names "${word}", a card the visitor cannot see before playing. ` +
+          `The ${field} is shown before the deal (heading, tab, link previews, index): ` +
+          `name only the visitor's own cards, seat and stacks, and put the story in real.result`);
+      }
+    }
+  }
+  for (const word of OUTCOME_WORDS) {
+    if (says(word)) {
+      fail(field, `names "${word}", which says how the hand turned out. ` +
+        `The ${field} is shown before the deal: put the outcome in real.result`);
+    }
+  }
 }
 
 /**
