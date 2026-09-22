@@ -38,6 +38,7 @@ import {
   startHand, legalActions, applyAction, isHandOver, seatView, playSeat,
 } from "./wwyhd-engine.js";
 import { decide, THRESHOLDS } from "./wwyhd-rules.js";
+import { evaluate, handCategory } from "./wwyhd-eval.js";
 
 /** The four betting streets in order, spelled as the engine spells them. The
  *  reveal walks streets in this order so a row for the flop never prints
@@ -53,10 +54,30 @@ const STREET_NAME = { PRE: "Preflop", FLOP: "Flop", TURN: "Turn", RIVER: "River"
  *  number rather than as a hand that was already over. */
 const NOTHING = "none";
 
-/** The pause between one opponent acting and the next, in milliseconds. It is
- *  there so the hand reads as a hand rather than resolving in one frame
- *  (spec section 4.4); nothing about the result depends on it. */
-const PAUSE_MS = 650;
+/** The pacing, in milliseconds. None of it decides anything: every number
+ *  here only delays a repaint, and the chips come out the same at any speed.
+ *
+ *  The puzzle is one hand, so it is short, and Mike's call on 2026-09-22 was
+ *  to spend that shortness on drama rather than save it (Beau: "it needs a
+ *  dramatic pause after the last action, it goes right to showing the
+ *  result"). So the cards are dealt one at a time, every action is captioned
+ *  across the felt, a new street waits a beat before it lands, and a
+ *  showdown turns the cards over and runs the board out slower street by
+ *  street, the river slowest, before the pot is pushed. */
+const PAUSE_MS = 1100;        // an opponent thinking before it acts
+const DEAL_CARD_MS = 140;     // one hole card landing, around the table twice
+const DEAL_SETTLE_MS = 500;   // the cards are out, then the blinds line
+const STREET_MS = 900;        // after a street's last action, and again after its cards land
+const SHOWDOWN_MS = 1000;     // the last action standing there before anything turns over
+const FLIP_MS = 600;          // between one seat's cards turning over and the next
+const AWARD_MS = 1200;        // before the pot is pushed, and after, before the button
+/** The runout at a showdown: how many board cards each street shows, its
+ *  name, and how long the table waits before dealing it. Each wait is longer
+ *  than the last, the way the river always takes longest on television. */
+const RUNOUT = [[3, "flop", 1200], [4, "turn", 1700], [5, "river", 2400]];
+/** How much of every wait a visitor who asked the system for reduced motion
+ *  sits through: the same order of events, with almost no waiting. */
+const CALM_SPEED = 0.15;
 
 /** How many leaderboard rows the Function returns. The visitor's own row is
  *  added below that when they did not make the top ten. */
@@ -270,11 +291,16 @@ function cardEl(code) {
 }
 
 /** Paints the seat rows the generator wrote: every stack as it now stands,
- *  and the seat to act marked. */
-function paintSeats(state) {
+ *  and the seat to act marked. `stacks`, when given, is a handle-to-chips map
+ *  painted instead of the state's own: the showdown passes the stacks as they
+ *  stood BEFORE the pot was pushed, because a settled state already holds the
+ *  winner's chips and painting them would give the result away before a single
+ *  card turns over. */
+function paintSeats(state, stacks) {
   for (const seat of state.players) {
     const stack = document.querySelector(`[data-stack="${seat.handle}"]`);
-    if (stack) stack.textContent = `${seat.stack} chips`;
+    const chips = stacks && stacks[seat.handle] != null ? stacks[seat.handle] : seat.stack;
+    if (stack) stack.textContent = `${chips} chips`;
     const row = document.querySelector(`[data-handle="${seat.handle}"]`);
     if (row) {
       row.classList.toggle("wwyhd-seat--acting", state.toAct === seat.handle);
@@ -290,15 +316,118 @@ function paintSeats(state) {
   }
 }
 
-/** The board as it stands on the current street, as text in the one card
- *  notation. */
-function paintBoard(state) {
+/** How many board cards the state's street shows, counted the engine's way.
+ *  A finished hand counts all five, because the engine runs an all-in out by
+ *  moving the street marker to the river; the showdown deals them from the
+ *  count the hand had before that instead. */
+function boardCount(state) {
+  return seatView(state, state.seat).board.length;
+}
+
+/**
+ * Draws the board.
+ *
+ * Takes the state, how many of its cards to show (the street's own count when
+ * left out), and the index the newly dealt cards start at, if any. Cards from
+ * that index on get the deal animation; the ones already out stay still.
+ * Returns nothing. The count is separate from the state because the page
+ * holds a card back after the betting that brought it: a call that closes the
+ * preflop shows the call first and deals the flop a beat later.
+ */
+function paintBoard(state, count, freshFrom) {
   const board = byId("wwyhd-board");
   if (!board) return;
-  const view = seatView(state, state.seat);
+  const shown = count == null ? boardCount(state) : count;
   board.textContent = "";
-  if (view.board.length === 0) return;
-  for (const card of view.board) board.appendChild(cardEl(card));
+  state.board.slice(0, shown).forEach((card, index) => {
+    const node = cardEl(card);
+    if (freshFrom != null && index >= freshFrom) node.classList.add("pc--deal");
+    board.appendChild(node);
+  });
+}
+
+/**
+ * Redraws one seat's two hole cards.
+ *
+ * Takes the seat's handle, its cards face up (or null for two backs), and
+ * options: `undealt` hides the cards so the deal can bring them in one at a
+ * time, `flip` plays the turn-over animation, and `label` writes a small line
+ * under the cards. Returns nothing.
+ *
+ * Why `label` exists: most opponent holdings are authored for the puzzle,
+ * because the log only records the hands that reached a showdown. A card
+ * turned face up on the table reads as the real card unless it says
+ * otherwise, so an authored holding carries "for this puzzle" at the seat,
+ * the same words the reveal's holdings list uses (spec section 4.4).
+ */
+function paintHole(handle, cards, options = {}) {
+  const row = document.querySelector(`[data-handle="${handle}"]`);
+  const hole = row && row.querySelector(".wwyhd-hole");
+  if (!hole) return;
+  hole.textContent = "";
+  const nodes = cards
+    ? cards.map(cardEl)
+    : [0, 1].map(() => {
+        const back = el("span", "pc pc--down");
+        back.setAttribute("aria-hidden", "true");
+        return back;
+      });
+  for (const node of nodes) {
+    if (options.undealt) node.classList.add("pc--undealt");
+    if (options.flip) node.classList.add("pc--flip");
+    hole.appendChild(node);
+  }
+  if (cards) hole.removeAttribute("aria-label");
+  else if (!row.classList.contains("wwyhd-seat--you")) hole.setAttribute("aria-label", "two cards face down");
+  const old = row.querySelector(".wwyhd-authored");
+  if (old) old.remove();
+  if (options.label) hole.after(el("p", "wwyhd-authored", options.label));
+}
+
+/** Writes the line across the felt that says what just happened, and
+ *  restarts its entrance animation so a second "calls" after a first one
+ *  still reads as new. */
+function caption(text) {
+  const node = byId("wwyhd-caption");
+  if (!node) return;
+  node.textContent = text;
+  node.classList.remove("wwyhd-caption--new");
+  void node.offsetWidth; // a reflow between the two class changes restarts the animation
+  if (text) node.classList.add("wwyhd-caption--new");
+}
+
+/** "a pair", "two pair", "a flush": the category from handCategory() with the
+ *  article English wants in front of it after "with". */
+function withArticle(category) {
+  return /^(pair|straight|flush|full house|straight flush)$/.test(category) ? `a ${category}` : category;
+}
+
+/**
+ * One action as the caption says it: "Beau B. raises to 540.", "You call 200.",
+ * "Drew A. calls 1835, all in."
+ *
+ * Takes the log entry, the state before it and the state after it, and the
+ * visitor's handle. Returns the sentence. A call's size is not in the log
+ * (the log keeps 0 for a call so decision keys spell the same way every
+ * time), so it is read off the chips the seat actually put in, which is also
+ * the honest number when a short stack calls for less than the bet.
+ */
+function describeAction(entry, before, after, visitor) {
+  const you = entry.handle === visitor;
+  const who = you ? "You" : nameOf(entry.handle);
+  const verb = (plain, third) => (you ? plain : third);
+  const was = before.players.find((seat) => seat.handle === entry.handle);
+  const now = after.players.find((seat) => seat.handle === entry.handle);
+  const paid = was && now ? now.in - was.in : 0;
+  let text;
+  if (entry.type === "fold") text = `${who} ${verb("fold", "folds")}`;
+  else if (entry.type === "check") text = `${who} ${verb("check", "checks")}`;
+  else if (entry.type === "call") text = `${who} ${verb("call", "calls")} ${paid}`;
+  else if (entry.type === "bet") text = `${who} ${verb("bet", "bets")} ${entry.amount}`;
+  else if (entry.type === "raise") text = `${who} ${verb("raise", "raises")} to ${entry.amount}`;
+  else text = `${who} ${entry.type}`;
+  const allIn = now && was && now.allIn && !was.allIn;
+  return allIn ? `${text}, all in.` : `${text}.`;
 }
 
 /** The running action list, one line per decision, postings included. */
@@ -374,37 +503,246 @@ function boot() {
   const line = [];
   let state = null;
   let pending = false;
+  let results = null;
 
-  // One state in, one repaint out. Everything that changes the hand ends
-  // here, so there is exactly one description of what the page shows.
-  function paint() {
-    paintSeats(state);
-    paintBoard(state);
+  // The caption line lives on the felt, above the board. It is made here
+  // rather than by the generator because only the controller ever writes to
+  // it, and a page with no script has nothing to caption.
+  const felt = document.querySelector(".wwyhd-felt");
+  if (felt && !byId("wwyhd-caption")) {
+    const cap = el("p", "wwyhd-caption");
+    cap.id = "wwyhd-caption";
+    cap.setAttribute("aria-live", "polite");
+    felt.insertBefore(cap, byId("wwyhd-board"));
+  }
+
+  // THE TIMELINE. Every paced step awaits wait(), and every deal bumps `run`:
+  // a step that wakes up to find `run` moved on belongs to a hand that was
+  // dealt again underneath it (Play again mid-showdown), and stands down
+  // rather than painting the old hand over the new one. Skip does not cancel
+  // anything; it sets the speed to zero and wakes the wait in progress, so
+  // the same steps run in the same order with no waiting, and the page ends
+  // exactly where it would have.
+  const calm = typeof window.matchMedia === "function"
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const baseSpeed = calm ? CALM_SPEED : 1;
+  let speed = baseSpeed;
+  let run = 0;
+  let wake = null;
+
+  function wait(ms) {
+    return new Promise((resolve) => {
+      const timer = window.setTimeout(done, ms * speed);
+      function done() {
+        window.clearTimeout(timer);
+        if (wake === done) wake = null;
+        resolve();
+      }
+      wake = done;
+    });
+  }
+
+  /** Waits, then says whether the hand that asked is still the one dealt. */
+  async function beat(ms, my) {
+    await wait(ms);
+    return my === run;
+  }
+
+  function skip() {
+    speed = 0;
+    if (wake) wake();
+  }
+
+  /** The bar while the visitor has nothing to decide: what the table is
+   *  doing, and Skip, which runs the rest of the wait at no speed. */
+  function status(text) {
+    controls.textContent = "";
+    const bar = el("div", "wwyhd-status");
+    bar.appendChild(el("p", "stat", text));
+    const button = el("button", "wwyhd-preset", "Skip");
+    button.type = "button";
+    button.addEventListener("click", skip);
+    bar.appendChild(button);
+    controls.appendChild(bar);
+  }
+
+  /** Every seat's stack before the pot is pushed: what it sat down with, less
+   *  everything it put in. A settled state already holds the winner's chips,
+   *  so the showdown paints these until the award. */
+  function stacksBeforeAward(s) {
+    const out = {};
+    for (const seat of s.players) {
+      const start = hand.players.find((player) => player.handle === seat.handle);
+      out[seat.handle] = Number(start ? start.stack : seat.stack) - seat.in;
+    }
+    return out;
+  }
+
+  /**
+   * One action taken, by the visitor or an opponent: applied, captioned, and
+   * painted, then handed to whatever comes next. The board stays at the
+   * count it had BEFORE the action, because an action that closes a street
+   * is shown first and the next street's cards land a beat later (proceed).
+   */
+  function act(action) {
+    const before = state;
+    state = applyAction(state, action);
+    const entry = state.log[state.log.length - 1];
+    paintSeats(state, state.over ? stacksBeforeAward(state) : null);
+    paintBoard(state, boardCount(before));
     paintLog(state);
     paintPot(state);
+    caption(describeAction(entry, before, state, hand.seat));
+    proceed(before, run);
+  }
+
+  async function proceed(before, my) {
     if (isHandOver(state)) {
-      fill(controls, el("p", "stat", "The hand is over."));
-      finish();
+      showdown(before, my);
       return;
     }
+    if (state.street !== before.street) {
+      status("Dealing.");
+      if (!(await beat(STREET_MS, my))) return;
+      paintBoard(state, null, boardCount(before));
+      caption(`The ${STREET_NAME[state.street].toLowerCase()}.`);
+      if (!(await beat(STREET_MS, my))) return;
+    }
+    turn(my);
+  }
+
+  /** The visitor's buttons when it is their turn; otherwise the next
+   *  opponent thinks for PAUSE_MS and acts. A visitor who pressed Skip gets
+   *  the normal pace back at their next decision. */
+  async function turn(my) {
     if (state.toAct === state.seat) {
+      speed = baseSpeed;
       paintControls();
       return;
     }
-    fill(controls, el("p", "stat", "Thinking."));
-    window.setTimeout(opponentActs, PAUSE_MS);
-  }
-
-  function opponentActs() {
+    status("Thinking.");
+    if (!(await beat(PAUSE_MS, my))) return;
     if (isHandOver(state) || state.toAct === state.seat) return;
-    state = applyAction(state, decider(seatView(state, state.toAct)));
-    paint();
+    act(decider(seatView(state, state.toAct)));
   }
 
   function take(action) {
     line.push({ street: state.street, type: action.type, amount: action.amount || 0 });
-    state = applyAction(state, action);
-    paint();
+    act(action);
+  }
+
+  /**
+   * The end of the hand, played out on the table rather than skipped to.
+   *
+   * The line is submitted the moment the hand ends and the request runs
+   * underneath all of this, so the drama costs the visitor nothing: by the
+   * time the pot is pushed the room's results are usually already back. Then,
+   * if two or more players are still in: a beat, every live opponent's cards
+   * turned over one seat at a time (authored holdings labeled as such), and
+   * the board run out street by street, each wait longer than the last. A
+   * hand won by a fold turns nothing over, as at a real table. Then the pot
+   * is pushed (stacks painted, winners marked, one line saying who won what)
+   * and the bar offers the reveal.
+   */
+  async function showdown(before, my) {
+    results = submit();
+    const live = state.players.filter((seat) => !seat.folded);
+    const contested = live.length > 1;
+    status(contested ? "Showdown." : "The hand is over.");
+    if (contested) {
+      if (!(await beat(SHOWDOWN_MS, my))) return;
+      caption("Showdown.");
+      for (const seat of live) {
+        if (seat.handle === state.seat) continue;
+        if (!(await beat(FLIP_MS, my))) return;
+        paintHole(seat.handle, seat.cards, { flip: true, label: seat.shown ? "" : "for this puzzle" });
+      }
+      let shown = boardCount(before);
+      for (const [count, name, ms] of RUNOUT) {
+        if (shown >= count) continue;
+        if (!(await beat(ms, my))) return;
+        paintBoard(state, count, shown);
+        caption(`The ${name}.`);
+        shown = count;
+      }
+    }
+    if (!(await beat(AWARD_MS, my))) return;
+
+    paintSeats(state);
+    // The pot is pushed, so nothing is left in front of anybody.
+    for (const front of document.querySelectorAll("[data-bet]")) front.textContent = "";
+    const won = {};
+    for (const pot of state.pots || []) {
+      if (!pot.winners.length) continue;
+      const share = Math.floor(pot.amount / pot.winners.length);
+      for (const handle of pot.winners) won[handle] = (won[handle] || 0) + share;
+    }
+    const lines = Object.keys(won).map((handle) => {
+      const you = handle === state.seat;
+      const seat = state.players.find((player) => player.handle === handle);
+      let how = "";
+      if (contested && seat) {
+        try {
+          how = ` with ${withArticle(handCategory(evaluate([...seat.cards, ...state.board])))}`;
+        } catch {
+          how = "";
+        }
+      }
+      const row = document.querySelector(`[data-handle="${handle}"]`);
+      if (row) row.classList.add("wwyhd-seat--won");
+      return `${you ? "You" : nameOf(handle)} ${you ? "win" : "wins"} ${won[handle]}${how}.`;
+    });
+    caption(lines.join(" "));
+    paintPot(state);
+
+    if (!(await beat(AWARD_MS, my))) return;
+    controls.textContent = "";
+    const bar = el("div", "wwyhd-status");
+    const button = el("button", "wwyhd-act wwyhd-act--go", "See how you did");
+    button.type = "button";
+    button.addEventListener("click", () => {
+      button.disabled = true;
+      button.textContent = "Scoring.";
+      results.then(({ result, room }) => {
+        if (my !== run) return;
+        reveal(result, room);
+        // Back to its own name, so a visitor who scrolls up to the table
+        // can jump down to the reveal again from where they are.
+        button.disabled = false;
+        button.textContent = "See how you did";
+      });
+    });
+    bar.appendChild(button);
+    controls.appendChild(bar);
+  }
+
+  /**
+   * Deals the hole cards one at a time, clockwise from the seat after the
+   * button, twice around, the way a dealer does. The cards are already in
+   * the state; this only brings them onto the table. Then one line for the
+   * blinds, and the first decision.
+   */
+  async function dealIn(my) {
+    status("Dealing.");
+    const count = state.players.length;
+    const order = [];
+    for (let round = 0; round < 2; round++) {
+      for (let step = 1; step <= count; step++) {
+        const seat = state.players[(state.dealerIndex + step) % count];
+        const row = document.querySelector(`[data-handle="${seat.handle}"]`);
+        const card = row && row.querySelectorAll(".wwyhd-hole .pc")[round];
+        if (card) order.push(card);
+      }
+    }
+    for (const card of order) {
+      if (!(await beat(DEAL_CARD_MS, my))) return;
+      card.classList.remove("pc--undealt");
+    }
+    if (!(await beat(DEAL_SETTLE_MS, my))) return;
+    const who = (handle) => (handle === state.seat ? "You" : nameOf(handle));
+    caption(`${who(state.blindSeats.sb)} and ${who(state.blindSeats.bb).replace(/^You$/, "you")} post the blinds.`);
+    if (!(await beat(STREET_MS, my))) return;
+    turn(my);
   }
 
   /**
@@ -482,17 +820,25 @@ function boot() {
     controls.appendChild(bar);
   }
 
-  // The hand is over: submit the line, then read back what everybody else
-  // did. The server's chip count is the one shown, because it is the one that
-  // is stored; the browser's own number is only ever a preview of it.
-  function finish() {
-    if (pending) return;
+  /**
+   * Submits the line and reads back what everybody else did.
+   *
+   * Takes nothing. Returns a promise of `{result, room}` that never rejects:
+   * `result` is the POST's answer and `room` the GET's. The server's chip
+   * count is the one shown, because it is the one that is stored; the
+   * browser's own number is only ever a preview of it. On any failure the
+   * hand still happened, so the promise resolves with the browser's count and
+   * the error, and the reveal says which half is missing.
+   */
+  function submit() {
+    if (pending) return results;
     pending = true;
+    const chips = state.stacks[hand.seat];
     const email = emailField.value.trim();
     const displayName = nameField ? nameField.value.trim() : "";
     const url = `/api/wwyhd?hand=${encodeURIComponent(hand.id)}`;
 
-    fetch(url, {
+    return fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, displayName, line }),
@@ -503,13 +849,9 @@ function boot() {
         remember(email, displayName);
         return fetch(url)
           .then((res) => res.json())
-          .then((room) => reveal(body, room || {}));
+          .then((room) => ({ result: body, room: room || {} }));
       })
-      .catch((error) => {
-        // The hand still happened, so the reveal still runs: only the room's
-        // half of it is missing, and the sentence says which half.
-        reveal({ chips: state.stacks[hand.seat], attempt: null, error: error.message }, {});
-      });
+      .catch((error) => ({ result: { chips, attempt: null, error: error.message }, room: {} }));
   }
 
   function reveal(result, room) {
@@ -679,11 +1021,16 @@ function boot() {
    * (Mike, 2026-09-21: Play again should not make him click Deal again).
    * Every seat's stack, chips in front, folded state and the action log are
    * painted from that new state, so nothing of the last hand survives on
-   * screen.
+   * screen: opponents' cards go back face down, winner marks come off, and
+   * every hole card is taken off the table for dealIn to bring back.
+   * Bumping `run` retires anything still pending from the last hand.
    */
   function deal() {
+    run += 1;
+    speed = baseSpeed;
     line.length = 0;
     pending = false;
+    results = null;
     revealBand.hidden = true;
     form.hidden = true;
     const cue = byId("wwyhd-cue");
@@ -691,7 +1038,17 @@ function boot() {
     controls.hidden = false;
     if (history) history.open = false;
     state = startHand(hand);
-    paint();
+    for (const seat of state.players) {
+      paintHole(seat.handle, seat.handle === state.seat ? seat.cards : null, { undealt: true });
+      const row = document.querySelector(`[data-handle="${seat.handle}"]`);
+      if (row) row.classList.remove("wwyhd-seat--won");
+    }
+    paintSeats(state);
+    paintBoard(state);
+    paintLog(state);
+    paintPot(state);
+    caption("");
+    dealIn(run);
   }
 
   form.addEventListener("submit", (event) => {
