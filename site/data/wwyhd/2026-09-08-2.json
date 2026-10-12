@@ -34,7 +34,7 @@
       "stack": 34385,
       "cards": ["Ac", "Jd"],
       "shown": true,
-      "profile": { "vpip": 27, "af": 0.70, "allInRate": 0.03, "foldToRaise": 72, "callDown": 56 }
+      "profile": { "vpip": 27, "af": 2.50, "allInRate": 0.03, "foldToRaise": 72, "callDown": 56 }
     }
   ],
   "board": ["Kd", "9d", "5h", "8d", "Tc"],
