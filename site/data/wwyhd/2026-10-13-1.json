@@ -63,7 +63,7 @@
       { "street": "TURN", "handle": "j7spaded", "type": "raise", "amount": 6500 },
       { "street": "TURN", "handle": "nickmershon", "type": "call", "amount": 0 }
     ],
-    "result": "Nick M. limped ten-seven, bet two pair on the flop and again on the turn, and called all in when Alex B. raised to 6,500 holding jack-eight of spades, a straight. The river five changed nothing. Nick M. left the hand with 0 chips, out in ninth, and Alex B. took a Hope Slayer skull on his first night at this table; Alex B. with 13,925.",
+    "result": "Nick M. limped ten-seven, bet two pair on the flop and again on the turn, and called all in when Alex B. raised to 6,500 holding jack-eight of spades, a straight. The river five changed nothing. Nick M. left the hand with 0 chips, out in ninth, and Alex B. took a Hope Slayer skull; Alex B. with 13,925.",
     "seatChips": 0,
     "endStacks": { "jfe": 4133, "kmikeym": 2134, "nickmershon": 0, "amaxwell": 8877, "j7spaded": 13925 }
   },
