@@ -823,7 +823,18 @@
           "payout": 295,
           "rebuys": 1,
           "trophies": [],
-          "slug": "matt-w"
+          "slug": "matt-w",
+          "card": {
+            "metal": "foil",
+            "file": "card-1-mawttm.png",
+            "title": "Champion",
+            "art": [
+              36,
+              210,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "jfe",
@@ -831,7 +842,18 @@
           "payout": 225,
           "rebuys": 0,
           "trophies": [],
-          "slug": "j"
+          "slug": "j",
+          "card": {
+            "metal": "sapphire",
+            "file": "card-2-jfe.png",
+            "title": "Runner-up",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "amaxwell",
@@ -839,7 +861,18 @@
           "payout": 130,
           "rebuys": 0,
           "trophies": [],
-          "slug": "amy-m"
+          "slug": "amy-m",
+          "card": {
+            "metal": "sapphire",
+            "file": "card-3-amaxwell.png",
+            "title": "3rd",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "spladow",
@@ -847,7 +880,18 @@
           "payout": 0,
           "rebuys": 0,
           "trophies": [],
-          "slug": "thomas-d"
+          "slug": "thomas-d",
+          "card": {
+            "metal": "pewter",
+            "file": "card-4-spladow.png",
+            "title": "4th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "j7spaded",
@@ -857,7 +901,18 @@
           "trophies": [
             "hope-slayer"
           ],
-          "slug": "alex-b"
+          "slug": "alex-b",
+          "card": {
+            "metal": "pewter",
+            "file": "card-5-j7spaded.png",
+            "title": "5th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "LEWD",
@@ -865,7 +920,18 @@
           "payout": 0,
           "rebuys": 0,
           "trophies": [],
-          "slug": "chris-g"
+          "slug": "chris-g",
+          "card": {
+            "metal": "pewter",
+            "file": "card-6-lewd.png",
+            "title": "6th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "JojiBerry",
@@ -873,7 +939,18 @@
           "payout": 0,
           "rebuys": 0,
           "trophies": [],
-          "slug": "jordan-d"
+          "slug": "jordan-d",
+          "card": {
+            "metal": "pewter",
+            "file": "card-7-jojiberry.png",
+            "title": "7th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "kmikeym",
@@ -881,7 +958,18 @@
           "payout": 0,
           "rebuys": 0,
           "trophies": [],
-          "slug": "kmikeym"
+          "slug": "kmikeym",
+          "card": {
+            "metal": "copper",
+            "file": "card-8-kmikeym.png",
+            "title": "The Founder",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "nickmershon",
@@ -889,7 +977,18 @@
           "payout": 0,
           "rebuys": 1,
           "trophies": [],
-          "slug": "nick-m"
+          "slug": "nick-m",
+          "card": {
+            "metal": "pewter",
+            "file": "card-9-nickmershon.png",
+            "title": "9th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "joshb",
@@ -897,7 +996,18 @@
           "payout": 0,
           "rebuys": 0,
           "trophies": [],
-          "slug": "josh-b"
+          "slug": "josh-b",
+          "card": {
+            "metal": "pewter",
+            "file": "card-10-joshb.png",
+            "title": "10th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "bg",
@@ -905,9 +1015,22 @@
           "payout": 0,
           "rebuys": 0,
           "trophies": [],
-          "slug": "beau-g"
+          "slug": "beau-g",
+          "card": {
+            "metal": "pewter",
+            "file": "card-11-bg.png",
+            "title": "11th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         }
-      ]
+      ],
+      "cardSet": "2026-10",
+      "cardSetName": "The Rebuy"
     }
   ]
 }
