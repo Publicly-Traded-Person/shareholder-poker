@@ -101,7 +101,12 @@ or stash the dirty path, then run `bun test tools` again.
    Home page: refresh the three news one-liners ("Last game", "The cards",
    "The coin"), and the bounty notices if a bounty was settled or the Coin
    moved. The numbers under them fill themselves from games.json at runtime
-   (site/home-facts.js); never type numbers into the home page.
+   (site/home-facts.js); never type numbers into the home page. Once the
+   month's set is minted, also swap the hero card fan (three PNGs from the
+   new set), the "The foil is in play" band (champion card, story, "See the
+   full set" link) and the closing "New players welcome" line; all four are
+   hand-typed and no test catches them going stale (missed in September,
+   #62, and again in October).
 5. Update `nextGame` in `site/data/games.json`, then re-run
    `bun tools/render.ts`: the season page's next-game card, its upcoming
    projections, and `site/next-game.ics` all derive from `nextGame`, and the
