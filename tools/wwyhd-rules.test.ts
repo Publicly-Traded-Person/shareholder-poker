@@ -288,6 +288,18 @@ describe("strengthBand [M1]", () => {
       ["Ah", "7h", "2c"],
       1,
     ],
+    [
+      "Jh Th on 9h 8h 2c is 3 (a flush draw with an open-ender, fifteen outs, scores with top pair; #91)",
+      ["Jh", "Th"],
+      ["9h", "8h", "2c"],
+      3,
+    ],
+    [
+      "Jh Th on 9h 8h 2c 4s 3d is 0 (the same holding on the river is nothing)",
+      ["Jh", "Th"],
+      ["9h", "8h", "2c", "4s", "3d"],
+      0,
+    ],
   ];
 
   for (const [name, cards, board, band] of NAMED) {

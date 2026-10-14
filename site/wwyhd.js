@@ -35,8 +35,7 @@
 // tools/wwyhd-pages.test.ts; run it with `bun test tools`.
 
 import {
-  startHand, legalActions, applyAction, isHandOver, seatView, playSeat,
-} from "./wwyhd-engine.js";
+  startHand, legalActions, applyAction, isHandOver, seatView, playSeat, scriptedAction } from "./wwyhd-engine.js";
 import { decide, THRESHOLDS } from "./wwyhd-rules.js";
 import { evaluate, handCategory } from "./wwyhd-eval.js";
 
@@ -623,7 +622,10 @@ function boot() {
     status("Thinking.");
     if (!(await beat(PAUSE_MS, my))) return;
     if (isHandOver(state) || state.toAct === state.seat) return;
-    act(decider(seatView(state, state.toAct)));
+    // What the player really did, while the visitor is still on the real
+    // line; the profile model from the first deviation on. The same call the
+    // engine's playSeat makes, so the Function's recount agrees (#91).
+    act(scriptedAction(hand, state) ?? decider(seatView(state, state.toAct)));
   }
 
   function take(action) {

@@ -44,6 +44,13 @@ log has nothing more to say. That is why opponents are models and why the
 hidden cards are authored: past the first deviation the hand is a
 simulation, and the spec says so on the page.
 
+*Review note, 2026-10-14 (#91):* until that first deviation the hand is NOT a
+simulation, and the engine now says so in code. `scriptedAction(hand, state)`
+in `site/wwyhd-engine.js` returns the next recorded action while every action
+taken so far matches `real.actions`; `playSeat` and the page's opponent turn
+both ask it before the profile model. The first puzzle to run without it
+(October, hand 57) had Alex B. fold the hand's whole story preflop.
+
 **Hole cards are known only at showdown.** A player's cards appear in the
 log only if the hand reached showdown, or if that player exported the
 log. So the seat player must be someone who showed down (their cards are

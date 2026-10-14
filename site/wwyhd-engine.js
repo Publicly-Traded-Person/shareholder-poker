@@ -744,6 +744,59 @@ function decisionKey(state) {
  * browser's, so a tampered-with score is just a line that replays to something
  * else.
  */
+/**
+ * The next recorded action, while the hand is still the real one.
+ *
+ * Takes the hand file and the engine state. Compares every action taken so
+ * far (blind and ante postings aside, the engine makes those) with the file's
+ * `real.actions`, in order, on handle, type and amount. While they all match
+ * and the next recorded action belongs to the player now to act, returns that
+ * action as `{type, amount}`. Returns null the moment anything differs, or
+ * when the record runs out, or when the next recorded action is someone
+ * else's. Throws nothing.
+ *
+ * Why it exists (shareholder-poker#91): the spec says the hand becomes a
+ * simulation "past the first deviation", so until the visitor leaves the
+ * script the opponents must do what they really did. Without this, Alex B.
+ * folded jack-eight preflop in the October puzzle and the raise the puzzle was
+ * about never came. It is pure and reads only the log, so the browser's paced
+ * loop, `playSeat` and the Pages Function cannot disagree about where the
+ * script ends.
+ */
+export function scriptedAction(hand, state) {
+  const real = hand && hand.real && Array.isArray(hand.real.actions) ? hand.real.actions : [];
+  if (!state || !Array.isArray(state.log)) return null;
+  const played = state.log.filter((entry) => !POSTINGS.has(entry.type));
+  if (played.length >= real.length) return null;
+  for (let i = 0; i < played.length; i++) {
+    if (!sameAction(real[i], played[i])) return null;
+  }
+  const next = real[played.length];
+  if (!next || typeof next !== "object" || next.handle !== state.toAct) return null;
+  return { type: next.type, amount: amountOf(next) };
+}
+
+/** The log's entry types that are not decisions: the engine posts them. */
+const POSTINGS = new Set(["sb", "bb", "ante"]);
+
+/** A recorded action's chips: the street total for a bet or raise (`amount`,
+ *  or the spec's older `to`), 0 for anything else, matching record(). */
+function amountOf(action) {
+  if (action.type === "bet" || action.type === "raise") {
+    return Number(action.amount ?? action.to ?? 0);
+  }
+  return 0;
+}
+
+function sameAction(recorded, taken) {
+  if (!recorded || typeof recorded !== "object") return false;
+  return (
+    recorded.handle === taken.handle &&
+    recorded.type === taken.type &&
+    amountOf(recorded) === amountOf(taken)
+  );
+}
+
 export function playSeat(hand, seatLine, decide) {
   if (!Array.isArray(seatLine)) fail("playSeat takes the seat's actions as an array");
   if (typeof decide !== "function") fail("playSeat takes a decide(view) function");
@@ -770,7 +823,9 @@ export function playSeat(hand, seatLine, decide) {
       line.push({ ...action });
       state = applyAction(state, action);
     } else {
-      state = applyAction(state, decide(seatView(state, state.toAct)));
+      // The real line first, the model only once the hand has left it.
+      const scripted = scriptedAction(hand, state);
+      state = applyAction(state, scripted ?? decide(seatView(state, state.toAct)));
     }
   }
   if (taken < seatLine.length) {

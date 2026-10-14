@@ -59,6 +59,7 @@ import {
   isHandOver,
   legalActions,
   playSeat,
+  scriptedAction,
   replay,
   seatView,
   settle,
@@ -693,3 +694,92 @@ describe("seatView carries `raised`", () => {
     expect(seatView(state, state.toAct).raised).toBe(true);
   });
 });
+
+// --- shareholder-poker#91: the real line first, the model after -------------
+
+/** Three-handed, A (dealer, the seat) with aces, B with kings, C with
+ *  seven-deuce. The recorded line has C raising preflop with the seven-deuce,
+ *  which no profile model would do, so whether C raises is whether the
+ *  record was followed. */
+function scriptedHand() {
+  return handFile({
+    dealer: "alice",
+    seat: "alice",
+    players: [
+      player("alice", 1000, ["Ah", "Ad"], null),
+      player("bob", 3000, ["Kh", "Kd"]),
+      player("carol", 6000, ["2c", "7d"]),
+    ],
+    board: ["3s", "8h", "9c", "Jd", "Qs"],
+    startChips: 1000,
+    real: {
+      actions: [
+        { street: "PRE", handle: "alice", type: "call", amount: 0 },
+        { street: "PRE", handle: "bob", type: "call", amount: 0 },
+        { street: "PRE", handle: "carol", type: "raise", amount: 800 },
+        { street: "PRE", handle: "alice", type: "call", amount: 0 },
+        { street: "PRE", handle: "bob", type: "call", amount: 0 },
+        { street: "FLOP", handle: "bob", type: "check", amount: 0 },
+        { street: "FLOP", handle: "carol", type: "bet", amount: 1200 },
+        { street: "FLOP", handle: "alice", type: "fold", amount: 0 },
+        { street: "FLOP", handle: "bob", type: "fold", amount: 0 },
+      ],
+      result: "",
+      seatChips: 200,
+      endStacks: { alice: 200, bob: 2200, carol: 7600 },
+    },
+  });
+}
+
+describe("#91: opponents play the recorded line until the seat leaves it", () => {
+  test("the hand file's own real line replays to its own endStacks (the fixture is sound)", () => {
+    const hand = scriptedHand();
+    expect(replay(hand, hand.real.actions).stacks).toEqual(hand.real.endStacks);
+  });
+
+  test("scriptedAction gives the next recorded action for the player to act, and null once the record ends", () => {
+    const hand = scriptedHand();
+    let state = startHand(hand);
+    expect(scriptedAction(hand, state)).toEqual({ type: "call", amount: 0 });
+    state = applyAction(state, { type: "call", amount: 0 });
+    expect(scriptedAction(hand, state)).toEqual({ type: "call", amount: 0 });
+    state = applyAction(state, { type: "call", amount: 0 });
+    expect(scriptedAction(hand, state)).toEqual({ type: "raise", amount: 800 });
+    // A hand with no record has nothing to say.
+    expect(scriptedAction(handFile({ dealer: "alice", seat: "alice", players: hand.players, startChips: 1000 }), startHand(hand))).toBeNull();
+  });
+
+  test("on the real line, carol raises the seven-deuce exactly as recorded, so the seat's fold costs 800", () => {
+    // A call-or-check model never raises; if carol raises to 800 it came from the record.
+    const out = playSeat(scriptedHand(), [
+      { street: "PRE", type: "call", amount: 0 },
+      { street: "PRE", type: "call", amount: 0 },
+      { street: "FLOP", type: "fold", amount: 0 },
+    ], callOrCheck);
+    expect(out.chips).toBe(200);
+  });
+
+  test("the first deviation hands the table to the model for good: no recorded raise, aces win a 600 pot", () => {
+    const out = playSeat(scriptedHand(), [
+      { street: "PRE", type: "raise", amount: 600 },
+      { street: "FLOP", type: "check", amount: 0 },
+      { street: "TURN", type: "check", amount: 0 },
+      { street: "RIVER", type: "check", amount: 0 },
+    ], callOrCheck);
+    // bob and carol call 600 each and check the hand down; aces take 1800.
+    expect(out.chips).toBe(2200);
+  });
+
+  test("a deviation by an opponent's own model never happens while the record holds: the record wins over decide", () => {
+    let decideCalls = 0;
+    const counting = (view: any) => { decideCalls++; return callOrCheck(view); };
+    playSeat(scriptedHand(), [
+      { street: "PRE", type: "call", amount: 0 },
+      { street: "PRE", type: "call", amount: 0 },
+      { street: "FLOP", type: "fold", amount: 0 },
+    ], counting);
+    // Every opponent action in that hand is on the record, so decide is never asked.
+    expect(decideCalls).toBe(0);
+  });
+});
+

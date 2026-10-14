@@ -39,7 +39,7 @@ const CARDS_IN_HOLDING = 2;
 const BAND_AIR = 0; // nothing: no pair, no draw
 const BAND_DRAW = 1; // a weak pair or a draw
 const BAND_MEDIUM = 2; // a real but beatable pair
-const BAND_STRONG = 3; // two pair, top pair, an overpair
+const BAND_STRONG = 3; // two pair, top pair, an overpair, a flush draw with an open-ender
 const BAND_MONSTER = 4; // trips or better preflop's premiums
 
 // The thresholds. Every one of these is a number a human chose, so every one
@@ -256,11 +256,14 @@ function postflopBand(cards, board) {
   // holding and the board together, which is how the rule is worded: a board
   // that is itself four to a flush is a live card for everybody, and a table
   // that scored it as air would have every opponent bet into it.
-  if (
-    board.length < RIVER_BOARD_CARDS &&
-    (hasOpenEnder(all.map(rankOf)) || hasFlushDraw(all))
-  ) {
-    return BAND_DRAW;
+  if (board.length < RIVER_BOARD_CARDS) {
+    const openEnder = hasOpenEnder(all.map(rankOf));
+    const flushDraw = hasFlushDraw(all);
+    // Both at once is fifteen outs, better than a coin flip against top
+    // pair on the flop, and nobody folds it to a bet (shareholder-poker#91).
+    // It scores with top pair, not with a gutshot.
+    if (openEnder && flushDraw) return BAND_STRONG;
+    if (openEnder || flushDraw) return BAND_DRAW;
   }
   return BAND_AIR;
 }
