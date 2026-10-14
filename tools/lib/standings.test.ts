@@ -159,15 +159,15 @@ describe("deriveStandings", () => {
     const anne = s.rows.find((r) => r.slug === "a")!;
     expect([anne.bestFinish, anne.bestField]).toEqual([1, 14]);
   });
-  test("the live table, September 2026: money, then cashes, then best share, then name", () => {
+  test("the live table, October 2026: money, then cashes, then best share, then name", () => {
     const live = JSON.parse(readFileSync(new URL("../../site/data/games.json", import.meta.url), "utf8")) as GamesData;
     const s = deriveStandings(live);
     expect(s.rows.slice(0, 7).map((r) => r.slug)).toEqual([
-      "chris-g", "josh-b", "thomas-d", "j", "nick-m", "beau-g", "kmikeym",
+      "chris-g", "j", "josh-b", "matt-w", "thomas-d", "nick-m", "amy-m",
     ]);
-    // Amy M. (3/7) and Drew A. (6/14) share a best share, so name decides.
+    // Neither has cashed: Drew A. (6/14) edges Alex B. (5/11) on best share.
     const order = s.rows.map((r) => r.slug);
-    expect(order.indexOf("amy-m")).toBe(order.indexOf("drew-a") - 1);
+    expect(order.indexOf("drew-a")).toBe(order.indexOf("alex-b") - 1);
   });
   test("carries the seeded coin holder and counts skulls from trophies", () => {
     const s = deriveStandings(data);

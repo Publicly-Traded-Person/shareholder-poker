@@ -1,6 +1,6 @@
 {
   "nextGame": {
-    "date": "2026-10-13",
+    "date": "2026-11-10",
     "time": "7:00pm PT"
   },
   "portraitUploads": true,
@@ -228,6 +228,22 @@
       "name": "Tatiana P.",
       "aka": [
         "exis0008"
+      ]
+    },
+    {
+      "slug": "alex-b",
+      "name": "Alex B.",
+      "aka": [
+        "j7spaded",
+        "J7spaded"
+      ]
+    },
+    {
+      "slug": "jordan-d",
+      "name": "Jordan D.",
+      "aka": [
+        "JojiBerry",
+        "jordan"
       ]
     }
   ],
@@ -792,6 +808,106 @@
       ],
       "cardSet": "2026-09",
       "cardSetName": "Seven-Deuce"
+    },
+    {
+      "date": "2026-10-13",
+      "hands": 204,
+      "startingStack": 5000,
+      "buyIn": 50,
+      "entries": 13,
+      "pot": 650,
+      "results": [
+        {
+          "handle": "MawTTM",
+          "finish": 1,
+          "payout": 295,
+          "rebuys": 1,
+          "trophies": [],
+          "slug": "matt-w"
+        },
+        {
+          "handle": "jfe",
+          "finish": 2,
+          "payout": 225,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "j"
+        },
+        {
+          "handle": "amaxwell",
+          "finish": 3,
+          "payout": 130,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "amy-m"
+        },
+        {
+          "handle": "spladow",
+          "finish": 4,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "thomas-d"
+        },
+        {
+          "handle": "j7spaded",
+          "finish": 5,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [
+            "hope-slayer"
+          ],
+          "slug": "alex-b"
+        },
+        {
+          "handle": "LEWD",
+          "finish": 6,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "chris-g"
+        },
+        {
+          "handle": "JojiBerry",
+          "finish": 7,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "jordan-d"
+        },
+        {
+          "handle": "kmikeym",
+          "finish": 8,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "kmikeym"
+        },
+        {
+          "handle": "nickmershon",
+          "finish": 9,
+          "payout": 0,
+          "rebuys": 1,
+          "trophies": [],
+          "slug": "nick-m"
+        },
+        {
+          "handle": "joshb",
+          "finish": 10,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "josh-b"
+        },
+        {
+          "handle": "bg",
+          "finish": 11,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "beau-g"
+        }
+      ]
     }
   ]
 }
