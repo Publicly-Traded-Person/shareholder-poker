@@ -951,3 +951,77 @@ describe("every puzzle page ends on the RSVP band for the next game", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// The link-preview picture (og:image), added 2026-10-25. Before this, every
+// puzzle page fell through to page()'s site-wide default, July's champion
+// card, so a puzzle shared in chat unfurled as somebody else's card from a
+// different month. wwyhdShareImage in tools/render.ts decides the picture:
+// the hand's own `shareImage`, else its game's foil card, else the default.
+// ---------------------------------------------------------------------------
+describe("share image: a puzzle previews as itself, not as July's card", () => {
+  const ogImage = (html: string): string =>
+    (html.match(/<meta property="og:image" content="([^"]*)">/) ?? [])[1] ?? "";
+
+  // DATA's one game carries no card set, so a copy with a foil card on the
+  // winner is what lets the fallback be observed at all.
+  const DATA_WITH_CARDS: GamesData = {
+    ...DATA,
+    games: DATA.games.map((g) => ({
+      ...g,
+      cardSet: "2026-01",
+      cardSetName: "Synthetic",
+      results: g.results.map((r) =>
+        r.finish === 1 ? { ...r, card: { metal: "foil" as const, file: "card-1-alice.png", title: "Alice" } } : r
+      ),
+    })),
+  };
+
+  test("a hand with its own shareImage previews with that picture", async () => {
+    const { renderWwyhdHand } = await renderModule();
+    const html = renderWwyhdHand!(DATA_WITH_CARDS, { ...HAND, shareImage: "2026-01-01-1-table.png" });
+    expect(ogImage(html)).toBe("https://poker.kmikeym.com/wwyhd/assets/2026-01-01-1-table.png");
+  });
+
+  test("a hand without one previews with its own game's foil card", async () => {
+    const { renderWwyhdHand } = await renderModule();
+    expect(ogImage(renderWwyhdHand!(DATA_WITH_CARDS, HAND)))
+      .toBe("https://poker.kmikeym.com/cards/2026-01/assets/card-1-alice.png");
+  });
+
+  test("a hand whose game has no cards yet falls back to the site default", async () => {
+    // Pinned as "not a puzzle-specific address" rather than the default's
+    // exact URL, so changing page()'s default never breaks this test.
+    const image = ogImage(await handPage());
+    expect(image).not.toContain("/wwyhd/assets/");
+    expect(image).not.toContain("/cards/2026-01/");
+    expect(image).toMatch(/^https:\/\/poker\.kmikeym\.com\//);
+  });
+
+  test("the index previews as its newest puzzle does", async () => {
+    const { renderWwyhdIndex } = await renderModule();
+    const newest = { ...HAND_LATER, shareImage: "newest.png" };
+    expect(ogImage(renderWwyhdIndex!(DATA, [HAND, newest])))
+      .toBe("https://poker.kmikeym.com/wwyhd/assets/newest.png");
+  });
+
+  test("validateHandFile refuses a shareImage that is a path or a URL", async () => {
+    const { validateHandFile } = await import("./lib/wwyhd");
+    for (const bad of ["../escape.png", "https://example.com/x.png", "dir/x.png", "x.gif"]) {
+      expect(() => validateHandFile({ ...HAND, shareImage: bad }, DATA)).toThrow(/shareImage/);
+    }
+  });
+
+  test("every committed hand file's shareImage exists under site/wwyhd/assets/", () => {
+    // The real tree, not the synthetic one: a hand file naming a picture
+    // that was never committed would publish a preview that 404s.
+    const dataDir = join(import.meta.dir, "..", "site", "data", "wwyhd");
+    const assetsDir = join(import.meta.dir, "..", "site", "wwyhd", "assets");
+    for (const name of readdirSync(dataDir).filter((n) => n.endsWith(".json"))) {
+      const hand = JSON.parse(readFileSync(join(dataDir, name), "utf8")) as HandFile;
+      if (hand.shareImage) {
+        expect(existsSync(join(assetsDir, hand.shareImage)), `${name}: ${hand.shareImage} is missing`).toBe(true);
+      }
+    }
+  });
+});
