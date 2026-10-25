@@ -510,6 +510,16 @@ step every week after the first.
      2026-09-22). Add `closes` only for a puzzle that should stop ranking
      on purpose; when present it is the only source of truth for that, and
      nothing infers it from the next puzzle's `opens`.
+   - `shareImage`, optional but normal: the picture a shared link unfurls
+     with. Crop the live page's sit-down table (the seat's two cards up,
+     nobody else's, no board) once it deploys, commit it as
+     `site/wwyhd/assets/<id>-table.png`, and set `"shareImage":
+     "<id>-table.png"`. A bare filename only; the check refuses a path or a
+     URL. Without it the page previews with the foil card from the game the
+     hand came from, which is acceptable but says nothing about the hand.
+     `site/wwyhd/assets/` is the one hand-made folder under `site/wwyhd/`
+     (the drift check skips it, as it does `site/hope-coin/assets/`), and
+     the same crop is "the table image" step 9 emails.
 3. **Check the file:**
 
    ```
@@ -534,7 +544,8 @@ step every week after the first.
    It writes `site/wwyhd/index.html` (the index: the current puzzle at the
    top, past ones below with their leaderboard winner) and one
    `site/wwyhd/<id>/index.html` per hand file. Everything under
-   `site/wwyhd/` is generated and is never hand-edited. The player-facing
+   `site/wwyhd/` is generated and is never hand-edited, except
+   `site/wwyhd/assets/` (share images, step 2). The player-facing
    code one level up, `site/wwyhd.js` and the `site/wwyhd-*.js` modules, is
    hand-written and is not touched by the renderer.
 5. **Commit the generated pages** before testing, for the reason at the top

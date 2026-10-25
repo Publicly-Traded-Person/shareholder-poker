@@ -2205,8 +2205,27 @@ ${wwyhdRsvpBand(data)}
   return page(
     hand.title, body, "band-light", `/wwyhd/${hand.id}/`,
     `${hand.setup} Play the hand, then see what really happened.`,
-    { navCurrent: "" }
+    { navCurrent: "", image: wwyhdShareImage(data, hand) }
   );
+}
+
+/**
+ * The link-preview picture (og:image) for one puzzle page.
+ *
+ * Takes the games data and the hand. Returns an absolute URL, or undefined
+ * to let page() fall back to its site-wide default. Throws nothing.
+ *
+ * In order: the hand's own `shareImage` (a picture of this puzzle, committed
+ * at site/wwyhd/assets/), else the foil card from the game the hand came from
+ * (that month's champion), else undefined. Why not the site default: it is
+ * July's champion card, so every puzzle used to unfurl in chat as somebody
+ * else's card from a different month (found 2026-10-25).
+ */
+function wwyhdShareImage(data: GamesData, hand: HandFile): string | undefined {
+  if (hand.shareImage) return `https://poker.kmikeym.com/wwyhd/assets/${hand.shareImage}`;
+  const game = data.games.find((g) => g.date === hand.game);
+  const foil = game?.cardSet ? game.results.find((r) => r.card?.metal === "foil") : undefined;
+  return foil?.card ? `https://poker.kmikeym.com/cards/${game!.cardSet}/assets/${foil.card.file}` : undefined;
 }
 
 /**
@@ -2224,11 +2243,10 @@ ${wwyhdRsvpBand(data)}
  * The drift check regenerates every committed page and compares bytes, so a
  * renderer that read a clock would fail the suite on the day after it ran,
  * and one that named a winner would fail it the next time somebody played.
- * `data` is taken for symmetry with renderWwyhdHand and for the version of
- * this page that names a winner; v1 reads nothing from it.
+ * `data` is read for one thing only: the newest puzzle's link-preview
+ * picture (wwyhdShareImage), which can fall back to that game's foil card.
  */
 export function renderWwyhdIndex(data: GamesData, hands: HandFile[]): string {
-  void data;
   const ordered = [...hands].sort((a, b) => b.opens.localeCompare(a.opens) || a.id.localeCompare(b.id));
   const rows = ordered.map((hand, i) => {
     const eyebrow = i === 0 ? `\n      <p class="eyebrow">This week</p>` : "";
@@ -2257,7 +2275,9 @@ ${wwyhdRsvpBand(data)}
   return page(
     "What would you have done?", body, "band-dark", "/wwyhd/",
     "Play a hand from the K5M Shareholder Poker record, then see what really happened.",
-    { navCurrent: "" }
+    // The index previews as the newest puzzle does, so a shared /wwyhd/ link
+    // shows this week's hand rather than July's champion card.
+    { navCurrent: "", image: ordered[0] ? wwyhdShareImage(data, ordered[0]) : undefined }
   );
 }
 

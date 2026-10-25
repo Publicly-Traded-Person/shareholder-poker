@@ -93,6 +93,14 @@ export type HandFile = {
   opens: string;
   // Optional: absent means the puzzle ranks forever (the normal case).
   closes?: string;
+  // Optional: a picture of this puzzle for link previews (og:image), as a
+  // bare filename committed at site/wwyhd/assets/<shareImage>: an input the
+  // renderer links to but never writes (the drift check skips a root's own
+  // assets/ directory, as it does site/hope-coin/assets/). Absent means the page previews with the foil card from the game the hand
+  // came from (renderWwyhdHand). The usual picture is a crop of the page's own
+  // sit-down table: the seat's two cards up, nobody else's, no board, so the
+  // preview cannot spoil the hand any more than the setup line does.
+  shareImage?: string;
 };
 
 /** The five fields an opponent profile must carry. Listed once so the halt
@@ -103,6 +111,10 @@ const PROFILE_FIELDS = ["vpip", "af", "allInRate", "foldToRaise", "callDown"] as
  *  then suit. One spelling across the file, the engine, the page and the
  *  Function, so a card is never two different strings. */
 const CARD = /^[23456789TJQKA][shdc]$/;
+
+/** The shape a hand file's optional `shareImage` must take: a bare filename
+ *  (no slash, no URL) ending in .png or .jpg. See HandFile.shareImage. */
+const SHARE_IMAGE = /^[a-z0-9][a-z0-9-]*\.(png|jpg)$/;
 
 /** Every halt from this module is prefixed so a failure in Charlie's terminal
  *  or in the suite says which layer refused, and names the field of the hand
@@ -189,6 +201,12 @@ export function validateHandFile(hand: unknown, data: GamesData): HandFile {
   // first (Mike, 2026-09-22: "can't the puzzle stay open... forever?"). A
   // date is for the rare puzzle that should stop ranking on purpose.
   const closes = file.closes === undefined ? undefined : text(file.closes, "closes");
+  // A bare filename, never a path or a URL: the renderer builds the address
+  // itself from the puzzle's id, so a file that names "../" or another site
+  // cannot point a preview somewhere the repo does not control.
+  if (file.shareImage !== undefined && !SHARE_IMAGE.test(text(file.shareImage, "shareImage"))) {
+    fail("shareImage", `must be a bare .png or .jpg filename like "2026-10-13-1-table.png", got ${JSON.stringify(file.shareImage)}`);
+  }
 
   const blinds = file.blinds;
   if (!blinds || typeof blinds !== "object") fail("blinds", "must be an object with sb, bb and ante");
