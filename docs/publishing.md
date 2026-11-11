@@ -103,7 +103,7 @@ or stash the dirty path, then run `bun test tools` again.
    moved. The numbers under them fill themselves from games.json at runtime
    (site/home-facts.js); never type numbers into the home page. Once the
    month's set is minted, also swap the hero card fan (three PNGs from the
-   new set), the "The foil is in play" band (champion card, story, "See the
+   new set), the champion band, whose heading names the month ("November's champion"; it read "The foil is in play" until 2026-11-11, which Mike retired as a bad title) with its champion card, story and "See the
    full set" link) and the closing "New players welcome" line; all four are
    hand-typed and no test catches them going stale (missed in September,
    #62, and again in October).
