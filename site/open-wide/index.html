@@ -25,129 +25,163 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Open Wide · a card game about dentists</title>
 <style>
+  /* LAYOUT  One screen, no scrolling on a desktop: the other practice on top, the prompt in the middle,
+     your dentists, then your bar and hand pinned at the bottom. Card size follows the window height
+     (--ch) so everything fits. Narrow or very short windows fall back to a scrolling column. */
   :root{
     --table:#0a0f0b; --table2:#0f1610; --edge:#050805;
-    --head:#f3efe4; --head2:#b9bcae; --eye:#e6c35c; --rule:rgba(230,195,92,.28);
+    --head:#f3efe4; --head2:#b9bcae; --eye:#e6c35c;
     --face:#12130e; --face2:#191a12; --panel:rgba(245,240,225,.045); --panel-br:rgba(245,240,225,.12);
     --ink:#f2efe4; --sec:#c3bfae; --muted:#87836f;
     --gold:#e6c35c; --mint:#7fe0b0; --rose:#ef7d7d; --sky:#7fb6ee; --lime:#c6f432;
     --serif:Iowan Old Style,"Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
     --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
     --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,monospace;
+    --ch:clamp(112px,18.2dvh,172px);                 /* card height; everything inside a card is in em of this */
     color-scheme:dark;
   }
   *{box-sizing:border-box}
-  body{margin:0;min-height:100vh;color:var(--head);font-family:var(--sans);-webkit-font-smoothing:antialiased;
+  html,body{height:100%}
+  body{margin:0;color:var(--head);font-family:var(--sans);-webkit-font-smoothing:antialiased;overflow:hidden;
     background:radial-gradient(120% 90% at 50% 0%,var(--table2) 0%,var(--table) 55%,var(--edge) 100%)}
-  .wrap{max-width:1080px;margin:0 auto;padding:clamp(16px,3vw,34px) 16px 48px}
-  .eye{font-family:var(--mono);font-size:11.5px;letter-spacing:.34em;text-transform:uppercase;color:var(--eye);margin:0 0 10px}
-  h1{font-family:var(--serif);font-weight:700;letter-spacing:.02em;text-transform:uppercase;font-size:clamp(30px,6vw,56px);line-height:.98;margin:0;text-wrap:balance}
-  .lede{max-width:62ch;margin:12px 0 0;font-size:15px;line-height:1.55;color:var(--head2)}
-  .lede b{color:var(--head)}
-  .hr{height:1px;background:linear-gradient(90deg,var(--rule),transparent);margin:20px 0 16px}
+  .table{height:100dvh;max-width:1180px;margin:0 auto;padding:8px 14px 10px;display:grid;gap:6px;
+    grid-template-rows:auto minmax(0,1fr) auto minmax(0,1fr) auto auto}
 
-  .side{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:8px 12px;border:1px solid var(--panel-br);border-radius:12px;background:var(--panel)}
-  .side .who{font-family:var(--serif);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:15px;min-width:118px}
-  .side .who small{display:block;font:11px/1.3 var(--mono);letter-spacing:.14em;color:var(--muted)}
-  .side.target{outline:2px solid var(--rose);outline-offset:2px;cursor:pointer}
+  /* bars: one for each practice */
+  .bar{display:flex;align-items:center;gap:16px;padding:6px 12px;border:1px solid var(--panel-br);border-radius:12px;background:var(--panel);min-height:48px}
+  .bar .who{font-family:var(--serif);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:14px;white-space:nowrap}
+  .bar .who small{display:block;font:10px/1.3 var(--mono);letter-spacing:.14em;color:var(--muted)}
+  .bar.target{outline:2px solid var(--rose);outline-offset:2px;cursor:pointer;animation:pulse 1s infinite}
+  .bar .grow{flex:1}
+  .title{font-family:var(--serif);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:17px;white-space:nowrap}
+  .title small{display:block;font:9.5px var(--mono);letter-spacing:.3em;color:var(--eye);font-weight:400}
   .smile{display:flex;flex-wrap:wrap;gap:2px;max-width:236px}
-  .smile i{width:9px;height:13px;border-radius:3px 3px 5px 5px;background:#f6f1df;box-shadow:inset 0 -3px 0 rgba(0,0,0,.14)}
+  .smile i{width:9px;height:12px;border-radius:3px 3px 5px 5px;background:#f6f1df;box-shadow:inset 0 -3px 0 rgba(0,0,0,.14)}
   .smile i.gone{background:transparent;box-shadow:inset 0 0 0 1px rgba(245,240,225,.16)}
-  .stat{font:12px/1.3 var(--mono);letter-spacing:.08em;color:var(--sec)}
-  .stat b{font-size:17px;color:var(--head)}
-  .tray{display:flex;gap:3px;align-items:center}
-  .tray{flex-wrap:wrap;max-width:230px;min-height:22px}.tray em{font:11px var(--mono);color:var(--muted);font-style:normal}
-  .tray span{width:15px;height:20px;border-radius:5px 5px 8px 8px;display:inline-grid;place-items:center;font:700 10px var(--mono);color:#16160f;transition:transform .18s,opacity .18s;transform:rotate(90deg);opacity:.35}
+  .stat{font:11px/1.3 var(--mono);letter-spacing:.08em;color:var(--sec);white-space:nowrap}
+  .stat b{font-size:16px;color:var(--head)}
+  .tray{display:flex;gap:3px;align-items:center;min-height:20px}
+  .tray em{font:11px var(--mono);color:var(--muted);font-style:normal}
+  .tray span{width:14px;height:19px;border-radius:5px 5px 8px 8px;display:inline-grid;place-items:center;font:700 10px var(--mono);color:#16160f;transition:transform .18s,opacity .18s;transform:rotate(90deg);opacity:.35}
   .tray span.on{opacity:1;transform:none}
-  .pull{display:flex;gap:6px;flex-wrap:wrap}
-  .pull button{font:700 11px var(--mono);letter-spacing:.04em;padding:7px 9px;border-radius:8px;border:1px solid var(--k);background:transparent;color:var(--k);cursor:pointer}
-  .pull button:not(:disabled){box-shadow:0 0 0 1px var(--k) inset}
-  .pull button:disabled{opacity:.28;cursor:default}
-  .card .nm.long{font-size:9.2px;letter-spacing:0}
-  .pips{display:flex;gap:2px;justify-content:center;min-height:13px;margin-top:2px}
-  .pips i{width:12px;height:13px;border-radius:4px 4px 6px 6px;display:grid;place-items:center;font:700 8.5px var(--mono);font-style:normal;color:#16160f}
-  .pips i.any{background:transparent;color:var(--sec);border:1px solid var(--panel-br);width:13px}
+  .back{width:26px;height:36px;border-radius:5px;border:1px solid var(--panel-br);background:repeating-linear-gradient(45deg,#1b2a1f 0 6px,#16221a 6px 12px)}
+  .oppHand{display:flex;gap:3px}
+  button.icon{width:34px;height:34px;border-radius:50%;border:1px solid var(--panel-br);background:transparent;color:var(--head);font:700 15px var(--mono);cursor:pointer}
 
-  .row{display:flex;gap:10px;justify-content:center;align-items:center;min-height:176px;padding:10px 0;flex-wrap:wrap}
-  .row.board{min-height:170px;border-radius:14px}
-  .empty{font:12px var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
-  .mid{display:flex;align-items:center;gap:14px;justify-content:space-between;margin:2px 0;flex-wrap:wrap}
-  .log{flex:1;min-width:220px;font:13px/1.45 var(--mono);color:var(--sec);min-height:38px}
+  /* the two rows of chairs, and the hand */
+  .row{display:flex;gap:10px;justify-content:center;align-items:center;min-height:0}
+  .empty{font:11px var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+  .hand{padding:8px 4px 2px;align-items:flex-end}
+  .hand .card:not(.playable):not(.sel){opacity:.5}
+
+  /* the prompt: the one place that says what to do next */
+  .prompt{border-radius:14px;border:1px solid var(--panel-br);background:linear-gradient(180deg,rgba(245,240,225,.07),rgba(245,240,225,.025));padding:8px 14px;display:grid;gap:5px;justify-items:center;text-align:center}
+  .prompt.mine{border-color:rgba(198,244,50,.45)}
+  .steps{display:flex;gap:8px;align-items:center;font:10.5px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+  .steps b{color:var(--lime);font-weight:700;letter-spacing:.24em;margin-right:4px}
+  .steps .bot{color:var(--rose)}
+  .steps span{padding:2px 8px;border-radius:9px;border:1px solid transparent}
+  .steps span.on{color:#11160a;background:var(--lime);font-weight:700}
+  .steps span.done{color:var(--sec);text-decoration:line-through}
+  .msg{font-size:clamp(15px,2.1dvh,19px);font-weight:600;color:var(--head);line-height:1.25}
+  .msg b{color:var(--gold)}
+  .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .acts:empty{display:none}
+  .pull button{font:700 13px var(--sans);padding:9px 14px;border-radius:10px;border:0;background:var(--k);color:#14140e;cursor:pointer;display:inline-flex;gap:7px;align-items:center}
+  .pull button i{font:700 11px var(--mono);font-style:normal;width:17px;height:21px;border-radius:5px 5px 8px 8px;background:rgba(0,0,0,.16);display:grid;place-items:center}
+  .pull button small{font:600 11px var(--mono);opacity:.7}
+  .pull button:hover{transform:translateY(-2px)}
+  .log{font:12px/1.35 var(--mono);color:var(--sec);min-height:16px}
   .log b{color:var(--gold)}
-  button.cta{font:700 14px var(--sans);letter-spacing:.06em;text-transform:uppercase;padding:11px 18px;border-radius:10px;border:0;background:var(--lime);color:#11160a;cursor:pointer}
+  button.cta{font:700 14px var(--sans);letter-spacing:.06em;text-transform:uppercase;padding:10px 18px;border-radius:10px;border:0;background:var(--lime);color:#11160a;cursor:pointer;white-space:nowrap}
   button.cta:disabled{background:#3a3f33;color:#8a8f80;cursor:default}
+  button.cta.nudge{animation:pulse 1s infinite}
   button.ghost{font:600 12px var(--sans);letter-spacing:.06em;text-transform:uppercase;padding:9px 13px;border-radius:10px;border:1px solid var(--panel-br);background:transparent;color:var(--head);cursor:pointer}
+  button.face{font:700 13px var(--sans);padding:9px 14px;border-radius:10px;border:0;background:var(--rose);color:#240808;cursor:pointer}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(198,244,50,.0)}50%{box-shadow:0 0 0 6px rgba(198,244,50,.28)}}
+  @keyframes pulseR{0%,100%{box-shadow:0 0 0 2px var(--rose)}50%{box-shadow:0 0 0 2px var(--rose),0 0 0 8px rgba(239,125,125,.25)}}
 
-  .card{position:relative;width:124px;height:168px;border-radius:11px;padding:8px 8px 7px;display:flex;flex-direction:column;
+  /* a card. font-size is a tenth of 1/16.8 of the card height, so 1em = 10px on a full-size card */
+  .card{position:relative;font-size:calc(var(--ch) / 16.8);width:12.4em;height:16.8em;flex:none;border-radius:1.1em;padding:.8em .8em .7em;display:flex;flex-direction:column;
     background:linear-gradient(160deg,var(--face2),var(--face));border:1px solid var(--panel-br);color:var(--ink);
     box-shadow:0 6px 16px rgba(0,0,0,.45);transition:transform .12s,box-shadow .12s,opacity .2s;user-select:none}
-  .card .cost{position:absolute;top:-8px;left:-8px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;
-    font:700 14px var(--mono);background:#f6f1df;color:#1a1a12;box-shadow:0 2px 6px rgba(0,0,0,.5)}
-  .card .cost::after{content:"";position:absolute;inset:auto 6px -4px 6px;height:6px;border-radius:0 0 6px 6px;background:#f6f1df}
-  .card .nm{font-family:var(--serif);font-weight:700;font-size:10.5px;letter-spacing:.01em;text-transform:uppercase;text-align:center;margin:11px 0 0;line-height:1.12;min-height:23px;display:grid;place-items:center;overflow-wrap:anywhere}
-  .card .art{font-size:30px;text-align:center;line-height:1;margin:2px 0 3px}
-  .card .tx{font-size:10px;line-height:1.25;color:var(--sec);text-align:center;flex:1}
+  .card .cost{position:absolute;top:-.8em;left:-.8em;width:2.14em;height:2.14em;border-radius:50%;display:grid;place-items:center;
+    font:700 1.4em var(--mono);background:#f6f1df;color:#1a1a12;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+  .card .nm{font-family:var(--serif);font-weight:700;font-size:1.05em;letter-spacing:.01em;text-transform:uppercase;text-align:center;margin:1.05em 0 0;line-height:1.12;min-height:2.2em;display:grid;place-items:center;overflow-wrap:anywhere}
+  .card .nm.long{font-size:.92em;letter-spacing:0}
+  .pips{display:flex;gap:.2em;justify-content:center;min-height:1.3em;margin-top:.2em}
+  .pips i{width:1.41em;height:1.53em;border-radius:.45em .45em .7em .7em;display:grid;place-items:center;font:700 .85em var(--mono);font-style:normal;color:#16160f}
+  .pips i.any{background:transparent;color:var(--sec);border:1px solid var(--panel-br)}
+  .card .art{font-size:3em;text-align:center;line-height:1;margin:.07em 0 .1em}
+  .card .tx{font-size:1em;line-height:1.25;color:var(--sec);text-align:center;flex:1;overflow:hidden}
   .card .tx b{color:var(--ink)}
-  .card .ft{display:flex;justify-content:space-between;font:700 13px var(--mono)}
+  .card .ft{display:flex;justify-content:space-between;font:700 1.3em var(--mono)}
   .card .ft .d{color:var(--gold)} .card .ft .n{color:var(--rose)}
-  .card .kind{font:9px var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--muted);text-align:center}
+  .card .kind{font:.9em var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--muted);text-align:center}
   .card.proc{background:linear-gradient(160deg,#1a2030,#10141d)}
   .card.legend{border-color:var(--gold);box-shadow:0 0 0 1px rgba(230,195,92,.35),0 6px 18px rgba(0,0,0,.5)}
-  .card.playable{cursor:pointer;border-color:var(--mint)}
-  .card.playable:hover{transform:translateY(-6px)}
-  .card.sel{transform:translateY(-10px);box-shadow:0 0 0 2px var(--lime),0 10px 22px rgba(0,0,0,.6)}
+  .card.playable{cursor:pointer;border-color:var(--mint);box-shadow:0 0 0 1px var(--mint),0 8px 18px rgba(0,0,0,.5);transform:translateY(-.8em)}
+  .card.playable:hover{transform:translateY(-1.6em)}
+  .card.sel{transform:translateY(-1.6em);box-shadow:0 0 0 2px var(--lime),0 10px 22px rgba(0,0,0,.6)}
   .card.ready{cursor:pointer;box-shadow:0 0 0 2px var(--mint),0 6px 16px rgba(0,0,0,.45)}
-  .card.target{cursor:pointer;box-shadow:0 0 0 2px var(--rose),0 6px 16px rgba(0,0,0,.45)}
-  .card.sleepy{opacity:.72}
+  .card.ready:hover{transform:translateY(-.5em)}
+  .card.target{cursor:pointer;animation:pulseR 1s infinite}
+  .card.sleepy{opacity:.62}
   .card.hit{animation:hit .28s}
   @keyframes hit{0%{transform:translateX(0)}30%{transform:translateX(-5px) rotate(-2deg)}70%{transform:translateX(5px) rotate(2deg)}100%{transform:none}}
-  .tag{position:absolute;top:-7px;right:-6px;font:700 9px var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:2px 6px;border-radius:8px;background:var(--sky);color:#08121e}
-  .tag.numb{background:#b9a7ff;color:#150f2e;top:auto;right:auto;bottom:-8px;left:50%;transform:translateX(-50%)}
-  .tag.ven{background:#fff;color:#222;top:auto;right:auto;bottom:-8px;left:50%;transform:translateX(-50%)}
-  .back{width:44px;height:60px;border-radius:7px;border:1px solid var(--panel-br);background:repeating-linear-gradient(45deg,#1b2a1f 0 6px,#16221a 6px 12px);display:grid;place-items:center;font-size:18px}
-  .oppHand{display:flex;gap:5px}
+  .tag{position:absolute;top:-.78em;right:-.67em;font:700 .9em var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:.2em .65em;border-radius:.9em;background:var(--sky);color:#08121e;white-space:nowrap}
+  .tag.numb{background:#b9a7ff;color:#150f2e;top:auto;right:auto;bottom:-.9em;left:50%;transform:translateX(-50%)}
+  .tag.ven{background:#fff;color:#222;top:auto;right:auto;bottom:-.9em;left:50%;transform:translateX(-50%)}
+  .tag.zz{background:#3b3f36;color:#c9cdbf;top:auto;right:auto;bottom:-.9em;left:50%;transform:translateX(-50%)}
 
-  .over{position:fixed;inset:0;background:rgba(3,6,4,.82);display:none;place-items:center;z-index:9;padding:20px}
+  /* overlays: game over, and the rules */
+  .over{position:fixed;inset:0;background:rgba(3,6,4,.84);display:none;place-items:center;z-index:9;padding:20px}
   .over.on{display:grid}
-  .over .box{max-width:460px;text-align:center;border:1px solid var(--panel-br);border-radius:16px;background:var(--face2);padding:28px 24px}
-  .over h2{font-family:var(--serif);text-transform:uppercase;letter-spacing:.04em;font-size:32px;margin:0 0 8px}
+  .over .box{max-width:520px;text-align:center;border:1px solid var(--panel-br);border-radius:16px;background:var(--face2);padding:26px 24px}
+  .over h2{font-family:var(--serif);text-transform:uppercase;letter-spacing:.04em;font-size:30px;margin:0 0 10px}
   .over p{color:var(--head2);line-height:1.5;margin:0 0 18px}
-  h2.how{font:11.5px var(--mono);letter-spacing:.3em;text-transform:uppercase;color:var(--head2);margin:16px 0 6px;font-weight:400}
-  .rules{margin:0;padding-left:18px;max-width:74ch;color:var(--head2);font-size:14px;line-height:1.5}
-  .rules li{margin:3px 0}
+  .rules{margin:0 0 18px;padding-left:18px;text-align:left;color:var(--head2);font-size:14px;line-height:1.5}
+  .rules li{margin:5px 0}
   .rules b{color:var(--head)}
-  @media (max-width:640px){.card{width:104px;height:152px}.card .art{font-size:28px}.card .tx{font-size:9.5px}.row{gap:7px}}
+
+  /* small or short windows: let the page scroll and the hand slide sideways */
+  @media (max-width:760px),(max-height:600px){
+    body{overflow:auto} html,body{height:auto}
+    .table{height:auto;min-height:100dvh;grid-template-rows:none;--ch:150px}
+    .bar{flex-wrap:wrap;gap:10px}
+    .row{flex-wrap:wrap;padding:6px 0;min-height:calc(var(--ch) + 14px)}
+    .hand{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;padding-top:22px}
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <p class="eye">Shareholder Poker</p>
-  <h1>Open Wide</h1>
-  <h2 class="how">How to play</h2>
-  <ul class="rules">
-    <li>Each turn, pull one tooth and choose its kind: incisor, canine, premolar or molar (8 at most). Every tooth you have pulled is usable again each turn.</li>
-    <li>Teeth pay for cards. A card's cost shows the teeth it insists on, then a number for teeth of any kind. Gold teeth count as any kind.</li>
-    <li>Click a card in your hand to play it. Dentists take a chair; procedures happen once and are gone.</li>
-    <li>A dentist can drill starting the turn after it arrives. Click it, then click an enemy dentist or the other patient.</li>
-    <li><b>Drill</b> is how much it hurts. <b>Nerve</b> is how much a dentist can take before quitting. <b>Front Desk</b> dentists must be dealt with first.</li>
-    <li>Take the other patient from 20 teeth to none.</li>
-  </ul>
-  <div class="hr"></div>
-
-  <div id="oppSide" class="side"></div>
-  <div id="oppBoard" class="row board"></div>
-  <div class="mid">
+<div class="table">
+  <div id="oppSide" class="bar"></div>
+  <div id="oppBoard" class="row"></div>
+  <div id="prompt" class="prompt">
+    <div id="steps" class="steps"></div>
+    <div id="msg" class="msg"></div>
+    <div id="acts" class="acts"></div>
     <div id="log" class="log"></div>
-    <button id="cancel" class="ghost" style="display:none">Cancel</button>
-    <button id="end" class="cta">End turn</button>
   </div>
-  <div id="myBoard" class="row board"></div>
-  <div id="mySide" class="side"></div>
-  <div id="hand" class="row"></div>
-
+  <div id="myBoard" class="row"></div>
+  <div id="mySide" class="bar"></div>
+  <div id="hand" class="row hand"></div>
 </div>
 
 <div id="over" class="over"><div class="box"><h2 id="overH"></h2><p id="overP"></p><button id="again" class="cta">Next patient</button></div></div>
+
+<div id="help" class="over"><div class="box">
+  <h2>How to play</h2>
+  <ul class="rules">
+    <li><b>1. Pull a tooth.</b> Each turn you pull one and choose its kind: incisor, canine, premolar or molar (8 at most). Every tooth you have pulled is usable again each turn.</li>
+    <li><b>2. Play cards.</b> Teeth pay for cards. A card shows the teeth it insists on, then a number for teeth of any kind. Gold teeth count as any kind. Dentists take a chair; procedures happen once and are gone.</li>
+    <li><b>3. Drill.</b> A dentist can drill starting the turn after it arrives. Click it, then pick an enemy dentist or the other patient.</li>
+    <li><b>Drill</b> is how much it hurts. <b>Nerve</b> is how much a dentist can take before quitting. <b>Front Desk</b> dentists must be dealt with first.</li>
+    <li>Take the other patient from 20 teeth to none.</li>
+  </ul>
+  <button id="helpClose" class="ghost">Got it</button>
+</div></div>
 
 <script>
 (function(){
@@ -199,7 +233,7 @@
     for(const p of G.p)for(let k=0;k<3;k++)pull(p);
     pull(G.p[1]);                                    // going second gets a card
     sel=null;busy=false;$('over').classList.remove('on');
-    say('You open first. Pull a tooth, any kind, and get to work.');
+    say('You open first.');
     startTurn();
   }
   function pull(p){ if(p.deck.length){const c=mk(p.deck.pop(),p.i);if(p.hand.length<8)p.hand.push(c);} else {p.fatigue++;hurt(p,p.fatigue,'Nothing left to bill');} }
@@ -280,38 +314,70 @@
   }
 
   // ---------- drawing ----------
-  function cardEl(c,cls){
+  function cardEl(c,cls,note){
     const el=document.createElement('div'); el.className='card '+(c.proc?'proc ':'')+(c.legend?'legend ':'')+(cls||''); el.dataset.id=c.id;
     const need=c.need||{}, any=c.cost-Object.values(need).reduce((a,b)=>a+b,0);
     const pips=PULL.map(k=>`<i style="background:${KINDS[k].c}">${k}</i>`.repeat(need[k]||0)).join('')+(any>0?`<i class="any">${any}</i>`:'');
     el.innerHTML=`<div class="cost">${c.cost}</div><div class="nm${c.name.length>=13?' long':''}">${c.name}</div><div class="pips">${pips}</div><div class="art">${c.art}</div><div class="tx">${c.tx}</div>`+
       (c.proc?'<div class="kind">Procedure</div>':`<div class="ft"><span class="d">⚙ ${c.d}</span><span class="n">${c.n} ♥</span></div>`)+
-      (c.guard&&!c.proc?'<div class="tag">Front Desk</div>':'')+(c.numb?'<div class="tag numb">Numb</div>':'')+(c.veneer&&!c.cracked&&!c.proc?'<div class="tag ven">Veneers</div>':'');
+      (c.guard&&!c.proc?'<div class="tag">Front Desk</div>':'')+(c.numb?'<div class="tag numb">Numb</div>':'')+(c.veneer&&!c.cracked&&!c.proc?'<div class="tag ven">Veneers</div>':(note&&!c.numb?`<div class="tag zz">${note}</div>`:''));
     if(c.hitAt&&Date.now()-c.hitAt<400)el.classList.add('hit');
     return el;
   }
-  function sideEl(p,el,isTarget){
-    el.className='side'+(isTarget?' target':'');
-    el.innerHTML=`<div class="who">${p.name}<small>${p.sub}</small></div>
-      <div><div class="stat">PATIENT <b>${p.teeth}</b> teeth</div><div class="smile">${Array.from({length:MAXTEETH},(_,k)=>`<i class="${k<p.teeth?'':'gone'}"></i>`).join('')}</div></div>
-      <div><div class="stat">TEETH PULLED <b>${p.tray}</b> / ${MAXTRAY}</div><div class="tray">${[...PULL,'G'].map(k=>{const own=k==='G'?(p===G.me()?p.cur.G:0):p.jaw[k], up=p===G.me()?p.cur[k]:own;
-        return Array.from({length:Math.max(own,up)},(_,n)=>`<span class="${n<up?'on':''}" style="background:${KINDS[k].c}" title="${KINDS[k].n}">${k}</span>`).join('');}).join('')||'<em>none yet</em>'}</div></div>
-      ${p.i===0?`<div class="pull">${PULL.map(k=>`<button data-pull="${k}" ${G.turn===0&&!busy&&!G.over&&!p.pulled&&p.tray<MAXTRAY?'':'disabled'} style="--k:${KINDS[k].c}">+ ${KINDS[k].n}</button>`).join('')}</div>`:''}
-      <div class="stat">DECK <b>${p.deck.length}</b></div>${p.i===0&&p.aligner?'<div class="stat" style="color:var(--sky)">INVISALIGN ON</div>':''}`+
-      (p.i===1?`<div class="oppHand">${p.hand.map(()=>'<div class="back">🦷</div>').join('')}</div>`:'');
+  const teethRow=p=>`<div class="tray">${[...PULL,'G'].map(k=>{const own=k==='G'?(p===G.me()?p.cur.G:0):p.jaw[k], up=p===G.me()?p.cur[k]:own;
+      return Array.from({length:Math.max(own,up)},(_,n)=>`<span class="${n<up?'on':''}" style="background:${KINDS[k].c}" title="${KINDS[k].n}">${k}</span>`).join('');}).join('')||'<em>none yet</em>'}</div>`;
+  const smile=p=>`<div class="smile">${Array.from({length:MAXTEETH},(_,k)=>`<i class="${k<p.teeth?'':'gone'}"></i>`).join('')}</div>`;
+  // The top bar: the game's name, the other practice, and the rules button. Clickable as a target when it can be drilled.
+  function oppBar(p,isTarget){
+    const el=$('oppSide'); el.className='bar'+(isTarget?' target':'');
+    el.innerHTML=`<div class="title">Open Wide<small>Shareholder Poker</small></div>
+      <div class="who">${p.name}<small>${isTarget?'click to drill the patient':p.sub}</small></div>
+      <div><div class="stat">PATIENT <b>${p.teeth}</b> teeth</div>${smile(p)}</div>
+      <div><div class="stat">TEETH PULLED <b>${p.tray}</b></div>${teethRow(p)}</div>
+      <div><div class="stat">HAND <b>${p.hand.length}</b></div><div class="oppHand">${p.hand.map(()=>'<div class="back"></div>').join('')}</div></div>
+      <div class="grow"></div><button id="helpOpen" class="icon" title="How to play">?</button>`;
+  }
+  // The bottom bar: your patient, your teeth, and the one button that ends the turn.
+  function myBar(p,mine,nudge){
+    $('mySide').innerHTML=`<div class="who">${p.name}<small>${p.sub}</small></div>
+      <div><div class="stat">PATIENT <b>${p.teeth}</b> teeth</div>${smile(p)}</div>
+      <div><div class="stat">TEETH PULLED <b>${p.tray}</b> / ${MAXTRAY}</div>${teethRow(p)}</div>
+      <div class="stat">DECK <b>${p.deck.length}</b></div>${p.aligner?'<div class="stat" style="color:var(--sky)">INVISALIGN ON</div>':''}
+      <div class="grow"></div><button id="end" class="cta${nudge?' nudge':''}" ${mine?'':'disabled'}>End turn</button>`;
+  }
+  // The prompt says whose turn it is, which step you are on, and offers the buttons for that step.
+  function promptEl(me,mine,canPull,tgt){
+    const steps=$('steps'), msg=$('msg'), acts=$('acts'); $('prompt').className='prompt'+(mine?' mine':'');
+    if(G.over){ steps.innerHTML=''; msg.textContent='Game over.'; acts.innerHTML=''; return false; }
+    if(!mine){ steps.innerHTML='<b class="bot">Dr. Bot\'s turn</b>'; msg.textContent='Dr. Bot is working. Watch what he does.'; acts.innerHTML=''; return false; }
+    const playable=me.hand.some(c=>canPlay(me,c)), drill=me.board.some(ready);
+    const step=canPull?1:(sel?(sel.kind==='attack'?3:2):0);
+    steps.innerHTML='<b>Your turn</b>'+[['Pull a tooth',1],['Play cards',2],['Drill',3]].map(([t,n])=>
+      `<span class="${n===1?(canPull?'on':'done'):(!canPull&&(step===n||(step===0&&(n===2?playable:drill)))?'on':'')}">${n} ${t}</span>`).join('');
+    if(canPull){ msg.innerHTML='Pull a tooth. Pick a kind.';
+      acts.innerHTML=`<div class="pull acts">${PULL.map(k=>`<button data-pull="${k}" style="--k:${KINDS[k].c}"><i>${k}</i>${KINDS[k].n}<small>have ${me.jaw[k]}</small></button>`).join('')}</div>`; return false; }
+    if(sel&&sel.kind==='cast'){ msg.innerHTML=`Pick an enemy dentist for <b>${sel.card.name}</b>.`; acts.innerHTML='<button id="cancel" class="ghost">Cancel</button>'; return false; }
+    if(sel&&sel.kind==='attack'){ msg.innerHTML=`<b>${sel.unit.name}</b> drills what?`+(tgt.face?'':' The Front Desk is in the way.');
+      acts.innerHTML=(tgt.face?`<button id="face" class="face">Drill the patient for ${sel.unit.d}</button>`:'')+'<button id="cancel" class="ghost">Cancel</button>'; return false; }
+    acts.innerHTML='';
+    if(playable&&drill)msg.textContent='Play a card from your hand, or click a dentist to drill.';
+    else if(playable)msg.textContent='Play a card from your hand. The raised ones are the ones you can afford.';
+    else if(drill)msg.textContent='Click one of your dentists to drill.';
+    else { msg.textContent='Nothing left to do. End your turn.'; return true; }
+    return false;
   }
   function render(){
-    const me=G.p[0], bot=G.p[1], mine=G.turn===0&&!busy&&!G.over&&!auto;
+    const me=G.p[0], bot=G.p[1], mine=G.turn===0&&!busy&&!G.over&&!auto, canPull=mine&&!me.pulled&&me.tray<MAXTRAY;
     let tgt={units:[],face:false};
     if(mine&&sel){ if(sel.kind==='attack')tgt=legalTargets(); else tgt={units:targetsFor(sel.card),face:false}; }
-    sideEl(bot,$('oppSide'),tgt.face); sideEl(me,$('mySide'),false);
+    const nudge=promptEl(me,mine,canPull,tgt);
+    oppBar(bot,tgt.face); myBar(me,mine,nudge);
     const ob=$('oppBoard'); ob.innerHTML=''; if(!bot.board.length)ob.innerHTML='<span class="empty">no one in the chair</span>';
     for(const u of bot.board)ob.appendChild(cardEl(u,tgt.units.includes(u)?'target':(u.asleep?'sleepy':'')));
     const mb=$('myBoard'); mb.innerHTML=''; if(!me.board.length)mb.innerHTML='<span class="empty">your chairs are empty</span>';
-    for(const u of me.board)mb.appendChild(cardEl(u,(sel&&sel.kind==='attack'&&sel.unit===u?'sel ':'')+(mine&&ready(u)?'ready':(u.asleep||u.attacked?'sleepy':''))));
+    for(const u of me.board)mb.appendChild(cardEl(u,(sel&&sel.kind==='attack'&&sel.unit===u?'sel ':'')+(mine&&!canPull&&ready(u)?'ready':(u.asleep||u.attacked?'sleepy':'')),mine&&!ready(u)&&u.d>0?(u.attacked?'done':'next turn'):''));
     const h=$('hand'); h.innerHTML='';
     for(const c of me.hand)h.appendChild(cardEl(c,(sel&&sel.card===c?'sel ':'')+(mine&&canPlay(me,c)?'playable':'')));
-    $('end').disabled=!mine; $('cancel').style.display=sel?'':'none';
   }
 
   // ---------- your hands ----------
@@ -320,8 +386,8 @@
     const me=G.p[0], bot=G.p[1], cardNode=e.target.closest('.card'), id=cardNode&&+cardNode.dataset.id;
     if(e.target.closest('#cancel')){sel=null;return render();}
     const pb=e.target.closest('[data-pull]'); if(pb){ if(pullTooth(me,pb.dataset.pull))say(`You pull a <b>${KINDS[pb.dataset.pull].n.toLowerCase()}</b>.`); return render(); }
-    if(e.target.closest('#end')){ if(!me.pulled&&me.tray<MAXTRAY){say('Pull a tooth first. Pick a kind.');return;} return endTurn(); }
-    if(sel&&e.target.closest('#oppSide')&&sel.kind==='attack'&&legalTargets().face){attack(sel.unit,'face');sel=null;return render();}
+    if(e.target.closest('#end')){ if(!me.pulled&&me.tray<MAXTRAY){say('Pull a tooth first.');return;} return endTurn(); }
+    if(sel&&sel.kind==='attack'&&legalTargets().face&&(e.target.closest('#face')||(e.target.closest('#oppSide')&&!e.target.closest('#helpOpen')))){attack(sel.unit,'face');sel=null;return render();}
     if(!cardNode)return;
     const inHand=me.hand.find(c=>c.id===id), myUnit=me.board.find(c=>c.id===id), foeUnit=bot.board.find(c=>c.id===id);
     if(foeUnit&&sel){
@@ -330,14 +396,19 @@
       if(sel.kind==='attack'){say('The <b>Front Desk</b> is in the way.');return;}
     }
     if(inHand&&canPlay(me,inHand)){
-      if(inHand.target&&targetsFor(inHand).length){sel={kind:'cast',card:inHand};say(`Pick a dentist for <b>${inHand.name}</b>.`);return render();}
+      if(inHand.target&&targetsFor(inHand).length){sel={kind:'cast',card:inHand};return render();}
       play(me,inHand,null);sel=null;return render();
     }
     if(inHand){say(!canPay(me,inHand)?(me.pulled||me.tray>=MAXTRAY?'Not enough teeth of the right kind.':'Pull a tooth first.'):me.board.length>=MAXBOARD&&!inHand.proc?'Every chair is taken.':'Nobody to use that on.');return;}
-    if(myUnit&&ready(myUnit)){sel={kind:'attack',unit:myUnit};say(`<b>${myUnit.name}</b> is ready. Pick a dentist, or the other patient.`);return render();}
+    if(myUnit&&ready(myUnit)&&(me.pulled||me.tray>=MAXTRAY)){sel=(sel&&sel.unit===myUnit)?null:{kind:'attack',unit:myUnit};return render();}
+    if(myUnit&&ready(myUnit)){say('Pull a tooth first.');return;}
     if(myUnit){say(myUnit.attacked?'Already drilled this turn.':'Still scrubbing in. Next turn.');}
   });
   $('again').addEventListener('click',newGame);
+  // The rules open on a first visit and stay out of the way after. Storage can be blocked; the game works without it.
+  const help=on=>$('help').classList.toggle('on',on);
+  document.addEventListener('click',e=>{ if(e.target.closest('#helpOpen'))help(true); else if(e.target.closest('#helpClose')||e.target===$('help')){ help(false); try{localStorage.setItem('openwide_seen','1');}catch(_){} } });
+  try{ if(!localStorage.getItem('openwide_seen'))help(true); }catch(_){ help(true); }
   window.__openwide={state:()=>G,auto:(on)=>{auto=on;},newGame};
   newGame();
 })();
