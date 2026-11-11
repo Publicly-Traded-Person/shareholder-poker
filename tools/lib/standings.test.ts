@@ -159,11 +159,11 @@ describe("deriveStandings", () => {
     const anne = s.rows.find((r) => r.slug === "a")!;
     expect([anne.bestFinish, anne.bestField]).toEqual([1, 14]);
   });
-  test("the live table, October 2026: money, then cashes, then best share, then name", () => {
+  test("the live table, November 2026: money, then cashes, then best share, then name", () => {
     const live = JSON.parse(readFileSync(new URL("../../site/data/games.json", import.meta.url), "utf8")) as GamesData;
     const s = deriveStandings(live);
     expect(s.rows.slice(0, 7).map((r) => r.slug)).toEqual([
-      "chris-g", "j", "josh-b", "matt-w", "thomas-d", "nick-m", "amy-m",
+      "josh-b", "chris-g", "j", "amy-m", "matt-w", "thomas-d", "jordan-d",
     ]);
     // Neither has cashed: Drew A. (6/14) edges Alex B. (5/11) on best share.
     const order = s.rows.map((r) => r.slug);

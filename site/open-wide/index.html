@@ -7,9 +7,7 @@
                It lives outside site/games/ on purpose: the test suite treats every folder under
                site/games/<date>/ as a published game and requires its index.html, and this page went up
                before the 2026-11-10 recap existed.
-  STATUS       Unlinked while Mike tests it: no page on the site points here, and the robots tag below keeps
-               it out of search. To put it in the recap, link to /open-wide/ from the game's index.html and
-               remove the robots tag.
+  STATUS       Linked from the 2026-11-10 game page (site/games/2026-11-10/index.html). Nothing else points here.
   NOT GENERATED  tools/render.ts does not write or touch this file. Edit it by hand.
   HOW TO CHECK   Open it in a browser. In the console, window.__openwide.auto(true) then
                window.__openwide.newGame() makes the bot play both sides, which is how it was tested.
@@ -20,7 +18,6 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Open Wide · a card game about dentists</title>
