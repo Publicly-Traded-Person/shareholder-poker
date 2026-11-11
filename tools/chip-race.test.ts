@@ -83,6 +83,34 @@ describe("buildChipRaceFragment, two tables", () => {
     expect(frag).toContain(">4:30pm<");
     expect(frag).not.toContain("4:00pm");
   });
+  // Readability pass, 2026-11-11 (a twelve-player chart was too dense to read).
+  test("labels the height axis with a gridline at the starting stack and each doubling", () => {
+    expect(frag).toContain('class="ygrid"');
+    expect(frag).toMatch(/class="ygrid">.*>1k</);
+    expect(frag).toContain("each gridline is double the one below it");
+  });
+  test("uses a square-root height scale: the starting stack sits well above its linear position", () => {
+    // Plot height is 320 (H 400, PAD 40) with zero at y=360. On a linear scale the 1k gridline would sit
+    // at 360 - 320 * (1000 / peak); square root puts it higher (a smaller y), and never above the top.
+    const gy = Number((frag.match(/class="ygrid"><line x1="40" y1="([\d.]+)"/) || [])[1]);
+    const peakY = Math.min(...[...frag.matchAll(/points="([^"]*)"/g)].flatMap(m => m[1].split(" ").map(q => Number(q.split(",")[1]))));
+    expect(peakY).toBeCloseTo(40, 0);
+    expect(gy).toBeLessThan(360);
+    expect(gy).toBeGreaterThan(40);
+  });
+  test("once someone has busted, names the top three finishers on the plot and quiets the field", () => {
+    expect((frag.match(/class="who"/g) || []).length).toBe(3);
+    expect((frag.match(/<polyline class="lead"/g) || []).length).toBe(3);
+    expect((frag.match(/<polyline class="field"/g) || []).length).toBe(3);
+    expect(frag).toContain("The legend runs in finishing order");
+  });
+  test("orders line and legend by finish: the first bust is last, and key and line share an index", () => {
+    // ivy busts on the non-final table (see the test above), so nobody finished behind her.
+    const keys = [...frag.matchAll(/class="key" data-i="(\d+)" tabindex="0">.*?<\/span>([^<]+)<\/span>/g)].map(m => [m[2], m[1]]);
+    expect(keys.length).toBe(6);
+    expect(keys[keys.length - 1][0]).toBe("ivy");
+    for (const [name, i] of keys) expect(frag).toMatch(new RegExp(`data-i="${i}"[^>]*><title>${name}</title>`));
+  });
 });
 
 describe("buildChipRaceFragment, more players than palette colors", () => {
@@ -131,6 +159,12 @@ describe("site/styles.css styles the chart's axis, merge marker, and dashed swat
     [".chip-race .merge text", "font-size"],
     [".chip-race .region", "font-size"],
     [".chip-race .swatch--dashed", "mask-image"],
+    [".chip-race .ygrid line", "stroke"],
+    [".chip-race .ygrid text", "font-size"],
+    [".chip-race .ygrid text", "fill"],
+    [".chip-race .who", "fill"],
+    [".chip-race polyline.field", "opacity"],
+    [".chip-race .scale-note", "font-size"],
   ])("%s declares %s", (selector, prop) => {
     const body = rule(selector);
     expect(body).not.toBeNull();

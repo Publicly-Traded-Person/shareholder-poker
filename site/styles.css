@@ -519,10 +519,84 @@ nav.band-dark a[aria-current="page"] { color: var(--sapphire); border-bottom: 2p
    read as the whole chart darkening for no reason (Mike, 2026-08-26).
    Browsers without :has simply get the line pop without the dim. Hover-
    capable devices only; a hover state is not motion, no reduced-motion gate. */
+/* Readability pass (Mike, 2026-11-11: a twelve-player chart was "VERY dense
+   and hard to read"). The scale and gridlines come from tools/chip-race.ts;
+   these rules give them their ink. Size and colour live here only, same rule
+   as the axis text above.
+   - .ygrid: the labelled horizontal gridlines of the square-root scale.
+   - .lead / .field: the top three finishers are drawn at full strength, the
+     rest of the field thinner and quieter, so the night's story reads first.
+   - .who: a podium finisher's name, printed at their own peak.
+   - .scale-note: the sentence that says the scale is compressed. */
+.chip-race .ygrid line { stroke: rgba(236, 234, 226, .09); }
+.chip-race .ygrid text, .chip-race .who {
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 10px; fill: var(--pewter);
+}
+.chip-race .who { font-size: 11px; font-weight: 700; fill: #eceae2; paint-order: stroke; stroke: #1c1f26; stroke-width: 3px; }
+.chip-race polyline.lead { stroke-width: 3; }
+.chip-race polyline.field { stroke-width: 1.6; opacity: .55; }
+.chip-race .scale-note { margin: .6em 0 0; font-size: .8em; color: var(--pewter); }
+.chip-race .key { cursor: default; border-radius: 4px; padding: 0 .2em; }
+.chip-race .key:focus { outline: 1px solid var(--pewter); outline-offset: 2px; }
 @media (hover: hover) {
   .chip-race svg:has(polyline:hover) polyline { opacity: .35; }
   .chip-race svg polyline:hover { opacity: 1; stroke-width: 4; }
 }
+/* Legend-driven highlight: hovering or focusing a name in the legend lifts
+   that player's line and fades the others. One pair of rules per line index
+   (data-i on the key and on the polyline), because CSS cannot match two
+   attributes against each other; 24 covers any table this club will seat.
+   Works by tap as well as hover, since the keys are focusable. Browsers
+   without :has just keep the chart as drawn. */
+.chip-race:has(.key[data-i="0"]:is(:hover, :focus)) polyline:not([data-i="0"]) { opacity: .1; }
+.chip-race:has(.key[data-i="0"]:is(:hover, :focus)) polyline[data-i="0"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="1"]:is(:hover, :focus)) polyline:not([data-i="1"]) { opacity: .1; }
+.chip-race:has(.key[data-i="1"]:is(:hover, :focus)) polyline[data-i="1"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="2"]:is(:hover, :focus)) polyline:not([data-i="2"]) { opacity: .1; }
+.chip-race:has(.key[data-i="2"]:is(:hover, :focus)) polyline[data-i="2"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="3"]:is(:hover, :focus)) polyline:not([data-i="3"]) { opacity: .1; }
+.chip-race:has(.key[data-i="3"]:is(:hover, :focus)) polyline[data-i="3"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="4"]:is(:hover, :focus)) polyline:not([data-i="4"]) { opacity: .1; }
+.chip-race:has(.key[data-i="4"]:is(:hover, :focus)) polyline[data-i="4"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="5"]:is(:hover, :focus)) polyline:not([data-i="5"]) { opacity: .1; }
+.chip-race:has(.key[data-i="5"]:is(:hover, :focus)) polyline[data-i="5"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="6"]:is(:hover, :focus)) polyline:not([data-i="6"]) { opacity: .1; }
+.chip-race:has(.key[data-i="6"]:is(:hover, :focus)) polyline[data-i="6"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="7"]:is(:hover, :focus)) polyline:not([data-i="7"]) { opacity: .1; }
+.chip-race:has(.key[data-i="7"]:is(:hover, :focus)) polyline[data-i="7"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="8"]:is(:hover, :focus)) polyline:not([data-i="8"]) { opacity: .1; }
+.chip-race:has(.key[data-i="8"]:is(:hover, :focus)) polyline[data-i="8"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="9"]:is(:hover, :focus)) polyline:not([data-i="9"]) { opacity: .1; }
+.chip-race:has(.key[data-i="9"]:is(:hover, :focus)) polyline[data-i="9"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="10"]:is(:hover, :focus)) polyline:not([data-i="10"]) { opacity: .1; }
+.chip-race:has(.key[data-i="10"]:is(:hover, :focus)) polyline[data-i="10"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="11"]:is(:hover, :focus)) polyline:not([data-i="11"]) { opacity: .1; }
+.chip-race:has(.key[data-i="11"]:is(:hover, :focus)) polyline[data-i="11"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="12"]:is(:hover, :focus)) polyline:not([data-i="12"]) { opacity: .1; }
+.chip-race:has(.key[data-i="12"]:is(:hover, :focus)) polyline[data-i="12"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="13"]:is(:hover, :focus)) polyline:not([data-i="13"]) { opacity: .1; }
+.chip-race:has(.key[data-i="13"]:is(:hover, :focus)) polyline[data-i="13"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="14"]:is(:hover, :focus)) polyline:not([data-i="14"]) { opacity: .1; }
+.chip-race:has(.key[data-i="14"]:is(:hover, :focus)) polyline[data-i="14"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="15"]:is(:hover, :focus)) polyline:not([data-i="15"]) { opacity: .1; }
+.chip-race:has(.key[data-i="15"]:is(:hover, :focus)) polyline[data-i="15"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="16"]:is(:hover, :focus)) polyline:not([data-i="16"]) { opacity: .1; }
+.chip-race:has(.key[data-i="16"]:is(:hover, :focus)) polyline[data-i="16"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="17"]:is(:hover, :focus)) polyline:not([data-i="17"]) { opacity: .1; }
+.chip-race:has(.key[data-i="17"]:is(:hover, :focus)) polyline[data-i="17"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="18"]:is(:hover, :focus)) polyline:not([data-i="18"]) { opacity: .1; }
+.chip-race:has(.key[data-i="18"]:is(:hover, :focus)) polyline[data-i="18"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="19"]:is(:hover, :focus)) polyline:not([data-i="19"]) { opacity: .1; }
+.chip-race:has(.key[data-i="19"]:is(:hover, :focus)) polyline[data-i="19"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="20"]:is(:hover, :focus)) polyline:not([data-i="20"]) { opacity: .1; }
+.chip-race:has(.key[data-i="20"]:is(:hover, :focus)) polyline[data-i="20"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="21"]:is(:hover, :focus)) polyline:not([data-i="21"]) { opacity: .1; }
+.chip-race:has(.key[data-i="21"]:is(:hover, :focus)) polyline[data-i="21"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="22"]:is(:hover, :focus)) polyline:not([data-i="22"]) { opacity: .1; }
+.chip-race:has(.key[data-i="22"]:is(:hover, :focus)) polyline[data-i="22"] { opacity: 1; stroke-width: 4; }
+.chip-race:has(.key[data-i="23"]:is(:hover, :focus)) polyline:not([data-i="23"]) { opacity: .1; }
+.chip-race:has(.key[data-i="23"]:is(:hover, :focus)) polyline[data-i="23"] { opacity: 1; stroke-width: 4; }
 
 /* Skull marks (Mike, 2026-08-26: skulls should look like skulls). Drawn in
    the house style, never emoji (renders identically everywhere); filled =

@@ -56,6 +56,24 @@ function countWord(n: number): string {
 // the largest stack seen in the log, so nothing is ever inherited from a
 // previous month. A bust ends its line at zero at the moment the player
 // left; a rebuy shows as a jump back up, as before.
+//
+// Readability (2026-11-11, after a twelve-player game whose winner peaked at
+// 81,000 chips squeezed the first 85 minutes into the bottom eighth of the
+// plot, with no numbers on the axis and twelve equally bold lines):
+//  - The y axis is a SQUARE-ROOT scale, so small stacks get room: the
+//    starting stack sits about a quarter of the way up whatever the peak is.
+//    Zero is still the baseline and the peak is still the top.
+//  - Labelled gridlines at the starting stack and each doubling of it
+//    (5k, 10k, 20k, ...) say what a height means. A note under the plot
+//    says the scale tightens toward the top, because a compressed axis
+//    with no warning would be a chart that lies.
+//  - Players are ordered by FINISH (winner first), which decides colour,
+//    dash and legend order: the champion always gets the first house colour.
+//    With no bust on record yet, the order is the seat order, as before.
+//  - Once anyone has busted, the top three finishers are drawn as "lead"
+//    lines and named at their own peak; everyone else is a thinner, quieter
+//    "field" line. Hovering or focusing a legend key lifts that one line
+//    (site/styles.css does it from the data-i index on key and line).
 export function buildChipRaceFragment(csvs: string[], opts: { date: string; startingStack: number }): string {
   const { rows, tables, merges } = mergeLogs(csvs);
   const snaps = stackSnapshots(rows);
@@ -64,16 +82,28 @@ export function buildChipRaceFragment(csvs: string[], opts: { date: string; star
   const entries = entryCount(final, opts.startingStack);
   const exits = busts(rows);
 
-  const players = [...new Set(snaps.flatMap(s => Object.keys(s.stacks)))];
-  const maxChips = Math.max(...snaps.flatMap(s => Object.values(s.stacks)));
   const ms = (iso: string) => Date.parse(iso);
+  const seated = [...new Set(snaps.flatMap(s => Object.keys(s.stacks)))];
+  // Finish order: still in at the end first, then the latest bust, then the
+  // one before it. A bust only counts as final if the player never shows up
+  // in a later snapshot (otherwise they rebought). Ties keep seat order, so
+  // a log with no busts draws exactly as it always has.
+  const outAt = (p: string): number => {
+    const lastSeen = Math.max(...snaps.filter(s => p in s.stacks).map(s => ms(s.at)));
+    const lastBust = Math.max(-Infinity, ...exits.filter(b => b.player === p).map(b => ms(b.at)));
+    return lastBust >= lastSeen ? lastBust : Infinity;
+  };
+  const players = seated.map((p, i) => ({ p, i, out: outAt(p) })).sort((a, b) => (b.out === a.out ? a.i - b.i : b.out > a.out ? 1 : -1)).map(o => o.p);
+  const finished = exits.length > 0;                     // podium treatment only once someone has busted
+  const maxChips = Math.max(...snaps.flatMap(s => Object.values(s.stacks)));
   const t0 = ms(snaps[0].at);
   const tEnd = Math.max(ms(snaps[snaps.length - 1].at), ...exits.map(b => ms(b.at)));
   const span = Math.max(tEnd - t0, 1);
   const x = (t: number) => PAD + ((t - t0) / span) * (W - 2 * PAD);
-  const y = (chips: number) => H - PAD - (chips / maxChips) * (H - 2 * PAD);
+  const y = (chips: number) => H - PAD - Math.sqrt(Math.max(chips, 0) / maxChips) * (H - 2 * PAD);   // square-root scale, see above
   const pt = (t: number, chips: number) => `${x(t).toFixed(1)},${y(chips).toFixed(1)}`;
 
+  const whoLabels: string[] = [];
   const lines = players.map((p, i) => {
     const points = [
       ...snaps.filter(s => p in s.stacks).map(s => ({ t: ms(s.at), chips: s.stacks[p] })),
@@ -81,8 +111,25 @@ export function buildChipRaceFragment(csvs: string[], opts: { date: string; star
     ].sort((a, b) => a.t - b.t);
     const pts = points.map(q => pt(q.t, q.chips)).join(" ");
     const dash = i >= PALETTE.length ? ` stroke-dasharray="${DASH}"` : "";
-    return `  <polyline fill="none" stroke="${PALETTE[i % PALETTE.length]}" stroke-width="2.5"${dash} points="${pts}"><title>${p}</title></polyline>`;
+    const lead = finished && i < 3;
+    if (lead) {
+      // Name the podium on the plot, at each one's own peak, on whichever side has room.
+      const peak = points.reduce((a, b) => (b.chips > a.chips ? b : a));
+      const px = x(peak.t), left = px > W * 0.72;
+      whoLabels.push(`  <text class="who" x="${(left ? px - 6 : px + 6).toFixed(1)}" y="${(y(peak.chips) - 5).toFixed(1)}" text-anchor="${left ? "end" : "start"}">${p}</text>`);
+    }
+    const cls = finished ? (lead ? "lead" : "field") : "lead";
+    return `  <polyline class="${cls}" data-i="${i}" fill="none" stroke="${PALETTE[i % PALETTE.length]}" stroke-width="2.5"${dash} points="${pts}"><title>${p}</title></polyline>`;
   }).join("\n");
+
+  // Gridlines at the starting stack and each doubling of it, labelled in
+  // thousands. They are what makes a compressed scale honest to read.
+  const grid: string[] = [];
+  const kLabel = (v: number) => (v >= 1000 ? `${+(v / 1000).toFixed(1)}k` : String(v));
+  for (let v = opts.startingStack; v <= maxChips; v *= 2) {
+    const gy = y(v).toFixed(1);
+    grid.push(`  <g class="ygrid"><line x1="${PAD}" y1="${gy}" x2="${W - PAD}" y2="${gy}"/><text x="${PAD - 5}" y="${(y(v) + 3.5).toFixed(1)}" text-anchor="end">${kLabel(v)}</text></g>`);
+  }
 
   // Ticks on the half hour of Pacific wall-clock time. Pacific time is a
   // whole number of hours from UTC, so half-hour boundaries coincide and the
@@ -121,7 +168,7 @@ export function buildChipRaceFragment(csvs: string[], opts: { date: string; star
 
   const legend = players.map((p, i) => {
     const cls = i >= PALETTE.length ? "swatch swatch--dashed" : "swatch";
-    return `<span class="key"><span class="${cls}" style="background:${PALETTE[i % PALETTE.length]}"></span>${p}</span>`;
+    return `<span class="key" data-i="${i}" tabindex="0"><span class="${cls}" style="background:${PALETTE[i % PALETTE.length]}"></span>${p}</span>`;
   }).join("\n    ");
 
   const across = tables > 1 ? ` across ${countWord(tables)} tables` : "";
@@ -131,9 +178,10 @@ export function buildChipRaceFragment(csvs: string[], opts: { date: string; star
   <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Chip counts per player over ${hands} hands${across}">
     <line x1="${PAD}" y1="${H - PAD}" x2="${W - PAD}" y2="${H - PAD}" stroke="#8a8d91"/>
     <line x1="${PAD}" y1="${PAD}" x2="${PAD}" y2="${H - PAD}" stroke="#8a8d91"/>
-${[...ticks, ...markers, lines].join("\n")}
+${[...grid, ...ticks, ...markers, lines, ...whoLabels].join("\n")}
   </svg>
   </div>
+  <p class="scale-note">The height scale tightens toward the top so the early stacks stay readable: each gridline is double the one below it.${finished ? " The legend runs in finishing order; point at a name to pick out that line." : ""}</p>
   <figcaption class="chip-legend">
     ${legend}
   </figcaption>

@@ -86,6 +86,15 @@ or stash the dirty path, then run `bun test tools` again.
    moved between tables to balance them just continues. Past seven players
    the lines reuse the seven house colors with a dashed stroke, and the
    legend swatch carries the same dash.
+   The height axis is a square-root scale with labelled gridlines at the
+   starting stack and each doubling of it, so a runaway chip leader does not
+   flatten everyone else against the floor (November 2026: twelve players and
+   an 81,000 peak made the linear chart unreadable). Players are ordered by
+   finish: the champion takes the first house color, the top three are drawn
+   bold and named at their peaks, the rest of the field is thinner, and the
+   legend runs in finishing order. Pointing at or tabbing to a legend name
+   picks out that one line. A game page injected before 2026-11-11 keeps its
+   old chart until it is re-injected from its logs.
    The tool halts if the markers are missing (copy the newest game page to
    get them) and overwrites everything between them, so never hand-edit
    inside the marker pair.
