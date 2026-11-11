@@ -1053,7 +1053,18 @@
           "payout": 425,
           "rebuys": 0,
           "trophies": [],
-          "slug": "josh-b"
+          "slug": "josh-b",
+          "card": {
+            "metal": "foil",
+            "file": "card-1-joshb.png",
+            "title": "Champion",
+            "art": [
+              36,
+              210,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "amaxwell",
@@ -1061,7 +1072,18 @@
           "payout": 255,
           "rebuys": 0,
           "trophies": [],
-          "slug": "amy-m"
+          "slug": "amy-m",
+          "card": {
+            "metal": "sapphire",
+            "file": "card-2-amaxwell.png",
+            "title": "Runner-up",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "JojiBerry",
@@ -1069,7 +1091,18 @@
           "payout": 170,
           "rebuys": 0,
           "trophies": [],
-          "slug": "jordan-d"
+          "slug": "jordan-d",
+          "card": {
+            "metal": "sapphire",
+            "file": "card-3-jojiberry.png",
+            "title": "3rd",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "exis0008",
@@ -1077,7 +1110,18 @@
           "payout": 0,
           "rebuys": 1,
           "trophies": [],
-          "slug": "tatiana-p"
+          "slug": "tatiana-p",
+          "card": {
+            "metal": "pewter",
+            "file": "card-4-exis0008.png",
+            "title": "4th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "wolffpac23",
@@ -1087,7 +1131,18 @@
           "trophies": [
             "hope-slayer"
           ],
-          "slug": "evan-w"
+          "slug": "evan-w",
+          "card": {
+            "metal": "pewter",
+            "file": "card-5-wolffpac23.png",
+            "title": "5th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "MawTTM",
@@ -1097,7 +1152,18 @@
           "trophies": [
             "cain-and-abel"
           ],
-          "slug": "matt-w"
+          "slug": "matt-w",
+          "card": {
+            "metal": "pewter",
+            "file": "card-6-mawttm.png",
+            "title": "6th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "nickmershon",
@@ -1105,7 +1171,18 @@
           "payout": 0,
           "rebuys": 0,
           "trophies": [],
-          "slug": "nick-m"
+          "slug": "nick-m",
+          "card": {
+            "metal": "sapphire",
+            "file": "card-7-nickmershon.png",
+            "title": "7th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "kmikeym",
@@ -1113,7 +1190,18 @@
           "payout": 0,
           "rebuys": 1,
           "trophies": [],
-          "slug": "kmikeym"
+          "slug": "kmikeym",
+          "card": {
+            "metal": "copper",
+            "file": "card-8-kmikeym.png",
+            "title": "The Founder",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "jfe",
@@ -1123,7 +1211,18 @@
           "trophies": [
             "two-seven-showdown"
           ],
-          "slug": "j"
+          "slug": "j",
+          "card": {
+            "metal": "pewter",
+            "file": "card-9-jfe.png",
+            "title": "9th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "LEWD",
@@ -1131,7 +1230,18 @@
           "payout": 0,
           "rebuys": 0,
           "trophies": [],
-          "slug": "chris-g"
+          "slug": "chris-g",
+          "card": {
+            "metal": "pewter",
+            "file": "card-10-lewd.png",
+            "title": "10th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "bg",
@@ -1139,7 +1249,18 @@
           "payout": 0,
           "rebuys": 0,
           "trophies": [],
-          "slug": "beau-g"
+          "slug": "beau-g",
+          "card": {
+            "metal": "pewter",
+            "file": "card-11-bg.png",
+            "title": "11th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         },
         {
           "handle": "webvee",
@@ -1147,9 +1268,22 @@
           "payout": 0,
           "rebuys": 0,
           "trophies": [],
-          "slug": "webvee"
+          "slug": "webvee",
+          "card": {
+            "metal": "pewter",
+            "file": "card-12-webvee.png",
+            "title": "12th",
+            "art": [
+              36,
+              205,
+              604,
+              232
+            ]
+          }
         }
-      ]
+      ],
+      "cardSet": "2026-11",
+      "cardSetName": "Bangkok"
     }
   ]
 }
