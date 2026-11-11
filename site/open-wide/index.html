@@ -1,0 +1,349 @@
+<!doctype html>
+<!--
+  Open Wide: a small card game that came out of table talk at the 2026-11-10 game.
+  WHAT IT IS   One self-contained page: styles, card list, rules and the bot opponent are all in this file.
+               No build step, no data files, no network calls. It reads and writes nothing.
+  WHERE SERVED poker.kmikeym.com/open-wide/
+               It lives outside site/games/ on purpose: the test suite treats every folder under
+               site/games/<date>/ as a published game and requires its index.html, and this page went up
+               before the 2026-11-10 recap existed.
+  STATUS       Unlinked while Mike tests it: no page on the site points here, and the robots tag below keeps
+               it out of search. To put it in the recap, link to /open-wide/ from the game's index.html and
+               remove the robots tag.
+  NOT GENERATED  tools/render.ts does not write or touch this file. Edit it by hand.
+  HOW TO CHECK   Open it in a browser. In the console, window.__openwide.auto(true) then
+               window.__openwide.newGame() makes the bot play both sides, which is how it was tested.
+  COPY RULES   Same as the rest of site/: no em dashes, players by first name only where named at all.
+               Only Mike is named. The table's lines are quoted without attribution on purpose.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Open Wide · a card game about dentists</title>
+<style>
+  :root{
+    --table:#0a0f0b; --table2:#0f1610; --edge:#050805;
+    --head:#f3efe4; --head2:#b9bcae; --eye:#e6c35c; --rule:rgba(230,195,92,.28);
+    --face:#12130e; --face2:#191a12; --panel:rgba(245,240,225,.045); --panel-br:rgba(245,240,225,.12);
+    --ink:#f2efe4; --sec:#c3bfae; --muted:#87836f;
+    --gold:#e6c35c; --mint:#7fe0b0; --rose:#ef7d7d; --sky:#7fb6ee; --lime:#c6f432;
+    --serif:Iowan Old Style,"Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+    --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,monospace;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;color:var(--head);font-family:var(--sans);-webkit-font-smoothing:antialiased;
+    background:radial-gradient(120% 90% at 50% 0%,var(--table2) 0%,var(--table) 55%,var(--edge) 100%)}
+  .wrap{max-width:1080px;margin:0 auto;padding:clamp(16px,3vw,34px) 16px 48px}
+  .eye{font-family:var(--mono);font-size:11.5px;letter-spacing:.34em;text-transform:uppercase;color:var(--eye);margin:0 0 10px}
+  h1{font-family:var(--serif);font-weight:700;letter-spacing:.02em;text-transform:uppercase;font-size:clamp(30px,6vw,56px);line-height:.98;margin:0;text-wrap:balance}
+  .lede{max-width:62ch;margin:12px 0 0;font-size:15px;line-height:1.55;color:var(--head2)}
+  .lede b{color:var(--head)}
+  .hr{height:1px;background:linear-gradient(90deg,var(--rule),transparent);margin:20px 0 16px}
+
+  .side{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:8px 12px;border:1px solid var(--panel-br);border-radius:12px;background:var(--panel)}
+  .side .who{font-family:var(--serif);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:15px;min-width:118px}
+  .side .who small{display:block;font:11px/1.3 var(--mono);letter-spacing:.14em;color:var(--muted)}
+  .side.target{outline:2px solid var(--rose);outline-offset:2px;cursor:pointer}
+  .smile{display:flex;flex-wrap:wrap;gap:2px;max-width:236px}
+  .smile i{width:9px;height:13px;border-radius:3px 3px 5px 5px;background:#f6f1df;box-shadow:inset 0 -3px 0 rgba(0,0,0,.14)}
+  .smile i.gone{background:transparent;box-shadow:inset 0 0 0 1px rgba(245,240,225,.16)}
+  .stat{font:12px/1.3 var(--mono);letter-spacing:.08em;color:var(--sec)}
+  .stat b{font-size:17px;color:var(--head)}
+  .tray{display:flex;gap:3px;align-items:center}
+  .tray{flex-wrap:wrap;max-width:230px;min-height:22px}.tray em{font:11px var(--mono);color:var(--muted);font-style:normal}
+  .tray span{width:15px;height:20px;border-radius:5px 5px 8px 8px;display:inline-grid;place-items:center;font:700 10px var(--mono);color:#16160f;transition:transform .18s,opacity .18s;transform:rotate(90deg);opacity:.35}
+  .tray span.on{opacity:1;transform:none}
+  .pull{display:flex;gap:6px;flex-wrap:wrap}
+  .pull button{font:700 11px var(--mono);letter-spacing:.04em;padding:7px 9px;border-radius:8px;border:1px solid var(--k);background:transparent;color:var(--k);cursor:pointer}
+  .pull button:not(:disabled){box-shadow:0 0 0 1px var(--k) inset}
+  .pull button:disabled{opacity:.28;cursor:default}
+  .card .nm.long{font-size:9.2px;letter-spacing:0}
+  .pips{display:flex;gap:2px;justify-content:center;min-height:13px;margin-top:2px}
+  .pips i{width:12px;height:13px;border-radius:4px 4px 6px 6px;display:grid;place-items:center;font:700 8.5px var(--mono);font-style:normal;color:#16160f}
+  .pips i.any{background:transparent;color:var(--sec);border:1px solid var(--panel-br);width:13px}
+
+  .row{display:flex;gap:10px;justify-content:center;align-items:center;min-height:176px;padding:10px 0;flex-wrap:wrap}
+  .row.board{min-height:170px;border-radius:14px}
+  .empty{font:12px var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+  .mid{display:flex;align-items:center;gap:14px;justify-content:space-between;margin:2px 0;flex-wrap:wrap}
+  .log{flex:1;min-width:220px;font:13px/1.45 var(--mono);color:var(--sec);min-height:38px}
+  .log b{color:var(--gold)}
+  button.cta{font:700 14px var(--sans);letter-spacing:.06em;text-transform:uppercase;padding:11px 18px;border-radius:10px;border:0;background:var(--lime);color:#11160a;cursor:pointer}
+  button.cta:disabled{background:#3a3f33;color:#8a8f80;cursor:default}
+  button.ghost{font:600 12px var(--sans);letter-spacing:.06em;text-transform:uppercase;padding:9px 13px;border-radius:10px;border:1px solid var(--panel-br);background:transparent;color:var(--head);cursor:pointer}
+
+  .card{position:relative;width:124px;height:168px;border-radius:11px;padding:8px 8px 7px;display:flex;flex-direction:column;
+    background:linear-gradient(160deg,var(--face2),var(--face));border:1px solid var(--panel-br);color:var(--ink);
+    box-shadow:0 6px 16px rgba(0,0,0,.45);transition:transform .12s,box-shadow .12s,opacity .2s;user-select:none}
+  .card .cost{position:absolute;top:-8px;left:-8px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;
+    font:700 14px var(--mono);background:#f6f1df;color:#1a1a12;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+  .card .cost::after{content:"";position:absolute;inset:auto 6px -4px 6px;height:6px;border-radius:0 0 6px 6px;background:#f6f1df}
+  .card .nm{font-family:var(--serif);font-weight:700;font-size:10.5px;letter-spacing:.01em;text-transform:uppercase;text-align:center;margin:11px 0 0;line-height:1.12;min-height:23px;display:grid;place-items:center;overflow-wrap:anywhere}
+  .card .art{font-size:30px;text-align:center;line-height:1;margin:2px 0 3px}
+  .card .tx{font-size:10px;line-height:1.25;color:var(--sec);text-align:center;flex:1}
+  .card .tx b{color:var(--ink)}
+  .card .ft{display:flex;justify-content:space-between;font:700 13px var(--mono)}
+  .card .ft .d{color:var(--gold)} .card .ft .n{color:var(--rose)}
+  .card .kind{font:9px var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--muted);text-align:center}
+  .card.proc{background:linear-gradient(160deg,#1a2030,#10141d)}
+  .card.legend{border-color:var(--gold);box-shadow:0 0 0 1px rgba(230,195,92,.35),0 6px 18px rgba(0,0,0,.5)}
+  .card.playable{cursor:pointer;border-color:var(--mint)}
+  .card.playable:hover{transform:translateY(-6px)}
+  .card.sel{transform:translateY(-10px);box-shadow:0 0 0 2px var(--lime),0 10px 22px rgba(0,0,0,.6)}
+  .card.ready{cursor:pointer;box-shadow:0 0 0 2px var(--mint),0 6px 16px rgba(0,0,0,.45)}
+  .card.target{cursor:pointer;box-shadow:0 0 0 2px var(--rose),0 6px 16px rgba(0,0,0,.45)}
+  .card.sleepy{opacity:.72}
+  .card.hit{animation:hit .28s}
+  @keyframes hit{0%{transform:translateX(0)}30%{transform:translateX(-5px) rotate(-2deg)}70%{transform:translateX(5px) rotate(2deg)}100%{transform:none}}
+  .tag{position:absolute;top:-7px;right:-6px;font:700 9px var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:2px 6px;border-radius:8px;background:var(--sky);color:#08121e}
+  .tag.numb{background:#b9a7ff;color:#150f2e;top:auto;right:auto;bottom:-8px;left:50%;transform:translateX(-50%)}
+  .tag.ven{background:#fff;color:#222;top:auto;right:auto;bottom:-8px;left:50%;transform:translateX(-50%)}
+  .back{width:44px;height:60px;border-radius:7px;border:1px solid var(--panel-br);background:repeating-linear-gradient(45deg,#1b2a1f 0 6px,#16221a 6px 12px);display:grid;place-items:center;font-size:18px}
+  .oppHand{display:flex;gap:5px}
+
+  .over{position:fixed;inset:0;background:rgba(3,6,4,.82);display:none;place-items:center;z-index:9;padding:20px}
+  .over.on{display:grid}
+  .over .box{max-width:460px;text-align:center;border:1px solid var(--panel-br);border-radius:16px;background:var(--face2);padding:28px 24px}
+  .over h2{font-family:var(--serif);text-transform:uppercase;letter-spacing:.04em;font-size:32px;margin:0 0 8px}
+  .over p{color:var(--head2);line-height:1.5;margin:0 0 18px}
+  details{margin-top:22px;border-top:1px solid var(--panel-br);padding-top:14px;color:var(--head2);font-size:14px;line-height:1.55}
+  summary{cursor:pointer;color:var(--head);font-weight:600}
+  details li{margin:4px 0}
+  @media (max-width:640px){.card{width:104px;height:152px}.card .art{font-size:28px}.card .tx{font-size:9.5px}.row{gap:7px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eye">Shareholder Poker · table talk, November 10</p>
+  <h1>Open Wide</h1>
+  <p class="lede">Someone at the table turned out to know <b>every kind of dentist you could possibly need</b>: orthodontists, endodontists, periodontists, prosthodontists. "This is like dinosaur names." "You gotta collect them all." Then Mike: "I tap four molars... This game kind of works." So here it is. Teeth are the currency, and they come in kinds: incisors, canines, premolars, molars. Different dentists want different teeth. Dentists do the work. The first practice whose patient runs out of teeth closes for good.</p>
+  <div class="hr"></div>
+
+  <div id="oppSide" class="side"></div>
+  <div id="oppBoard" class="row board"></div>
+  <div class="mid">
+    <div id="log" class="log"></div>
+    <button id="cancel" class="ghost" style="display:none">Cancel</button>
+    <button id="end" class="cta">End turn</button>
+  </div>
+  <div id="myBoard" class="row board"></div>
+  <div id="mySide" class="side"></div>
+  <div id="hand" class="row"></div>
+
+  <details>
+    <summary>How to play</summary>
+    <ul>
+      <li>Each turn you pull one tooth and choose its kind: incisor, canine, premolar or molar (8 at most). Every tooth you have pulled is usable again each turn.</li>
+      <li>A card's cost shows the teeth it insists on, then a number for teeth of any kind. The Antidontist wants four molars and nothing else.</li>
+      <li>Gold teeth count as any kind.</li>
+      <li>Click a card in your hand to play it. Dentists take a chair; procedures happen once and are gone.</li>
+      <li>A dentist can drill starting the turn after it arrives. Click it, then click an enemy dentist or the other patient.</li>
+      <li><b>Drill</b> is how much it hurts. <b>Nerve</b> is how much a dentist can take before quitting.</li>
+      <li><b>Front Desk</b> dentists must be dealt with before anyone gets past them.</li>
+      <li>Take the other patient from 20 teeth to none.</li>
+    </ul>
+  </details>
+</div>
+
+<div id="over" class="over"><div class="box"><h2 id="overH"></h2><p id="overP"></p><button id="again" class="cta">Next patient</button></div></div>
+
+<script>
+(function(){
+  // ---------- cards ----------
+  const C = {
+    hygienist:{name:'Hygienist',cost:1,need:{I:1},d:1,n:2,art:'🪥',tx:'<b>Cleaning.</b> Your patient regrows 1 tooth.',play:g=>heal(g.me(),1)},
+    emergency:{name:'Emergency Dentist',cost:1,need:{C:1},d:2,n:1,art:'🚑',tx:'<b>Walk-in.</b> Can drill the turn it arrives. They would definitely have room.',rush:true},
+    reception:{name:'Receptionist',cost:2,need:{P:1},d:1,n:4,art:'📋',tx:'<b>Front Desk.</b> "Do you have an appointment?"',guard:true},
+    inhome:{name:'In-Home Dentist',cost:2,need:{P:1},d:2,n:2,art:'🏠',tx:'<b>House Call.</b> Draw a card. Brings a portable X-ray.',play:g=>draw(g.me(),1)},
+    ortho:{name:'Orthodontist',cost:3,need:{I:1},d:1,n:4,art:'🦕',tx:'<b>Braces.</b> Gains 1 drill at the start of each of your turns. Sounds like a dinosaur.',grow:true},
+    perio:{name:'Periodontist',cost:3,need:{P:1},d:2,n:4,art:'🩸',tx:'<b>Deep Clean.</b> Your patient regrows 2 teeth.',play:g=>heal(g.me(),2)},
+    endo:{name:'Endodontist',cost:4,need:{M:2},d:3,n:3,art:'🦷',tx:'<b>Root Canal.</b> The other patient loses 2 teeth.',play:g=>hurt(g.them(),2,'Root canal')},
+    anti:{name:'The Antidontist',cost:4,need:{M:4},d:4,n:3,art:'🙅',tx:'<b>Four molars.</b> Opposes dentistry. Remove an enemy dentist with 3 drill or less.',legend:true,target:(g,u)=>u.d<=3,onTarget:(g,u)=>kill(u,'undone')},
+    prostho:{name:'Prosthodontist',cost:5,need:{M:2},d:3,n:5,art:'🫦',tx:'<b>Dentures.</b> Also seats a 2/2 Set of Dentures at the Front Desk.',play:g=>seat(g.me(),'dentures')},
+    cosmetic:{name:'Cosmetic Dentist',cost:5,need:{I:2},d:5,n:2,art:'✨',tx:'<b>Veneers.</b> Shrugs off the first hit. One cap has Mike\'s picture on it.',veneer:true},
+    fairy:{name:'The Tooth Fairy',cost:6,need:{I:1,C:1,P:1,M:1},d:4,n:6,art:'🧚',tx:'<b>One of each.</b> Whenever any dentist quits, you find a gold tooth under the pillow.',legend:true,fairy:true},
+    dentures:{name:'Set of Dentures',cost:0,d:2,n:2,art:'🦷',tx:'<b>Front Desk.</b> Soaking overnight.',guard:true,token:true},
+    floss:{name:'Floss',cost:2,need:{P:1},proc:true,art:'🧵',tx:'Draw 2 cards. You said you do this daily.',play:g=>draw(g.me(),2)},
+    playlist:{name:'Dentist\'s Playlist',cost:1,need:{C:1},proc:true,art:'🎵',tx:'Numb an enemy dentist. It cannot drill on its next turn. Your mouth is open. You cannot object.',target:()=>true,onTarget:(g,u)=>{u.numb=true;say(`<b>${u.name}</b> has to sit through the whole album.`)}},
+    gold:{name:'Gold Tooth',cost:0,proc:true,art:'🥇',tx:'Gain 2 gold teeth this turn. Gold counts as any tooth. All gold.',play:g=>{g.me().cur.G+=2}},
+    invis:{name:'Invisalign',cost:2,need:{I:1},proc:true,art:'🫥',tx:'<b>Blocked.</b> The next dentist to drill your patient is stopped cold and numbed. Little did they know.',play:g=>{g.me().aligner=true}},
+    candy:{name:'Candy Bowl',cost:2,need:{C:1},proc:true,art:'🍬',tx:'The other patient loses 3 teeth. Left on the counter, on purpose.',play:g=>hurt(g.them(),3,'Candy')},
+    fluoride:{name:'Fluoride Rinse',cost:3,need:{I:1},proc:true,art:'🧴',tx:'All your dentists gain 1 drill and 1 nerve. Do not swallow.',play:g=>g.me().board.forEach(u=>{u.d++;u.n++})},
+    denied:{name:'Insurance Denied',cost:4,need:{C:2},proc:true,art:'🚫',tx:'Remove any enemy dentist. Out of network.',target:()=>true,onTarget:(g,u)=>kill(u,'out of network')}
+  };
+  const DECK = ['hygienist','hygienist','emergency','emergency','reception','reception','inhome','inhome','ortho','ortho','perio','endo','endo','anti','prostho','cosmetic','fairy','floss','playlist','candy','fluoride','denied','gold','invis'];
+  const MAXTEETH=20, MAXTRAY=8, MAXBOARD=5;
+  const KINDS={I:{n:'Incisor',c:'#f6f1df'},C:{n:'Canine',c:'#e6c35c'},P:{n:'Premolar',c:'#7fe0b0'},M:{n:'Molar',c:'#7fb6ee'},G:{n:'Gold',c:'#ffcf3a'}}, PULL=['I','C','P','M'];
+  // Paying: named teeth first (gold fills any gap), then the rest of the cost from whatever is most plentiful.
+  function plan(p,c,extraGold){
+    const have=Object.assign({},p.cur); have.G=(have.G||0)+(extraGold||0); const need=c.need||{}, use={I:0,C:0,P:0,M:0,G:0};
+    for(const k of PULL){ let n=need[k]||0; const t=Math.min(n,have[k]); have[k]-=t; use[k]+=t; n-=t; if(n>have.G)return null; have.G-=n; use.G+=n; }
+    let rest=c.cost-Object.values(need).reduce((a,b)=>a+b,0);
+    while(rest>0){ const k=PULL.slice().sort((a,b)=>have[b]-have[a])[0]; if(have[k]>0){have[k]--;use[k]++;} else if(have.G>0){have.G--;use.G++;} else return null; rest--; }
+    return use;
+  }
+  const canPay=(p,c,extraGold)=>!!plan(p,c,extraGold);
+  function pullTooth(p,k){ if(p.pulled||p.tray>=MAXTRAY)return false; p.jaw[k]++; p.cur[k]++; p.tray++; p.pulled=true; return true; }
+
+  // ---------- state ----------
+  let G, uid=0, busy=false, sel=null, auto=false;
+  const $=id=>document.getElementById(id);
+  const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+  const mk=(key,owner)=>Object.assign({},C[key],{key,id:++uid,owner,asleep:true});
+  function newGame(){
+    const P=(name,sub,i)=>({i,name,sub,teeth:MAXTEETH,tray:0,gold:0,jaw:{I:0,C:0,P:0,M:0},cur:{I:0,C:0,P:0,M:0,G:0},pulled:false,deck:shuffle(DECK.slice()),hand:[],board:[],fatigue:0});
+    G={p:[P('Your practice','You',0),P('Dr. Bot, DDS','The competition',1)],turn:0,over:false,
+      me(){return this.p[this.turn]},them(){return this.p[1-this.turn]}};
+    for(const p of G.p)for(let k=0;k<3;k++)pull(p);
+    pull(G.p[1]);                                    // going second gets a card
+    sel=null;busy=false;$('over').classList.remove('on');
+    say('You open first. Pull a tooth, any kind, and get to work.');
+    startTurn();
+  }
+  function pull(p){ if(p.deck.length){const c=mk(p.deck.pop(),p.i);if(p.hand.length<8)p.hand.push(c);} else {p.fatigue++;hurt(p,p.fatigue,'Nothing left to bill');} }
+  function draw(p,n){for(let k=0;k<n;k++)pull(p);}
+  function say(html){$('log').innerHTML=html;}
+  function heal(p,n){p.teeth=Math.min(MAXTEETH,p.teeth+n);}
+  function hurt(p,n,why){p.teeth=Math.max(0,p.teeth-n);if(p.teeth===0)finish(1-p.i);}
+  function seat(p,key){if(p.board.length<MAXBOARD){const u=mk(key,p.i);p.board.push(u);return u;}}
+  function kill(u,why){const p=G.p[u.owner];const k=p.board.indexOf(u);if(k<0)return;p.board.splice(k,1);
+    for(const q of G.p)if(q.board.some(x=>x.fairy)){if(q===G.me())q.cur.G++;else q.gold++;}   // spend it now, or find it next turn
+    say(`<b>${u.name}</b> quits${why?' ('+why+')':''}.`);}
+  function damage(u,n){ if(n<=0)return; if(u.veneer&&!u.cracked){u.cracked=true;say(`<b>${u.name}</b>'s veneers take the hit.`);return;} u.n-=n; u.hitAt=Date.now(); if(u.n<=0)kill(u); }
+  function finish(winner){ if(G.over)return; G.over=true; const won=winner===0;
+    $('overH').textContent=won?'Practice makes perfect':'Closed for good';
+    $('overP').textContent=won?'The other patient is out of teeth. Dr. Bot is reviewing his malpractice coverage.':'Your patient has no teeth left. They have left a one-star review, as best they could.';
+    const g=G; setTimeout(()=>{ if(G===g)$('over').classList.add('on'); },auto?0:500); }
+
+  // ---------- turn flow ----------
+  function startTurn(){
+    const p=G.me(); if(G.over)return;
+    p.cur=Object.assign({},p.jaw,{G:p.gold||0}); p.gold=0; p.pulled=false;      // every pulled tooth is usable again
+    for(const u of p.board){ if(u.grow)u.d++; u.asleep=!!u.numb; u.numb=false; u.attacked=false; }
+    pull(p); render();
+    if(G.turn===1||auto){ const g=G; setTimeout(()=>{ if(G===g)botTurn(); }, auto?0:650); }
+  }
+  function endTurn(){ if(G.over)return; sel=null; G.turn=1-G.turn; startTurn(); }
+  const guards=p=>p.board.filter(u=>u.guard);
+  const canPlay=(p,c)=>!G.over&&canPay(p,c)&&(c.proc||p.board.length<MAXBOARD)&&(!c.proc||!c.target||targetsFor(c).length>0);
+  const targetsFor=c=>G.them().board.filter(u=>c.target(G,u));
+  function play(p,c,target){
+    const use=plan(p,c); for(const k in use)p.cur[k]-=use[k]; p.hand.splice(p.hand.indexOf(c),1);
+    say(`${p.i===0?'You play':'Dr. Bot plays'} <b>${c.name}</b>.`);
+    if(!c.proc){ c.asleep=!c.rush; p.board.push(c); }
+    if(c.play)c.play(G);
+    if(c.onTarget&&target)c.onTarget(G,target);
+  }
+  function attack(a,t){            // t = unit or 'face'
+    a.attacked=true; const foe=G.them();
+    if(t==='face'){
+      if(foe.aligner){ foe.aligner=false; a.numb=true; say(`<b>Blocked.</b> Little did ${foe.i===0?'Dr. Bot':'you'} know: Invisalign. <b>${a.name}</b> goes numb.`); }
+      else { hurt(foe,a.d,a.name); say(`<b>${a.name}</b> drills the patient for ${a.d}.`); } }
+    else { const back=t.d; say(`<b>${a.name}</b> drills <b>${t.name}</b>.`); damage(t,a.d); damage(a,back); }
+  }
+  const ready=u=>!u.asleep&&!u.attacked&&u.d>0;
+  function legalTargets(){ const foe=G.them(), g=guards(foe); return g.length?{units:g,face:false}:{units:foe.board.slice(),face:true}; }
+
+  // ---------- the competition ----------
+  const wait=ms=>new Promise(r=>setTimeout(r,auto?0:ms));
+  async function botTurn(){
+    if(G.over)return; busy=true; const game=G, p=G.me(), foe=G.them();   // a turn left over from a finished game must not touch the next one
+    let guard=0;
+    { // pull the kind of tooth the hand is shortest of, cheapest cards first
+      const want={I:0,C:0,P:0,M:0}; for(const c of p.hand)for(const k of PULL)want[k]+=Math.max(0,((c.need||{})[k]||0)-p.jaw[k])/(c.cost||1);
+      const k=PULL.slice().sort((a,b)=>want[b]-want[a]||Math.random()-.5)[0]; if(pullTooth(p,k)){ say(`Dr. Bot pulls a <b>${KINDS[k].n.toLowerCase()}</b>.`); render(); await wait(450); if(G!==game)return; } }
+    const gold=p.hand.find(c=>c.key==='gold');            // only worth it when it buys something this turn
+    if(gold&&p.hand.some(c=>c!==gold&&!canPay(p,c)&&canPay(p,c,2)&&(c.proc||p.board.length<MAXBOARD))){ await wait(500); if(G!==game)return; play(p,gold,null); render(); }
+    while(!G.over&&guard++<12){
+      const opts=p.hand.filter(c=>canPlay(p,c)).filter(c=>{
+        if(c.key==='gold')return false; if(c.key==='invis')return !p.aligner&&(p.teeth<=14||foe.board.length>=2);
+        if(c.key==='fluoride')return p.board.length>=2; if(c.key==='floss')return p.hand.length<=5;
+        if(c.key==='hygienist'||c.key==='perio')return true; return true; });
+      if(!opts.length)break;
+      const c=opts.sort((a,b)=>b.cost-a.cost)[0];
+      let t=null; if(c.target){ t=targetsFor(c).sort((a,b)=>(b.d+b.n)-(a.d+a.n))[0]; }
+      await wait(650); if(G!==game)return; play(p,c,t); render();
+    }
+    for(const a of p.board.slice()){
+      if(G.over)break; if(!p.board.includes(a)||!ready(a))continue;
+      const L=legalTargets(); let t;
+      const reach=p.board.filter(ready).reduce((s,u)=>s+u.d,0);
+      if(L.face&&reach>=foe.teeth)t='face';
+      else { const kills=L.units.filter(u=>u.d<a.n&&a.d>=u.n&&!(u.veneer&&!u.cracked)).sort((x,y)=>y.d-x.d)[0];
+        const threat=L.units.filter(u=>a.d>=u.n&&u.d>=3).sort((x,y)=>y.d-x.d)[0];
+        t=kills||(!L.face?L.units.sort((x,y)=>x.n-y.n)[0]:(threat&&Math.random()<.6?threat:'face')); }
+      await wait(600); if(G!==game)return; attack(a,t); render();
+    }
+    await wait(500); if(G!==game)return; busy=false; if(!G.over)endTurn();
+  }
+
+  // ---------- drawing ----------
+  function cardEl(c,cls){
+    const el=document.createElement('div'); el.className='card '+(c.proc?'proc ':'')+(c.legend?'legend ':'')+(cls||''); el.dataset.id=c.id;
+    const need=c.need||{}, any=c.cost-Object.values(need).reduce((a,b)=>a+b,0);
+    const pips=PULL.map(k=>`<i style="background:${KINDS[k].c}">${k}</i>`.repeat(need[k]||0)).join('')+(any>0?`<i class="any">${any}</i>`:'');
+    el.innerHTML=`<div class="cost">${c.cost}</div><div class="nm${c.name.length>=13?' long':''}">${c.name}</div><div class="pips">${pips}</div><div class="art">${c.art}</div><div class="tx">${c.tx}</div>`+
+      (c.proc?'<div class="kind">Procedure</div>':`<div class="ft"><span class="d">⚙ ${c.d}</span><span class="n">${c.n} ♥</span></div>`)+
+      (c.guard&&!c.proc?'<div class="tag">Front Desk</div>':'')+(c.numb?'<div class="tag numb">Numb</div>':'')+(c.veneer&&!c.cracked&&!c.proc?'<div class="tag ven">Veneers</div>':'');
+    if(c.hitAt&&Date.now()-c.hitAt<400)el.classList.add('hit');
+    return el;
+  }
+  function sideEl(p,el,isTarget){
+    el.className='side'+(isTarget?' target':'');
+    el.innerHTML=`<div class="who">${p.name}<small>${p.sub}</small></div>
+      <div><div class="stat">PATIENT <b>${p.teeth}</b> teeth</div><div class="smile">${Array.from({length:MAXTEETH},(_,k)=>`<i class="${k<p.teeth?'':'gone'}"></i>`).join('')}</div></div>
+      <div><div class="stat">TEETH PULLED <b>${p.tray}</b> / ${MAXTRAY}</div><div class="tray">${[...PULL,'G'].map(k=>{const own=k==='G'?(p===G.me()?p.cur.G:0):p.jaw[k], up=p===G.me()?p.cur[k]:own;
+        return Array.from({length:Math.max(own,up)},(_,n)=>`<span class="${n<up?'on':''}" style="background:${KINDS[k].c}" title="${KINDS[k].n}">${k}</span>`).join('');}).join('')||'<em>none yet</em>'}</div></div>
+      ${p.i===0?`<div class="pull">${PULL.map(k=>`<button data-pull="${k}" ${G.turn===0&&!busy&&!G.over&&!p.pulled&&p.tray<MAXTRAY?'':'disabled'} style="--k:${KINDS[k].c}">+ ${KINDS[k].n}</button>`).join('')}</div>`:''}
+      <div class="stat">DECK <b>${p.deck.length}</b></div>${p.i===0&&p.aligner?'<div class="stat" style="color:var(--sky)">INVISALIGN ON</div>':''}`+
+      (p.i===1?`<div class="oppHand">${p.hand.map(()=>'<div class="back">🦷</div>').join('')}</div>`:'');
+  }
+  function render(){
+    const me=G.p[0], bot=G.p[1], mine=G.turn===0&&!busy&&!G.over&&!auto;
+    let tgt={units:[],face:false};
+    if(mine&&sel){ if(sel.kind==='attack')tgt=legalTargets(); else tgt={units:targetsFor(sel.card),face:false}; }
+    sideEl(bot,$('oppSide'),tgt.face); sideEl(me,$('mySide'),false);
+    const ob=$('oppBoard'); ob.innerHTML=''; if(!bot.board.length)ob.innerHTML='<span class="empty">no one in the chair</span>';
+    for(const u of bot.board)ob.appendChild(cardEl(u,tgt.units.includes(u)?'target':(u.asleep?'sleepy':'')));
+    const mb=$('myBoard'); mb.innerHTML=''; if(!me.board.length)mb.innerHTML='<span class="empty">your chairs are empty</span>';
+    for(const u of me.board)mb.appendChild(cardEl(u,(sel&&sel.kind==='attack'&&sel.unit===u?'sel ':'')+(mine&&ready(u)?'ready':(u.asleep||u.attacked?'sleepy':''))));
+    const h=$('hand'); h.innerHTML='';
+    for(const c of me.hand)h.appendChild(cardEl(c,(sel&&sel.card===c?'sel ':'')+(mine&&canPlay(me,c)?'playable':'')));
+    $('end').disabled=!mine; $('cancel').style.display=sel?'':'none';
+  }
+
+  // ---------- your hands ----------
+  document.addEventListener('click',e=>{
+    if(G.over||busy||G.turn!==0||auto)return;
+    const me=G.p[0], bot=G.p[1], cardNode=e.target.closest('.card'), id=cardNode&&+cardNode.dataset.id;
+    if(e.target.closest('#cancel')){sel=null;return render();}
+    const pb=e.target.closest('[data-pull]'); if(pb){ if(pullTooth(me,pb.dataset.pull))say(`You pull a <b>${KINDS[pb.dataset.pull].n.toLowerCase()}</b>.`); return render(); }
+    if(e.target.closest('#end')){ if(!me.pulled&&me.tray<MAXTRAY){say('Pull a tooth first. Pick a kind.');return;} return endTurn(); }
+    if(sel&&e.target.closest('#oppSide')&&sel.kind==='attack'&&legalTargets().face){attack(sel.unit,'face');sel=null;return render();}
+    if(!cardNode)return;
+    const inHand=me.hand.find(c=>c.id===id), myUnit=me.board.find(c=>c.id===id), foeUnit=bot.board.find(c=>c.id===id);
+    if(foeUnit&&sel){
+      if(sel.kind==='attack'&&legalTargets().units.includes(foeUnit)){attack(sel.unit,foeUnit);sel=null;return render();}
+      if(sel.kind==='cast'&&targetsFor(sel.card).includes(foeUnit)){play(me,sel.card,foeUnit);sel=null;return render();}
+      if(sel.kind==='attack'){say('The <b>Front Desk</b> is in the way.');return;}
+    }
+    if(inHand&&canPlay(me,inHand)){
+      if(inHand.target&&targetsFor(inHand).length){sel={kind:'cast',card:inHand};say(`Pick a dentist for <b>${inHand.name}</b>.`);return render();}
+      play(me,inHand,null);sel=null;return render();
+    }
+    if(inHand){say(!canPay(me,inHand)?(me.pulled||me.tray>=MAXTRAY?'Not enough teeth of the right kind.':'Pull a tooth first.'):me.board.length>=MAXBOARD&&!inHand.proc?'Every chair is taken.':'Nobody to use that on.');return;}
+    if(myUnit&&ready(myUnit)){sel={kind:'attack',unit:myUnit};say(`<b>${myUnit.name}</b> is ready. Pick a dentist, or the other patient.`);return render();}
+    if(myUnit){say(myUnit.attacked?'Already drilled this turn.':'Still scrubbing in. Next turn.');}
+  });
+  $('again').addEventListener('click',newGame);
+  window.__openwide={state:()=>G,auto:(on)=>{auto=on;},newGame};
+  newGame();
+})();
+</script>
+</body>
+</html>
