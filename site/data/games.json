@@ -1,6 +1,6 @@
 {
   "nextGame": {
-    "date": "2026-11-10",
+    "date": "2026-12-08",
     "time": "7:00pm PT"
   },
   "portraitUploads": true,
@@ -244,6 +244,13 @@
       "aka": [
         "JojiBerry",
         "jordan"
+      ]
+    },
+    {
+      "slug": "evan-w",
+      "name": "Evan W.",
+      "aka": [
+        "wolffpac23"
       ]
     }
   ],
@@ -1031,6 +1038,118 @@
       ],
       "cardSet": "2026-10",
       "cardSetName": "The Rebuy"
+    },
+    {
+      "date": "2026-11-10",
+      "hands": 236,
+      "startingStack": 5000,
+      "buyIn": 50,
+      "entries": 17,
+      "pot": 850,
+      "results": [
+        {
+          "handle": "joshb",
+          "finish": 1,
+          "payout": 425,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "josh-b"
+        },
+        {
+          "handle": "amaxwell",
+          "finish": 2,
+          "payout": 255,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "amy-m"
+        },
+        {
+          "handle": "JojiBerry",
+          "finish": 3,
+          "payout": 170,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "jordan-d"
+        },
+        {
+          "handle": "exis0008",
+          "finish": 4,
+          "payout": 0,
+          "rebuys": 1,
+          "trophies": [],
+          "slug": "tatiana-p"
+        },
+        {
+          "handle": "wolffpac23",
+          "finish": 5,
+          "payout": 0,
+          "rebuys": 1,
+          "trophies": [
+            "hope-slayer"
+          ],
+          "slug": "evan-w"
+        },
+        {
+          "handle": "MawTTM",
+          "finish": 6,
+          "payout": 0,
+          "rebuys": 1,
+          "trophies": [
+            "cain-and-abel"
+          ],
+          "slug": "matt-w"
+        },
+        {
+          "handle": "nickmershon",
+          "finish": 7,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "nick-m"
+        },
+        {
+          "handle": "kmikeym",
+          "finish": 8,
+          "payout": 0,
+          "rebuys": 1,
+          "trophies": [],
+          "slug": "kmikeym"
+        },
+        {
+          "handle": "jfe",
+          "finish": 9,
+          "payout": 0,
+          "rebuys": 1,
+          "trophies": [
+            "two-seven-showdown"
+          ],
+          "slug": "j"
+        },
+        {
+          "handle": "LEWD",
+          "finish": 10,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "chris-g"
+        },
+        {
+          "handle": "bg",
+          "finish": 11,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "beau-g"
+        },
+        {
+          "handle": "webvee",
+          "finish": 12,
+          "payout": 0,
+          "rebuys": 0,
+          "trophies": [],
+          "slug": "webvee"
+        }
+      ]
     }
   ]
 }
