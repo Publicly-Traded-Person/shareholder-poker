@@ -14,7 +14,8 @@
   HOW TO CHECK   Open it in a browser. In the console, window.__openwide.auto(true) then
                window.__openwide.newGame() makes the bot play both sides, which is how it was tested.
   COPY RULES   Same as the rest of site/: no em dashes, players by first name only where named at all.
-               Only Mike is named. The table's lines are quoted without attribution on purpose.
+               The page explains how to play and nothing else: no account of where the idea came from.
+               One card's text names Mike; no other player is named.
 -->
 <html lang="en">
 <head>
@@ -111,17 +112,26 @@
   .over .box{max-width:460px;text-align:center;border:1px solid var(--panel-br);border-radius:16px;background:var(--face2);padding:28px 24px}
   .over h2{font-family:var(--serif);text-transform:uppercase;letter-spacing:.04em;font-size:32px;margin:0 0 8px}
   .over p{color:var(--head2);line-height:1.5;margin:0 0 18px}
-  details{margin-top:22px;border-top:1px solid var(--panel-br);padding-top:14px;color:var(--head2);font-size:14px;line-height:1.55}
-  summary{cursor:pointer;color:var(--head);font-weight:600}
-  details li{margin:4px 0}
+  h2.how{font:11.5px var(--mono);letter-spacing:.3em;text-transform:uppercase;color:var(--head2);margin:16px 0 6px;font-weight:400}
+  .rules{margin:0;padding-left:18px;max-width:74ch;color:var(--head2);font-size:14px;line-height:1.5}
+  .rules li{margin:3px 0}
+  .rules b{color:var(--head)}
   @media (max-width:640px){.card{width:104px;height:152px}.card .art{font-size:28px}.card .tx{font-size:9.5px}.row{gap:7px}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <p class="eye">Shareholder Poker · table talk, November 10</p>
+  <p class="eye">Shareholder Poker</p>
   <h1>Open Wide</h1>
-  <p class="lede">Someone at the table turned out to know <b>every kind of dentist you could possibly need</b>: orthodontists, endodontists, periodontists, prosthodontists. "This is like dinosaur names." "You gotta collect them all." Then Mike: "I tap four molars... This game kind of works." So here it is. Teeth are the currency, and they come in kinds: incisors, canines, premolars, molars. Different dentists want different teeth. Dentists do the work. The first practice whose patient runs out of teeth closes for good.</p>
+  <h2 class="how">How to play</h2>
+  <ul class="rules">
+    <li>Each turn, pull one tooth and choose its kind: incisor, canine, premolar or molar (8 at most). Every tooth you have pulled is usable again each turn.</li>
+    <li>Teeth pay for cards. A card's cost shows the teeth it insists on, then a number for teeth of any kind. Gold teeth count as any kind.</li>
+    <li>Click a card in your hand to play it. Dentists take a chair; procedures happen once and are gone.</li>
+    <li>A dentist can drill starting the turn after it arrives. Click it, then click an enemy dentist or the other patient.</li>
+    <li><b>Drill</b> is how much it hurts. <b>Nerve</b> is how much a dentist can take before quitting. <b>Front Desk</b> dentists must be dealt with first.</li>
+    <li>Take the other patient from 20 teeth to none.</li>
+  </ul>
   <div class="hr"></div>
 
   <div id="oppSide" class="side"></div>
@@ -135,19 +145,6 @@
   <div id="mySide" class="side"></div>
   <div id="hand" class="row"></div>
 
-  <details>
-    <summary>How to play</summary>
-    <ul>
-      <li>Each turn you pull one tooth and choose its kind: incisor, canine, premolar or molar (8 at most). Every tooth you have pulled is usable again each turn.</li>
-      <li>A card's cost shows the teeth it insists on, then a number for teeth of any kind. The Antidontist wants four molars and nothing else.</li>
-      <li>Gold teeth count as any kind.</li>
-      <li>Click a card in your hand to play it. Dentists take a chair; procedures happen once and are gone.</li>
-      <li>A dentist can drill starting the turn after it arrives. Click it, then click an enemy dentist or the other patient.</li>
-      <li><b>Drill</b> is how much it hurts. <b>Nerve</b> is how much a dentist can take before quitting.</li>
-      <li><b>Front Desk</b> dentists must be dealt with before anyone gets past them.</li>
-      <li>Take the other patient from 20 teeth to none.</li>
-    </ul>
-  </details>
 </div>
 
 <div id="over" class="over"><div class="box"><h2 id="overH"></h2><p id="overP"></p><button id="again" class="cta">Next patient</button></div></div>
